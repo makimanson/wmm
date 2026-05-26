@@ -75,3 +75,6 @@ Los archivos fuente se encuentran en la carpeta `locale/` del proyecto.
 La interfaz se mostrará automáticamente en tu idioma si las traducciones están disponibles.
 Si quieres ayudarnos a traducir WMM a tu idioma, ¡serás más que bienvenido!
 
+## Licencia
+
+WMM se distribuye bajo la licencia [GPL-3.0](LICENSE).
