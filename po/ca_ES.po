@@ -1,0 +1,463 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-25 05:07+0200\n"
+"PO-Revision-Date: 2026-05-26 04:23+0200\n"
+"Last-Translator: \n"
+"Language-Team: \n"
+"Language: ca_ES\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4.2\n"
+
+#: python/add_bookmark.py:70
+msgid "Add Favorite Preset"
+msgstr "Afegeix un preset preferit"
+
+#: python/add_bookmark.py:117
+msgid "Error loading data. Please restart panel"
+msgstr "S'ha produït un error en carregar les dades. Reinicieu el tauler"
+
+#: python/add_bookmark.py:132
+msgid "Preset name:"
+msgstr "Nom del preset:"
+
+#: python/add_bookmark.py:173
+msgid "Name cannot be empty"
+msgstr "El nom no pot estar buit"
+
+#: python/add_bookmark.py:197 python/panel.py:669
+msgid "A Preset with that name already exists!"
+msgstr "Ja existeix un preset amb aquest nom!"
+
+#: python/add_bookmark.py:199
+msgid "Error saving"
+msgstr "S'ha produït un error en desar"
+
+#: python/config_handler.py:1394
+msgid "New"
+msgstr "Noves"
+
+#: python/config_handler.py:1401
+msgid "Removed"
+msgstr "Eliminades"
+
+#: python/config_handler.py:1407
+msgid "Total library"
+msgstr "Total Llibreria"
+
+#: python/config_handler.py:1433
+msgid "Action"
+msgstr "Acció"
+
+#: python/main.py:246
+msgid "Favorite deleted"
+msgstr "Preferit eliminat"
+
+#: python/main.py:247 python/main.py:326
+msgid "Preset"
+msgstr "Preset"
+
+#: python/main.py:247
+msgid "deleted successfully."
+msgstr "s'ha eliminat correctament."
+
+#: python/main.py:272
+msgid "Changes detected"
+msgstr "S'han detectat canvis"
+
+#: python/main.py:274
+msgid "No changes"
+msgstr "Sense canvis"
+
+#: python/main.py:280
+msgid "Synchronization"
+msgstr "Sincronització"
+
+#: python/main.py:325
+msgid "Favorite added"
+msgstr "Preferit afegit"
+
+#: python/main.py:326
+msgid "added successfully."
+msgstr "s'ha afegit correctament."
+
+#: python/main.py:873
+msgid "Configuration issue"
+msgstr "Problema de configuració"
+
+#: python/main.py:874
+msgid ""
+"Please set 'Picture aspect' to 'Spanned' in 'System Settings > Backgrounds' for WMM "
+"to work correctly."
+msgstr ""
+"Perquè el WMM funcioni correctament, configureu l'opció «Relació d'aspecte de la "
+"imatge» a «Distribuïda», a «Configuració del sistema > Fons de pantalla»."
+
+#: python/nemo_add_bookmark.py:62
+msgid "Error adding to favorites"
+msgstr "S'ha produït un error en afegir als preferits"
+
+#: python/nemo_add_bookmark.py:63
+msgid "Could not process image:"
+msgstr "No s'ha pogut processar la imatge:"
+
+#: python/nemo_add_bookmark.py:74
+msgid "Image is already in favorites."
+msgstr "La imatge ja és als preferits."
+
+#: python/nemo_add_bookmark.py:85
+msgid "Image added successfully:"
+msgstr "S'ha afegit la imatge correctament:"
+
+#: python/panel.py:70
+msgid "Control Panel"
+msgstr "Tauler de control"
+
+#: python/panel.py:248
+msgid ""
+"If enabled, the wallpaper is changed at startup; if disabled, the last wallpaper is "
+"kept."
+msgstr ""
+"Si s'activa, el fons de pantalla es canvia a l'inici; si es desactiva, es manté "
+"l'últim fons de pantalla."
+
+#: python/panel.py:251
+msgid "Change wallpaper on startup"
+msgstr "Canvia el fons de pantalla a l'inici"
+
+#: python/panel.py:256
+msgid "Span image across all active screens (Only if more than one)"
+msgstr "Distribueix la imatge en tots els monitors actius (Només si n'hi ha més d'un)"
+
+#: python/panel.py:279
+msgid "Image Effect:"
+msgstr "Efecte d'imatge:"
+
+#: python/panel.py:289
+msgid "Background Effect:"
+msgstr "Efecte de fons:"
+
+#: python/panel.py:311
+msgid "Horizontal gradient start color"
+msgstr "Color d'inici del degradat horitzontal"
+
+#: python/panel.py:314
+msgid "Horizontal gradient end color"
+msgstr "Color final del degradat horitzontal"
+
+#: python/panel.py:318
+msgid "Vertical gradient start color"
+msgstr "Color d'inici del degradat vertical"
+
+#: python/panel.py:321
+msgid "Vertical gradient end color"
+msgstr "Color final del degradat vertical"
+
+#: python/panel.py:333
+msgid "Enable/Disable Timer"
+msgstr "Activa/Desactiva la presentació de diapositives"
+
+#: python/panel.py:341
+msgid "Max. Frequency"
+msgstr "Freqüència màx"
+
+#: python/panel.py:350
+msgid "Slideshow every"
+msgstr "Diapositives cada"
+
+#: python/panel.py:359
+msgid "Sync: All Screens change at once"
+msgstr "Síncron: Tots els monitors canvien alhora"
+
+#: python/panel.py:359
+msgid "Async: Change by turns"
+msgstr "Asíncron: Canvien per torns"
+
+#: python/panel.py:363
+msgid "Slideshow mode:"
+msgstr "Mode de presentació:"
+
+#: python/panel.py:482
+msgid "Synchronized"
+msgstr "Sincronitzat"
+
+#: python/panel.py:483 python/panel.py:535
+msgid "Presets"
+msgstr "Presets"
+
+#: python/panel.py:483
+msgid "All"
+msgstr "Tots"
+
+#: python/panel.py:485
+msgid "Asynchronous"
+msgstr "Asíncron"
+
+#: python/panel.py:486
+msgid "Single"
+msgstr "Individual"
+
+#: python/panel.py:522
+msgid "Slideshow only among favorite images"
+msgstr "Presentació de diapositives només entre imatges preferides"
+
+#: python/panel.py:560
+msgid "Delete selected preset/image"
+msgstr "Suprimeix el preset o la imatge seleccionada"
+
+#: python/panel.py:595
+msgid "Delete selected image from favorites"
+msgstr "Suprimeix la imatge seleccionada dels preferits"
+
+#: python/panel.py:692
+msgid "Delete preset"
+msgstr "Suprimeix el preset"
+
+#: python/panel.py:694
+msgid "Load on screens"
+msgstr "Carrega als monitors"
+
+#: python/panel.py:702
+msgid "Delete image"
+msgstr "Suprimeix la imatge"
+
+#: python/panel.py:803
+msgid "Editing"
+msgstr "Editant"
+
+#: python/panel.py:886
+msgid "images"
+msgstr "imatges"
+
+#: python/panel.py:989
+msgid "Image Sources"
+msgstr "Fonts d'imatges"
+
+#: python/panel.py:998
+msgid "Source"
+msgstr "Font"
+
+#: python/panel.py:1009
+msgid "Recursive"
+msgstr "Recursiu"
+
+#: python/panel.py:1021
+msgid "Resync Image Sources"
+msgstr "Torna a sincronitzar les fonts d'imatges"
+
+#: python/panel.py:1038
+msgid "Add Image Source"
+msgstr "Afegeix una font d'imatge"
+
+#: python/panel.py:1041
+msgid "Delete Image Source"
+msgstr "Suprimeix la font d'imatge"
+
+#: python/panel.py:1204 python/panel.py:1358 python/panel.py:1364
+msgid "Scanning"
+msgstr "Escanejant"
+
+#: python/panel.py:1204
+msgid "folders"
+msgstr "carpetes"
+
+#: python/panel.py:1223
+msgid "Activate subfolders"
+msgstr "Activa les subcarpetes"
+
+#: python/panel.py:1227
+msgid "Deactivate subfolders"
+msgstr "Desactiva les subcarpetes"
+
+#: python/panel.py:1233
+msgid "Deactivate folder"
+msgstr "Desactiva la carpeta"
+
+#: python/panel.py:1233
+msgid "Activate folder"
+msgstr "Activa la carpeta"
+
+#: python/panel.py:1239
+msgid "Delete cache"
+msgstr "Suprimeix la memòria cau"
+
+#: python/panel.py:1263
+msgid "Delete cache of this folder?"
+msgstr "Voleu suprimir la memòria cau d'aquesta carpeta?"
+
+#: python/panel.py:1266
+msgid "Will be removed from your library"
+msgstr "Se suprimirà de la vostra biblioteca"
+
+#: python/panel.py:1268 python/panel.py:1390
+msgid "Images will no longer be available"
+msgstr "Les imatges deixaran d'estar disponibles"
+
+#: python/panel.py:1277
+msgid "Cache deleted"
+msgstr "S'ha suprimit la memòria cau"
+
+#: python/panel.py:1278
+msgid "thumbnails have been removed from cache"
+msgstr "s'han suprimit miniatures de la memòria cau"
+
+#: python/panel.py:1283
+msgid "No cache"
+msgstr "Sense memòria cau"
+
+#: python/panel.py:1284
+msgid "No thumbnails found in cache for this folder."
+msgstr "No s'han trobat miniatures a la memòria cau per a aquesta carpeta."
+
+#: python/panel.py:1313
+msgid "Resynchronizing library..."
+msgstr "S'està tornant a sincronitzar la biblioteca..."
+
+#: python/panel.py:1316
+msgid "Scanning sources..."
+msgstr "Escanejant fonts..."
+
+#: python/panel.py:1328
+msgid "Select Image Folder"
+msgstr "Seleccioneu la carpeta d'imatges"
+
+#: python/panel.py:1333
+msgid "Add Source"
+msgstr "Afegeix una font"
+
+#: python/panel.py:1343
+msgid "Include subfolders (Recursive)"
+msgstr "Inclou les subcarpetes (recursiu)"
+
+#: python/panel.py:1386
+msgid "Delete image source?"
+msgstr "Voleu suprimir la font d'imatge?"
+
+#: python/panel.py:1389
+msgid "will be removed from your library"
+msgstr "se suprimirà de la vostra biblioteca"
+
+#: python/panel.py:1408
+msgid "Displays"
+msgstr "Monitors"
+
+#: python/panel.py:1496
+msgid "Enable/disable screen editing mode"
+msgstr "Activa/desactiva el mode d'edició de monitors"
+
+#: python/panel.py:1503 python/panel.py:1507
+msgid "Editing Mode"
+msgstr "Mode d'edició"
+
+#: python/panel.py:1520
+msgid "Span image across all active screens"
+msgstr "Distribueix la imatge en tots els monitors actius"
+
+#: python/panel.py:1526
+msgid "for current composition"
+msgstr "per a la composició actual"
+
+#: python/panel.py:1545
+msgid "Aspect ratio:"
+msgstr "Rel. d'aspecte:"
+
+#: python/panel.py:1565
+msgid "Create/update preset on accept"
+msgstr "Crea/actualitza el preset en acceptar"
+
+#: python/panel.py:1570
+msgid "Save composition as preset"
+msgstr "Desa la composició com a preset"
+
+#: python/panel.py:1576
+msgid "Refresh real display status"
+msgstr "Actualitza l'estat real dels monitors"
+
+#: python/panel.py:1802
+msgid "Enable/disable image"
+msgstr "Activa/desactiva la imatge"
+
+#: python/panel.py:2121
+msgid "editing"
+msgstr "editant"
+
+#: python/panel.py:2238
+msgid "Horizontal"
+msgstr "Horitzontal"
+
+#: python/panel.py:2245
+msgid "Vertical"
+msgstr "Vertical"
+
+#: python/panel.py:2251
+msgid "Reload thumbnails"
+msgstr "Torna a carregar les miniatures"
+
+#: python/panel.py:2280 python/panel.py:2331
+msgid "No images found."
+msgstr "No s'ha trobat cap imatge."
+
+#: python/panel.py:2285
+msgid "Generating thumbnails..."
+msgstr "Generant miniatures..."
+
+#: python/panel.py:2301
+msgid "Processing"
+msgstr "Processant"
+
+#: applet.js:32
+msgid "WMM: Multi-Monitor Management"
+msgstr "WMM: Gestor de múltiples monitors"
+
+#: applet.js:85
+msgid "Favorites Only"
+msgstr "Només preferits"
+
+#: applet.js:97
+msgid "Add Preset Favorite"
+msgstr "Afegeix un preset preferit"
+
+#: applet.js:128 applet.js:167 applet.js:219
+msgid "ASYNC (One)"
+msgstr "ASÍNCRON (un)"
+
+#: applet.js:132
+msgid "Spanned Mode"
+msgstr "Mode distribuït"
+
+#: applet.js:167 applet.js:219
+msgid "SYNC (All)"
+msgstr "SÍNCRON (tots)"
+
+#: applet.js:174
+msgid "Sync Library"
+msgstr "Sincronitza la biblioteca"
+
+#: applet.js:253
+msgid "Error loading favorites"
+msgstr "S'ha produït un error en carregar els preferits"
+
+#: applet.js:261
+msgid "No saved favorites"
+msgstr "No hi ha preferits desats"
+
+#: applet.js:335
+msgid "Delete favorite"
+msgstr "Suprimeix el preferit"
+
+#: python/panel.py (combos)
+msgid "Gradient H"
+msgstr "Degradat H"
+
+#: python/panel.py (combos)
+msgid "Gradient V"
+msgstr "Degradat V"

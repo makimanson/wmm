@@ -1,0 +1,33 @@
+{
+    "timestamp": 1779769392.982065,
+    "canvas": {
+        "w": 6560,
+        "h": 2560
+    },
+    "monitors": {
+        "8e10d1af": {
+            "connector": "DP-4",
+            "manufacturer": "SAM",
+            "x": 0,
+            "y": 784,
+            "width": 5120,
+            "height": 1440,
+            "width_mm": 1190,
+            "height_mm": 340,
+            "orientation": "horizontal",
+            "primary": true
+        },
+        "a3edd721": {
+            "connector": "DP-0",
+            "manufacturer": "MSI",
+            "x": 5120,
+            "y": 0,
+            "width": 1440,
+            "height": 2560,
+            "width_mm": 597,
+            "height_mm": 336,
+            "orientation": "vertical",
+            "primary": false
+        }
+    }
+}

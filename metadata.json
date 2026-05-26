@@ -1,0 +1,8 @@
+{
+    "uuid": "wmm-applet@maki",
+    "name": "WMM Manager",
+    "description": "Fondos de Pantalla Multi-Monitor",
+    "icon": "video-display",
+    "version": "1.0.0",
+    "cinnamon-version": ["5.0", "5.2", "5.4", "5.6", "5.8", "6.0"]
+}

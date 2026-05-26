@@ -1,0 +1,8 @@
+[Nemo Action]
+Name=Añadir a favoritos WMM
+Comment=Agrega la imagen seleccionada a los favoritos de WMM
+Exec=sh -c 'python3 "$HOME/.local/share/cinnamon/applets/wmm-applet@maki/python/nemo_add_bookmark.py" "%F"'
+Icon-Name=bookmark-add
+Selection=any
+Extensions=jpg;jpeg;png;bmp;webp;gif
+Quote=double

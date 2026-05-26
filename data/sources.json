@@ -1,0 +1,12 @@
+{
+    "sources": [
+        {
+            "id": "vault",
+            "name": "Favoritos",
+            "path": "__vault__",
+            "type": "virtual",
+            "locked": true,
+            "recursive": false
+        }
+    ]
+}

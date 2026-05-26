@@ -1,0 +1,459 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-05-25 05:07+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: python/add_bookmark.py:70
+msgid "Add Favorite Preset"
+msgstr ""
+
+#: python/add_bookmark.py:117
+msgid "Error loading data. Please restart panel"
+msgstr ""
+
+#: python/add_bookmark.py:132
+msgid "Preset name:"
+msgstr ""
+
+#: python/add_bookmark.py:173
+msgid "Name cannot be empty"
+msgstr ""
+
+#: python/add_bookmark.py:197 python/panel.py:669
+msgid "A Preset with that name already exists!"
+msgstr ""
+
+#: python/add_bookmark.py:199
+msgid "Error saving"
+msgstr ""
+
+#: python/config_handler.py:1394
+msgid "New"
+msgstr ""
+
+#: python/config_handler.py:1401
+msgid "Removed"
+msgstr ""
+
+#: python/config_handler.py:1407
+msgid "Total library"
+msgstr ""
+
+#: python/config_handler.py:1433
+msgid "Action"
+msgstr ""
+
+#: python/main.py:246
+msgid "Favorite deleted"
+msgstr ""
+
+#: python/main.py:247 python/main.py:326
+msgid "Preset"
+msgstr ""
+
+#: python/main.py:247
+msgid "deleted successfully."
+msgstr ""
+
+#: python/main.py:272
+msgid "Changes detected"
+msgstr ""
+
+#: python/main.py:274
+msgid "No changes"
+msgstr ""
+
+#: python/main.py:280
+msgid "Synchronization"
+msgstr ""
+
+#: python/main.py:325
+msgid "Favorite added"
+msgstr ""
+
+#: python/main.py:326
+msgid "added successfully."
+msgstr ""
+
+#: python/main.py:873
+msgid "Configuration issue"
+msgstr ""
+
+#: python/main.py:874
+msgid ""
+"Please set 'Picture aspect' to 'Spanned' in 'System Settings > Backgrounds' "
+"for WMM to work correctly."
+msgstr ""
+
+#: python/nemo_add_bookmark.py:62
+msgid "Error adding to favorites"
+msgstr ""
+
+#: python/nemo_add_bookmark.py:63
+msgid "Could not process image:"
+msgstr ""
+
+#: python/nemo_add_bookmark.py:74
+msgid "Image is already in favorites."
+msgstr ""
+
+#: python/nemo_add_bookmark.py:85
+msgid "Image added successfully:"
+msgstr ""
+
+#: python/panel.py:70
+msgid "Control Panel"
+msgstr ""
+
+#: python/panel.py:248
+msgid ""
+"If enabled, the wallpaper is changed at startup; if disabled, the last "
+"wallpaper is kept."
+msgstr ""
+
+#: python/panel.py:251
+msgid "Change wallpaper on startup"
+msgstr ""
+
+#: python/panel.py:256
+msgid "Span image across all active screens (Only if more than one)"
+msgstr ""
+
+#: python/panel.py:279
+msgid "Image Effect:"
+msgstr ""
+
+#: python/panel.py:289
+msgid "Background Effect:"
+msgstr ""
+
+#: python/panel.py:311
+msgid "Horizontal gradient start color"
+msgstr ""
+
+#: python/panel.py:314
+msgid "Horizontal gradient end color"
+msgstr ""
+
+#: python/panel.py:318
+msgid "Vertical gradient start color"
+msgstr ""
+
+#: python/panel.py:321
+msgid "Vertical gradient end color"
+msgstr ""
+
+#: python/panel.py:333
+msgid "Enable/Disable Timer"
+msgstr ""
+
+#: python/panel.py:341
+msgid "Max. Frequency"
+msgstr ""
+
+#: python/panel.py:350
+msgid "Slideshow every"
+msgstr ""
+
+#: python/panel.py:359
+msgid "Sync: All Screens change at once"
+msgstr ""
+
+#: python/panel.py:359
+msgid "Async: Change by turns"
+msgstr ""
+
+#: python/panel.py:363
+msgid "Slideshow mode:"
+msgstr ""
+
+#: python/panel.py:482
+msgid "Synchronized"
+msgstr ""
+
+#: python/panel.py:483 python/panel.py:535
+msgid "Presets"
+msgstr ""
+
+#: python/panel.py:483
+msgid "All"
+msgstr ""
+
+#: python/panel.py:485
+msgid "Asynchronous"
+msgstr ""
+
+#: python/panel.py:486
+msgid "Single"
+msgstr ""
+
+#: python/panel.py:522
+msgid "Slideshow only among favorite images"
+msgstr ""
+
+#: python/panel.py:560
+msgid "Delete selected preset/image"
+msgstr ""
+
+#: python/panel.py:595
+msgid "Delete selected image from favorites"
+msgstr ""
+
+#: python/panel.py:692
+msgid "Delete preset"
+msgstr ""
+
+#: python/panel.py:694
+msgid "Load on screens"
+msgstr ""
+
+#: python/panel.py:702
+msgid "Delete image"
+msgstr ""
+
+#: python/panel.py:803
+msgid "Editing"
+msgstr ""
+
+#: python/panel.py:886
+msgid "images"
+msgstr ""
+
+#: python/panel.py:989
+msgid "Image Sources"
+msgstr ""
+
+#: python/panel.py:998
+msgid "Source"
+msgstr ""
+
+#: python/panel.py:1009
+msgid "Recursive"
+msgstr ""
+
+#: python/panel.py:1021
+msgid "Resync Image Sources"
+msgstr ""
+
+#: python/panel.py:1038
+msgid "Add Image Source"
+msgstr ""
+
+#: python/panel.py:1041
+msgid "Delete Image Source"
+msgstr ""
+
+#: python/panel.py:1204 python/panel.py:1358 python/panel.py:1364
+msgid "Scanning"
+msgstr ""
+
+#: python/panel.py:1204
+msgid "folders"
+msgstr ""
+
+#: python/panel.py:1223
+msgid "Activate subfolders"
+msgstr ""
+
+#: python/panel.py:1227
+msgid "Deactivate subfolders"
+msgstr ""
+
+#: python/panel.py:1233
+msgid "Deactivate folder"
+msgstr ""
+
+#: python/panel.py:1233
+msgid "Activate folder"
+msgstr ""
+
+#: python/panel.py:1239
+msgid "Delete cache"
+msgstr ""
+
+#: python/panel.py:1263
+msgid "Delete cache of this folder?"
+msgstr ""
+
+#: python/panel.py:1266
+msgid "Will be removed from your library"
+msgstr ""
+
+#: python/panel.py:1268 python/panel.py:1390
+msgid "Images will no longer be available"
+msgstr ""
+
+#: python/panel.py:1277
+msgid "Cache deleted"
+msgstr ""
+
+#: python/panel.py:1278
+msgid "thumbnails have been removed from cache"
+msgstr ""
+
+#: python/panel.py:1283
+msgid "No cache"
+msgstr ""
+
+#: python/panel.py:1284
+msgid "No thumbnails found in cache for this folder."
+msgstr ""
+
+#: python/panel.py:1313
+msgid "Resynchronizing library..."
+msgstr ""
+
+#: python/panel.py:1316
+msgid "Scanning sources..."
+msgstr ""
+
+#: python/panel.py:1328
+msgid "Select Image Folder"
+msgstr ""
+
+#: python/panel.py:1333
+msgid "Add Source"
+msgstr ""
+
+#: python/panel.py:1343
+msgid "Include subfolders (Recursive)"
+msgstr ""
+
+#: python/panel.py:1386
+msgid "Delete image source?"
+msgstr ""
+
+#: python/panel.py:1389
+msgid "will be removed from your library"
+msgstr ""
+
+#: python/panel.py:1408
+msgid "Displays"
+msgstr ""
+
+#: python/panel.py:1496
+msgid "Enable/disable screen editing mode"
+msgstr ""
+
+#: python/panel.py:1503 python/panel.py:1507
+msgid "Editing Mode"
+msgstr ""
+
+#: python/panel.py:1520
+msgid "Span image across all active screens"
+msgstr ""
+
+#: python/panel.py:1526
+msgid "for current composition"
+msgstr ""
+
+#: python/panel.py:1545
+msgid "Aspect ratio:"
+msgstr ""
+
+#: python/panel.py:1565
+msgid "Create/update preset on accept"
+msgstr ""
+
+#: python/panel.py:1570
+msgid "Save composition as preset"
+msgstr ""
+
+#: python/panel.py:1576
+msgid "Refresh real display status"
+msgstr ""
+
+#: python/panel.py:1802
+msgid "Enable/disable image"
+msgstr ""
+
+#: python/panel.py:2121
+msgid "editing"
+msgstr ""
+
+#: python/panel.py:2238
+msgid "Horizontal"
+msgstr ""
+
+#: python/panel.py:2245
+msgid "Vertical"
+msgstr ""
+
+#: python/panel.py:2251
+msgid "Reload thumbnails"
+msgstr ""
+
+#: python/panel.py:2280 python/panel.py:2331
+msgid "No images found."
+msgstr ""
+
+#: python/panel.py:2285
+msgid "Generating thumbnails..."
+msgstr ""
+
+#: python/panel.py:2301
+msgid "Processing"
+msgstr ""
+
+#: applet.js:32
+msgid "WMM: Multi-Monitor Management"
+msgstr ""
+
+#: applet.js:85
+msgid "Favorites Only"
+msgstr ""
+
+#: applet.js:97
+msgid "Add Preset Favorite"
+msgstr ""
+
+#: applet.js:128 applet.js:167 applet.js:219
+msgid "ASYNC (One)"
+msgstr ""
+
+#: applet.js:132
+msgid "Spanned Mode"
+msgstr ""
+
+#: applet.js:167 applet.js:219
+msgid "SYNC (All)"
+msgstr ""
+
+#: applet.js:174
+msgid "Sync Library"
+msgstr ""
+
+#: applet.js:253
+msgid "Error loading favorites"
+msgstr ""
+
+#: applet.js:261
+msgid "No saved favorites"
+msgstr ""
+
+#: applet.js:335
+msgid "Delete favorite"
+msgstr ""
+
+#: python/panel.py (combos)
+msgid "Gradient H"
+msgstr ""
+
+#: python/panel.py (combos)
+msgid "Gradient V"
+msgstr ""
+
