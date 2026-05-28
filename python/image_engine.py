@@ -3,6 +3,7 @@ import hashlib
 import io
 import gi
 import math
+import numpy as np
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GdkPixbuf
@@ -115,18 +116,42 @@ class ImageEngine:
                 processed.save(output_path, "JPEG", quality=95)
                 return output_path
             else:
-                # Usar apply_spanned para que respete el modo real y el efecto de relleno
-                return self.apply_spanned(
-                    img_path,
-                    canvas_size[0], canvas_size[1],
-                    mode=wallpaper_mode,
-                    color_mode=color_mode,
-                    solid_color=solid_color,
-                    gradient_h=gradient_h,
-                    gradient_v=gradient_v,
-                    wallpaper_effect_scope=wallpaper_effect_scope,
-                    image_effect=image_effect
-                )
+                # Procesar la imagen maestra según el modo real sobre el canvas completo
+                with ImageEngine._open_image_safe(img_path) as img_obj:
+                    if wallpaper_mode == "fit":
+                        processed_img = ImageEngine.apply_fit(
+                            img_obj, canvas_size[0], canvas_size[1],
+                            wallpaper_effect_scope=wallpaper_effect_scope,
+                            solid_color=solid_color,
+                            gradient_h=gradient_h, gradient_v=gradient_v,
+                            color_mode=color_mode,
+                            image_effect=image_effect
+                        )
+                    elif wallpaper_mode == "zoom":
+                        processed_img = ImageEngine.apply_zoom(
+                            img_obj, canvas_size[0], canvas_size[1],
+                            image_effect=image_effect
+                        )
+                    elif wallpaper_mode == "stretched":
+                        processed_img = ImageEngine.apply_stretched(
+                            img_obj, canvas_size[0], canvas_size[1],
+                            image_effect=image_effect
+                        )
+                    else:
+                        # Fallback a fit
+                        processed_img = ImageEngine.apply_fit(
+                            img_obj, canvas_size[0], canvas_size[1],
+                            wallpaper_effect_scope=wallpaper_effect_scope,
+                            solid_color=solid_color,
+                            gradient_h=gradient_h, gradient_v=gradient_v,
+                            color_mode=color_mode,
+                            image_effect=image_effect
+                        )
+                # Pegar la imagen procesada en el canvas maestro
+                master_canvas.paste(processed_img, (0, 0))
+                output_path = os.path.join(self.ch.cache_dir, "wallpaper_master.jpg")
+                master_canvas.save(output_path, "JPEG", quality=95)
+                return output_path
         else:
             for m_hash, img_path in selection.items():
                 if m_hash not in monitors_map:
@@ -199,14 +224,14 @@ class ImageEngine:
     def generate_thumbnail(img_path, max_height=160, max_width=250, thumb_dir=None):
         """
         Genera una miniatura proporcional de la imagen en formato JPEG.
-        
+
         Args:
             img_path (str): Ruta absoluta de la imagen original.
             max_height (int): Altura máxima de la miniatura.
             max_width (int): Anchura máxima de la miniatura.
             thumb_dir (str): Directorio donde se almacenará la miniatura.
                              Debe ser proporcionado por el llamante.
-        
+
         Returns:
             str: Ruta de la miniatura generada, o cadena vacía si falla.
         """
@@ -435,20 +460,32 @@ class ImageEngine:
         return img.resize((target_w, target_h), Image.Resampling.LANCZOS)
 
     @staticmethod
-    def apply_image_effect(img, effect):
+    def apply_image_effect(img, effect, intensity=100):
         """
         Aplica un efecto visual a la imagen.
         effect: "none", "sepia", "bw"
+        intensity: 0-100, controla la intensidad del efecto.
         Devuelve una nueva imagen PIL con el efecto aplicado.
         """
         if effect == "none" or effect is None:
             return img
         elif effect == "bw":
-            return img.convert('L').convert('RGB')
+            bw_img = img.convert('L').convert('RGB')
+            if intensity < 100:
+                return Image.blend(img, bw_img, intensity / 100.0)
+            return bw_img
         elif effect == "sepia":
-            gray = img.convert('L')
-            # Tiñe con tonos sepia
-            return ImageOps.colorize(gray, "#3D4D5D", "#E4D6BE")
+            # Fórmula de sepia genuino usando NumPy para rendimiento
+            original = img.copy()
+            arr = np.array(original, dtype=np.float64)
+            sepia = np.zeros_like(arr)
+            sepia[:,:,0] = 0.393*arr[:,:,0] + 0.769*arr[:,:,1] + 0.189*arr[:,:,2]
+            sepia[:,:,1] = 0.349*arr[:,:,0] + 0.686*arr[:,:,1] + 0.168*arr[:,:,2]
+            sepia[:,:,2] = 0.272*arr[:,:,0] + 0.534*arr[:,:,1] + 0.131*arr[:,:,2]
+            sepia_img = Image.fromarray(sepia.clip(0, 255).astype('uint8'))
+            if intensity < 100:
+                return Image.blend(original, sepia_img, intensity / 100.0)
+            return sepia_img
         else:
             return img
 
@@ -603,7 +640,7 @@ class ImageEngine:
                     inner_w = w - 2
                     inner_h = h - 2
                     with ImageEngine._open_image_safe(img_path) as img_obj:
-                        img_obj = ImageEngine.apply_image_effect(img_obj, image_effect)
+                        # img_obj = ImageEngine.apply_image_effect(img_obj, image_effect)
                         if wallpaper_mode == "fit":
                             processed = ImageEngine.apply_fit(
                                 img_obj, inner_w, inner_h,
@@ -631,7 +668,8 @@ class ImageEngine:
                     # Guardar miniatura con dimensiones reducidas
                     thumb_dir = self.ch.thumbnails_dir
                     os.makedirs(thumb_dir, exist_ok=True)
-                    m = hashlib.md5(f"{img_path}_{inner_w}x{inner_h}_{wallpaper_mode}_{wallpaper_effect_scope}_{color_tuple[1]}_{color_tuple[2]}".encode()).hexdigest()
+                    intensity = 100  # Valor temporal hasta implementar el slider
+                    m = hashlib.md5(f"{img_path}_{inner_w}x{inner_h}_{wallpaper_mode}_{wallpaper_effect_scope}_{image_effect}_{intensity}_{color_tuple[1]}_{color_tuple[2]}".encode()).hexdigest()
                     blurred_path = os.path.join(thumb_dir, f"blur_{m}.jpg")
                     processed.save(blurred_path, "JPEG", quality=85)
                     if child is None:

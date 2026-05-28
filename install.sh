@@ -36,6 +36,7 @@ DEPENDENCIES=(
     ["PyGObject (GTK bindings)"]="python3 -c 'import gi; gi.require_version(\"Gtk\", \"3.0\")'|python3-gi python3-gi-cairo"
     ["GTK 3.0 Introspection"]="pkg-config --exists gtk+-3.0|gir1.2-gtk-3.0"
     ["GLib 2.0 Introspection"]="pkg-config --exists glib-2.0|gir1.2-glib-2.0"
+    ["NumPy (Python scientific computing)"]="python3 -c 'import numpy'|python3-numpy"
     ["GetText"]="command -v xgettext|gettext"
     ["Libnotify (notificaciones)"]="command -v notify-send|libnotify-bin"
     ["Zenity (diálogos)"]="command -v zenity|zenity"

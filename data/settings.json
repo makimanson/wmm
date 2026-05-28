@@ -17,6 +17,7 @@
         "solid_color": "#000000",
         "gradient_h": ["#000000", "#8D9797"],
         "gradient_v": ["#000000", "#8D9797"],
-        "monitor_group_align": "START"
+        "monitor_group_align": "START",
+        "debug_mode": false
     }
 }

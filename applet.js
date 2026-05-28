@@ -34,14 +34,14 @@ function _(text) {
 }
 
 class WMMApplet extends Applet.IconApplet {
-    
+
     /**
      * BLOQUE 1: CONSTRUCTOR
      * Configuración de rutas y arranque del motor.
      */
     constructor(metadata, orientation, panel_height, instance_id) {
         super(orientation, panel_height, instance_id);
-        
+
         try {
             this.set_applet_icon_name("video-display");
             this.set_applet_tooltip(_("WMM: Multi-Monitor Management"));
@@ -63,7 +63,7 @@ class WMMApplet extends Applet.IconApplet {
             });
 
             Util.spawnCommandLine("python3 " + this.enginePath);
-            
+
         } catch (e) {
             global.logError("WMM Constructor Error: " + e.message);
         }
@@ -79,18 +79,14 @@ class WMMApplet extends Applet.IconApplet {
             this._applet_context_menu.actor.width_request = 200;
 
             // --- 2.1 AJUSTES GENERALES ---
-            let itemSettings = new PopupMenu.PopupMenuItem("WMM " + _("Settings"));
-            itemSettings.connect('activate', () => {
-                this._openSettingsPanel(false);
+            this.settingsMenuItem = new PopupMenu.PopupMenuItem("WMM " + _("Settings"));
+            this.settingsMenuItem.connect('activate', () => {
+                this._openSettingsPanel(this._debug_mode);
             });
-            this._applet_context_menu.addMenuItem(itemSettings);
+            this._applet_context_menu.addMenuItem(this.settingsMenuItem);
 
-            // --- 2.1b AJUSTES GENERALES (DEBUG) ---
-            let itemSettingsDebug = new PopupMenu.PopupMenuItem("WMM " + _("Settings") + " (Debug)");
-            itemSettingsDebug.connect('activate', () => {
-                this._openSettingsPanel(true);
-            });
-            this._applet_context_menu.addMenuItem(itemSettingsDebug);
+            // --- Separador ---
+            this._applet_context_menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
             // --- 2.2 SUBMENÚ FAVORITOS ---
             this.menuBookmarks = new PopupMenu.PopupSubMenuMenuItem(_("Favorites"));
@@ -119,7 +115,7 @@ class WMMApplet extends Applet.IconApplet {
 
             // --- 2.3 SUBMENÚ TEMPORIZADOR ---
             this.menuTimer = new PopupMenu.PopupSubMenuMenuItem(_("Slideshow"));
-            //this.menuTimer.menu.actor.width_request = 210; 
+            //this.menuTimer.menu.actor.width_request = 210;
             this._applet_context_menu.addMenuItem(this.menuTimer);
 
             // Interruptor Maestro (Dentro del Submenú)
@@ -141,7 +137,7 @@ class WMMApplet extends Applet.IconApplet {
             // --- 2.4 MODO SYNC/ASYNC (Ahora en la Raíz) ---
             // Lo añadimos justo debajo del Submenú Temporizador
             this.modeSwitch = new PopupMenu.PopupSwitchMenuItem(_("Displays") + ": " + _("ASYNC (One)"), false);
-            this._applet_context_menu.addMenuItem(this.modeSwitch); 
+            this._applet_context_menu.addMenuItem(this.modeSwitch);
 
             // --- 2.4b MODO DISTRIBUIDO (SPANNED) ---
             this.spannedSwitch = new PopupMenu.PopupSwitchMenuItem(_("Spanned Mode"), false);
@@ -157,8 +153,8 @@ class WMMApplet extends Applet.IconApplet {
             this.slider.connect('value-changed', () => {
                 if (!this.masterItem || !this.masterItem.state) {
                     // Si está OFF, refrescamos para evitar que el slider se mueva visualmente
-                    if (this.masterItem) this._refreshSettingsFromDisk(); 
-                    return; 
+                    if (this.masterItem) this._refreshSettingsFromDisk();
+                    return;
                 }
                 let mins = Math.max(1, Math.round(this.slider.value * this._currentMaxInterval));
                 this.labelMin.set_text(mins + " " + _("minutes"));
@@ -172,10 +168,10 @@ class WMMApplet extends Applet.IconApplet {
             this.masterItem.connect('toggled', (item, state) => {
                 // El texto del interruptor maestro
                 item.label.set_text(state ? _("Enabled") : _("Disabled"));
-                
+
                 // IMPORTANTE: _syncTimerUI debe bloquear el slider pero NO el modeSwitch
-                this._syncTimerUI(state); 
-                this._updateTimerSettings(); 
+                this._syncTimerUI(state);
+                this._updateTimerSettings();
             });
 
             this.modeSwitch.connect('toggled', (item, state) => {
@@ -224,7 +220,7 @@ class WMMApplet extends Applet.IconApplet {
                 if (s) {
                     let config = JSON.parse(content.toString()).global;
                     this._currentMaxInterval = config.slideshow_max_interval || 60;
-                    
+
                     let isEnabled = config.slideshow_enabled;
                     let isSync = (config.slideshow_mode === "sync");
                     let isFavSlideshow = config.slideshow_bookmark || false;
@@ -240,6 +236,13 @@ class WMMApplet extends Applet.IconApplet {
 
                     let isSpanned = config.spanned_enabled || false;
                     this.spannedSwitch.setToggleState(isSpanned);
+                    // Modo Debug
+                    this._debug_mode = config.debug_mode || false;
+                    if (this.settingsMenuItem) {
+                        this.settingsMenuItem.label.set_text(
+                            "WMM " + _("Settings") + (this._debug_mode ? " (Debug)" : "")
+                        );
+                    }
                 }
             }
 
@@ -351,13 +354,13 @@ class WMMApplet extends Applet.IconApplet {
             '--text=' + _("Delete") + " \"" + name + "\"?",
             '--width=200'
         ];
-        
+
         try {
             let proc = new Gio.Subprocess({
                 argv: ['zenity'].concat(args),
                 flags: Gio.SubprocessFlags.NONE
             });
-            
+
             proc.init(null);
             proc.wait_async(null, (proc, result) => {
                 try {
@@ -425,7 +428,7 @@ class WMMApplet extends Applet.IconApplet {
                 if (success) {
                     let pid = content.toString().trim();
                     // kill -9 garantiza la muerte inmediata del proceso
-                    Util.spawnCommandLine("kill -9 " + pid); 
+                    Util.spawnCommandLine("kill -9 " + pid);
                     Util.spawnCommandLine("rm " + pidPath);
                     global.logError(" [WMM] Applet eliminado. Proceso " + pid + " finalizado y rastro borrado.");
                 }

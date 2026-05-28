@@ -47,10 +47,10 @@ class WMMDaemon:
         self.ie = ImageEngine(self.ch, self.mm)
         self.loop = GLib.MainLoop()
         self.timer_id = None
-        self.rotation_queue = []     
-        self.last_rotated_hash = None 
+        self.rotation_queue = []
+        self.last_rotated_hash = None
         self.display = Gdk.Display.get_default()
-        
+
         # 1. Gestión del archivo PID
         self._manage_pid_file()
 
@@ -59,7 +59,7 @@ class WMMDaemon:
 
         # 3. Registro de señales del sistema
         signal.signal(signal.SIGUSR1, self._handle_sigusr1)
-        
+
         if self.display:
             self.display.connect("monitor-added", self.on_hardware_change)
             self.display.connect("monitor-removed", self.on_hardware_change)
@@ -80,24 +80,24 @@ class WMMDaemon:
     def _notify_panel(self, event_dict):
         """
         Envía un evento al panel de control, si está abierto.
-        
+
         Args:
             event_dict (dict): Diccionario con la acción y parámetros.
                                Ej: {"action": "wallpaper_changed"}
         """
         pid_path = os.path.join(self.ch.cache_dir, "pid_panel.pid")
-        
+
         # 1. Verificar si el panel está vivo
         if not os.path.exists(pid_path):
             return  # Panel no está abierto, nada que hacer
-        
+
         try:
             with open(pid_path, "r") as f:
                 content = f.read().strip()
                 if not content:
                     return
                 panel_pid = int(content)
-            
+
             # 2. Comprobar que el proceso sigue corriendo
             os.kill(panel_pid, 0)
         except (OSError, ValueError, FileNotFoundError):
@@ -107,7 +107,7 @@ class WMMDaemon:
             except:
                 pass
             return
-        
+
         # 3. Escribir el evento en el buzón del panel
         command_path = os.path.join(self.ch.data_dir, "command_panel.json")
         try:
@@ -116,13 +116,15 @@ class WMMDaemon:
             print(f" [MOTOR] Evento '{event_dict.get('action')}' enviado al panel (PID {panel_pid}).")
         except Exception as e:
             print(f" [MOTOR] Error al escribir command_panel.json: {e}")
+            self.ch.log_error(f"Error al escribir command_panel.json: {e}", reason="MOTOR")
             return
-        
+
         # 4. Enviar la señal al panel
         try:
             os.kill(panel_pid, signal.SIGUSR1)
         except Exception as e:
             print(f" [MOTOR] Error al enviar SIGUSR1 al panel: {e}")
+            self.ch.log_error(f"Error al enviar SIGUSR1 al panel: {e}", reason="MOTOR")
 
     def _cleanup_on_exit(self):
         """Borra el rastro del motor al cerrarse."""
@@ -137,7 +139,7 @@ class WMMDaemon:
         """Crea el archivo PID y asegura su limpieza al cerrar."""
         pid_path = os.path.join(self.ch.cache_dir, "pid_main.pid")
         os.makedirs(os.path.dirname(pid_path), exist_ok=True)
-        
+
         # Si el archivo existe, comprobamos si el proceso sigue vivo
         if os.path.exists(pid_path):
             try:
@@ -145,7 +147,7 @@ class WMMDaemon:
                     content = f.read().strip()
                     if content:
                         old_pid = int(content)
-                        os.kill(old_pid, 0) 
+                        os.kill(old_pid, 0)
                         print(f" [!] El motor ya está corriendo (PID {old_pid}). Abortando.")
                         exit(1)
             except (OSError, ValueError):
@@ -155,7 +157,7 @@ class WMMDaemon:
         # Escribimos el PID actual
         with open(pid_path, "w") as f:
             f.write(str(os.getpid()))
-            
+
         # Registro de limpieza automática
         atexit.register(lambda: os.remove(pid_path) if os.path.exists(pid_path) else None)
         print(f" [SISTEMA] PID {os.getpid()} registrado en {pid_path}")
@@ -165,15 +167,15 @@ class WMMDaemon:
         Manejador de la señal USR1 enviada por el Applet.
         Sincroniza el estado del motor leyendo comandos.json.
         ---
-        MODIFICACIÓN MÍNIMA: 
+        MODIFICACIÓN MÍNIMA:
         1. Se añade un pequeño sleep para evitar lectura de archivo vacío.
         2. Se añade soporte para 'timer_force_off' solicitado por favoritos.
         """
         # Espera de seguridad para asegurar que el disco terminó de escribir
         time.sleep(0.05)
-        
+
         action_data = self.ch.load_json("commands")
-    
+
         if action_data and "action" in action_data:
             order = action_data["action"]
 
@@ -184,14 +186,14 @@ class WMMDaemon:
             if order == ConfigHandler.CMD_UPDATE_TIMER:
                 settings = self.ch.load_json("settings")
                 g = settings["global"]
-                
+
                 # Sincronización de variables desde el Applet
                 g["slideshow_enabled"] = action_data.get("enabled", g["slideshow_enabled"])
                 g["slideshow_interval"] = int(action_data.get("interval", g["slideshow_interval"]))
                 g["slideshow_mode"] = action_data.get("mode", g["slideshow_mode"])
                 g["slideshow_bookmark"] = action_data.get("slideshow_bookmark", g["slideshow_bookmark"])
                 g["spanned_enabled"] = action_data.get("spanned_enabled", g.get("spanned_enabled", False))
-                
+
                 self.ch.save_json("settings", settings)
                 GLib.idle_add(self._notify_panel, {"action": "settings_updated"})
                 # Gestión del Temporizador
@@ -212,7 +214,7 @@ class WMMDaemon:
             # --- 2. CARGA DE FAVORITO ESPECÍFICO ---
             elif order == ConfigHandler.CMD_LOAD_BOOKMARK:
                 name = action_data.get("name")
-                
+
                 # Soporte para apagar el timer si el favorito es una carga manual
                 if action_data.get("timer_force_off"):
                     settings = self.ch.load_json("settings")
@@ -303,6 +305,7 @@ class WMMDaemon:
                     print(f" [OK] Panel lanzado: {panel_path}")
                 except Exception as e:
                     print(f" [ERROR] No se pudo abrir el panel: {e}")
+                    self.ch.log_error(f"No se pudo abrir el panel: {e}", reason="PANEL")
 
             # --- 6. APLICAR SELECCIÓN MANUAL ---
             elif order == ConfigHandler.CMD_APPLY_SELECTION:
@@ -361,20 +364,20 @@ class WMMDaemon:
         else:
             print(" -> Temporizador detenido por el usuario.")
 
-    def execute_full_cycle(self, reason="Temporizador", target_hashes=None, target_bookmark=None, temp_settings=None):
+    def execute_full_cycle(self, reason=ConfigHandler.REASON_TIMER, target_hashes=None, target_bookmark=None, temp_settings=None):
         """
         Orquestador principal del cambio de fondo.
-        Respeta el flujo de estabilización, gestión de hardware, lógica async 
+        Respeta el flujo de estabilización, gestión de hardware, lógica async
         e integra el soporte para favoritos y bookmarks específicos.
         """
         friendly_reason = ConfigHandler.EXECUTION_REASONS.get(reason, reason)
         print(f"[{time.strftime('%H:%M:%S')}] INICIANDO: {friendly_reason}")
 
         # 1. Estabilización de eventos GDK (Crítico para evitar desajustes)
-        context = GLib.MainContext.default()        
+        context = GLib.MainContext.default()
         while context.pending():
             context.iteration(False)
-        
+
         # 2. Obtener la realidad actual del hardware
         monitors_map_real = self.mm.get_active_monitors_map()
         active_hashes = list(monitors_map_real.keys())
@@ -461,7 +464,7 @@ class WMMDaemon:
             monitors_map = geo_snapshot.get("monitors", monitors_map_real)
             canvas_w = geo_snapshot.get("canvas", {}).get("w", 0)
             canvas_h = geo_snapshot.get("canvas", {}).get("h", 0)
-        
+
         monitors_map = geo_snapshot.get("monitors", {})
 
         # 3. Sincronización con el Vault (Estado persistente)
@@ -509,8 +512,8 @@ class WMMDaemon:
             self.rotation_queue = [h for h in self.rotation_queue if h in active_image_hashes]
 
             # Si la cola quedó vacía o es inválida, reconstruirla
-            cola_invalida = not set(self.rotation_queue).issubset(set(active_image_hashes))
-            if not self.rotation_queue or cola_invalida:
+            invalid_queue = not set(self.rotation_queue).issubset(set(active_image_hashes))
+            if not self.rotation_queue or invalid_queue:
                 if not active_image_hashes:
                     target_hashes = []
                     self.rotation_queue = []
@@ -568,7 +571,7 @@ class WMMDaemon:
         else:
         # --- ROTACIÓN NORMAL ---
             target_preset = None
-            preset_assigned_paths = [] 
+            preset_assigned_paths = []
             # Variables que pueden ser sobrescritas por el preset
             preset_wp_mode = None
             preset_spanned = None
@@ -579,7 +582,7 @@ class WMMDaemon:
             # 1. Determinamos qué preset usar (Manual o Automático)
             if target_bookmark or (sl_mode == "sync" and fav_mode):
                 bookmarks = self.ch.load_json("bookmarks")
-                
+
                 if target_bookmark:
                     target_preset = target_bookmark
                     print(f" [BOOKMARK] Aplicando composición manual: '{target_preset}'")
@@ -597,10 +600,10 @@ class WMMDaemon:
                                 "parent_total": len(bookmarks)
                             })
                             available = list(bookmarks.keys())
-                        
+
                         target_preset = random.choice(available)
                         print(f" [SYNC] Preset global elegido: {target_preset}")
-                
+
                 # 2. Validación y Pre-carga de rutas para la regla de exclusión
                 if target_preset:
                     bm_data = bookmarks.get(target_preset, {})
@@ -608,7 +611,7 @@ class WMMDaemon:
                         print(f" [!] Error: El favorito '{target_preset}' no existe en el JSON.")
                     else:
                         # --- Extraer preferencias del preset (NUEVO) ---
-                        # Las claves reservadas __mode__, __spanned__ y __effect_scope__ 
+                        # Las claves reservadas __mode__, __spanned__ y __effect_scope__
                         # definen la configuración visual del preset sin alterar los ajustes globales.
                         if "__mode__" in bm_data:
                             preset_wp_mode = bm_data.pop("__mode__")
@@ -649,7 +652,7 @@ class WMMDaemon:
                 # Caso A: Distribución sobre el lienzo completo (Spanned)
                 # La imagen maestra se asigna únicamente al monitor principal
                 canvas_w, canvas_h = self.mm.get_total_canvas_geometry(monitors_map)
-                
+
                 # Buscar el monitor principal (o el primero si no hay)
                 primary_hash = None
                 for m_hash in active_hashes:
@@ -685,7 +688,7 @@ class WMMDaemon:
                     self.ch.update_monitor_image(primary_hash, path)
             else:
                 # Caso B: Cada monitor con su imagen ajustada (modo real: fit/zoom/stretched)
-                current_f_mode = sl_mode.lower() 
+                current_f_mode = sl_mode.lower()
 
                 for m_hash in active_hashes:
                     if m_hash not in monitors_map: continue
@@ -699,7 +702,7 @@ class WMMDaemon:
                     if not is_active:
                         # Monitor inactivo: pintar color de fondo
                         selection[m_hash] = ("color", color_mode, solid_color, gradient_h, gradient_v)
-                        continue                
+                        continue
                     m = monitors_map[m_hash]
                     m_orient = m['orientation'][0].lower()
                     entry = active_session.get(m_hash)
@@ -707,7 +710,7 @@ class WMMDaemon:
                         current_vault_path = entry.get("path")
                     else:
                         current_vault_path = entry
-                    
+
                     is_target = (m_hash in target_hashes) if reason in ConfigHandler.ASYNC_ROTATION_REASONS else True
                     # 2. Selección de ruta
                     img_path = None
@@ -778,7 +781,7 @@ class WMMDaemon:
                 image_effect=wallpaper_effect
             )
             self.apply_to_cinnamon(master_path)
-     
+
         elif valid_assets_found and selection:
             # NUEVO: full_canvas se decide por spanned_enabled (opción independiente)
             master_path = self.ie.render_master_wallpaper(
@@ -793,7 +796,7 @@ class WMMDaemon:
                 image_effect=wallpaper_effect
             )
             self.apply_to_cinnamon(master_path)
-            
+
             # Aseguramos que el temporizador esté corriendo si no lo está
             if self.timer_id is None:
                 self.manage_timer(action="start")
@@ -801,12 +804,11 @@ class WMMDaemon:
             # LA RED DE SEGURIDAD FINAL
             # 1. Se preserva wallpaper_master.jpg intacto en .cache/
             # 2. Se registra la incidencia en el log.
-            msg = f"[AVISO] Ciclo abortado: No hay imágenes disponibles para completar la selección."
-            print(f" [{time.strftime('%H:%M:%S')}] {msg}")
-            # Usamos el formato de notificación definido en el handler
+            msg = _("Cycle aborted: not enough images available to complete selection.")
+            print(f" [{time.strftime('%H:%M:%S')}] [AVISO] {msg}")
             self.ch._send_notification(
-                reason="No hay imágenes disponibles", 
-                action="Revise el estado de las Fuentes de imágenes desde el Panel de Control",
+                reason=_("No images available"),
+                action=_("Check status of Image Sources in Control Panel."),
                 detail_msg=msg,
                 level="error"
             )
@@ -837,14 +839,13 @@ class WMMDaemon:
                 if path and not os.path.exists(path):
                     fname = os.path.basename(path)
                     # Aquí es donde lanzamos el aviso al sistema
-                    msg = f"La imagen '{fname}' del preset '{forced_bookmark}' no encontrada."
+                    msg = _("Image: '{image}' from preset: '{preset}' not found.").format(image=fname, preset=forced_bookmark)
                     print(f" [!] {msg}") # Consola
-                    # Opcional: Aquí podrías disparar una notificación de escritorio (notify-send)
                     self.ch._send_notification(
-                        reason="Imagen del PRESET no encontrada",
-                        action="Asignando una aleatoria",
+                        reason=_("PRESET image not found"),
+                        action=_("Assigning a random one"),
                         detail_msg=msg,
-                        level="warn"  # <--- Esto pondrá el triángulo amarillo automáticamente
+                        level="warn"
                     )
                 # RELLENO DINÁMICO: Buscamos una alternativa que no esté ya en otro monitor
                 path = self.ch.get_vault_selection(orientation=t_orient, exclude=exclude_paths)
@@ -858,51 +859,103 @@ class WMMDaemon:
 
     def apply_to_cinnamon(self, final_path):
         try:
-            # 1. Forzar el modo de aspecto del SO a 'spanned' para no deformar nuestro lienzo
+            # ------------------------------------------------------
+            # 1. Imponer el entorno visual ideal para WMM
+            #    Todos los cambios son necesarios para garantizar
+            #    una transición limpia y una visualización correcta.
+            # ------------------------------------------------------
+
+            # Desactivar el pase de diapositivas nativo para que no interfiera
+            os.system("gsettings set org.cinnamon.desktop.background.slideshow slideshow-enabled false")
+
+            # La imagen debe ocupar todo el lienzo sin deformarse
             os.system("gsettings set org.cinnamon.desktop.background picture-options spanned")
-            
-            # 2. Verificar si el cambio se aplicó correctamente
+
+            # El tipo de sombreado debe ser sólido, sin degradados
+            os.system("gsettings set org.cinnamon.desktop.background color-shading-type 'solid'")
+
+            # ------------------------------------------------------
+            # 2. Verificar que los ajustes se han aplicado realmente.
+            #    Si alguno falla, se añade un texto descriptivo a la
+            #    lista 'issues' para notificarlo al usuario.
+            # ------------------------------------------------------
+            issues = []
+
+            # Comprobar 'slideshow-enabled'
+            result_slideshow = subprocess.run(
+                ["gsettings", "get", "org.cinnamon.desktop.background.slideshow", "slideshow-enabled"],
+                capture_output=True, text=True
+            )
+            if result_slideshow.stdout.strip().lower() != "false":
+                issues.append(_("Slideshow disabled"))
+
+            # Comprobar 'picture-options'
             result = subprocess.run(
                 ["gsettings", "get", "org.cinnamon.desktop.background", "picture-options"],
                 capture_output=True, text=True
             )
-            current_option = result.stdout.strip().lower().replace("'", "")
-            
-            if current_option != "spanned":
-                # 3. Si no se aplicó, notificar al usuario
+            if "spanned" not in result.stdout.lower():
+                issues.append(_("Picture aspect set to 'Spanned'"))
+
+            # Comprobar 'color-shading-type'
+            result_shading = subprocess.run(
+                ["gsettings", "get", "org.cinnamon.desktop.background", "color-shading-type"],
+                capture_output=True, text=True
+            )
+            if "solid" not in result_shading.stdout.lower():
+                issues.append(_("Color shading type set to 'solid'"))
+
+            # Si alguna verificación falló, notificar al usuario
+            if issues:
                 self.ch._send_notification(
                     reason="WMM: " + _("Configuration issue"),
-                    detail_msg=_("Please set 'Picture aspect' to 'Spanned' in 'System Settings > Backgrounds' for WMM to work correctly."),
+                    detail_msg=_("Please set the following in 'System Settings > Backgrounds':") +
+                               "\n" + "\n".join(issues),
                     level="warn"
                 )
-            
-            # 4. Aplicar el fondo (código existente)
+
+            # ------------------------------------------------------
+            # 3. Aplicar la imagen final según el modo de rotación
+            # ------------------------------------------------------
             settings = self.ch.load_json("settings").get("global", {})
             sl_mode = settings.get("slideshow_mode", "sync")
-
+            print(f">>> [DIAG] apply_to_cinnamon: final_path={final_path}, sl_mode={sl_mode}")
             if sl_mode == "sync":
-                black_path = os.path.join(self.ch.cache_dir, "black.png")
-                if not os.path.exists(black_path):
-                    Image.new('RGB', (1, 1), (0, 0, 0)).save(black_path)
+                # 1.1 Capturar el color de fondo actual y generar imagen temporal para transición
+                result_color = subprocess.run(
+                    ["gsettings", "get", "org.cinnamon.desktop.background", "primary-color"],
+                    capture_output=True, text=True
+                )
+                color_str = result_color.stdout.strip().lower().replace("'", "")
+                rgba = Gdk.RGBA()
+                if rgba.parse(color_str):
+                    r = int(rgba.red * 255)
+                    g = int(rgba.green * 255)
+                    b = int(rgba.blue * 255)
+                else:
+                    r, g, b = 0, 0, 0
+                fade_color_path = os.path.join(self.ch.cache_dir, "fade_color.png")
+                Image.new('RGB', (1, 1), (r, g, b)).save(fade_color_path)
 
-                os.system(f"gsettings set org.cinnamon.desktop.background picture-uri 'file://{black_path}'")
+                os.system(f"gsettings set org.cinnamon.desktop.background picture-uri 'file://{fade_color_path}'")
                 time.sleep(1.5)
                 os.system(f"gsettings set org.cinnamon.desktop.background picture-uri 'file://{final_path}'")
                 print(" -> [Sync] Transición Cine aplicada.")
-            else:
+                # Cambio inmediato
                 os.system(f"gsettings set org.cinnamon.desktop.background picture-uri 'file://{final_path}'")
                 print(" -> [Async] Transicion Crossfade aplicada.")
 
         except Exception as e:
             print(f" [ERROR] Cinnamon no respondió: {e}")
+            self.ch.log_error(f"Cinnamon no respondió: {e}", reason="CINNAMON")
 
     def on_hardware_change(self, display, monitor):
         print(f"\n[{time.strftime('%H:%M:%S')}] Cambio físico detectado. Estabilizando geometría...")
-        
+
         # Cancelamos cualquier ciclo de estabilización previo si existe
         if hasattr(self, '_reconfig_timer') and self._reconfig_timer:
             GLib.source_remove(self._reconfig_timer)
-        
+
         # Damos 1.5 - 2 segundos para que Cinnamon reorganice el escritorio
         self._reconfig_timer = GLib.timeout_add(1000, self._final_hardware_sync)
 
@@ -961,6 +1014,7 @@ class WMMDaemon:
                 print(" -> Biblioteca: No se pudo obtener el total.")
         except Exception as e:
             print(f" [ERROR] Escaneo inicial: {e}")
+            self.ch.log_error(f"Escaneo inicial: {e}", reason="SYNC_LIB")
 
         # Sincronizar geometría y vault siempre
         self.startup_sync()
@@ -971,11 +1025,11 @@ class WMMDaemon:
             self.execute_full_cycle(reason=ConfigHandler.REASON_SERVICE)
         else:
             print(" -> Persistencia activa. Se mantiene el fondo actual.")
-        
+
         try:
             self.loop.run()
         except (KeyboardInterrupt, SystemExit):
-            print("\nCerrando Daemon...")
+            print("\nCerrando WMM...")
             self.manage_timer(action="stop")
             self.loop.quit()
 

@@ -20,6 +20,8 @@ import signal
 import atexit
 import json
 import gettext
+import subprocess
+import time
 # import locale
 
 gi.require_version('Gtk', '3.0')
@@ -51,11 +53,6 @@ def _(text):
     if translated != text:
         return translated
     return gettext.dgettext('wmm-applet@maki', text)
-
-# Diagnóstico: ver dónde busca gettext
-# print(">>> [DIAG] gettext(wmm):", gettext.dgettext('wmm', 'Slideshow'))
-# print(">>> [DIAG] gettext(cinnamon):", gettext.dgettext('cinnamon', 'Slideshow'))
-# print(">>> [DIAG] gettext(gtk30):", gettext.dgettext('gtk30', 'Slideshow'))
 
 # ==========================================================
 # VENTANA PRINCIPAL: PANEL DE CONTROL
@@ -133,8 +130,10 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         self._edit_monitor_widgets = {}  # EventBox del modo edición
         self._updating_switches = False  # Flag para evitar bucles al actualizar switches
         self._repaint_scheduled = False  # Evita múltiples repintados idle
+        self._opened_in_debug = False
         self._thumbnails_loading = False # NUEVO: Evita cargas duplicadas de thumbnails
         self._sources_need_refresh = False
+        self.restart_btn = None  # Se creará en _build_options_section
 
         # ==========================================================
         # ALTA DEL PANEL (PID + SEÑAL)
@@ -207,6 +206,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         # ==========================================================
         self.load_sources_into_treeview()
         self._load_settings()
+        print(f">>> [DIAG] restart_btn visible={self.restart_btn.get_visible()}, _opened_in_debug={self._opened_in_debug}, debug_mode={self.backend.load_settings().get('debug_mode', 'no existe')}")
         self._load_presets()
         self._load_bookmarks_single()
         self._load_thumbnails()
@@ -241,7 +241,43 @@ class WMMControlPanel(Gtk.ApplicationWindow):
     # ==========================================================
     def _build_options_section(self):
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        vbox.pack_start(self._create_section_label(_("Options")), False, False, 0)
+
+        # Cabecera: label Options (izquierda) + bloque Debug (derecha)
+        hbox_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        hbox_header.pack_start(self._create_section_label(_("Options")), True, True, 0)
+
+        # Bloque derecho: botón Reiniciar + label dinámico + switch Debug
+        debug_block = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+
+        self.restart_btn = Gtk.Button.new_from_icon_name("view-refresh-symbolic", Gtk.IconSize.BUTTON)
+        self.restart_btn.set_tooltip_text(_("Restart engine and panel"))
+        self.restart_btn.connect("clicked", self._on_restart_clicked)
+        self.restart_btn.set_visible(False)
+        self.restart_btn.set_no_show_all(True)
+        debug_block.pack_start(self.restart_btn, False, False, 0)
+
+        self.view_log_btn = Gtk.Button.new_from_icon_name("text-x-generic", Gtk.IconSize.BUTTON)
+        self.view_log_btn.set_tooltip_text(_("View error log"))
+        self.view_log_btn.connect("clicked", self._on_view_log_clicked)
+        self.view_log_btn.set_no_show_all(True)
+        self.view_log_btn.set_visible(False)
+        debug_block.pack_start(self.view_log_btn, False, False, 0)
+
+        self.debug_mode_label = Gtk.Label(label=_("Debug mode OFF"))
+        self.debug_mode_switch = Gtk.Switch(active=False)
+        self.debug_mode_switch.connect("notify::active", self._on_debug_mode_changed)
+        debug_block.pack_end(self.debug_mode_switch, False, False, 0)
+        debug_block.pack_end(self.debug_mode_label, False, False, 0)
+        # Forzar altura uniforme en el bloque Debug para evitar saltos al mostrar/ocultar botones
+        debug_size_group = Gtk.SizeGroup(mode=Gtk.SizeGroupMode.VERTICAL)
+        debug_size_group.add_widget(self.restart_btn)
+        debug_size_group.add_widget(self.view_log_btn)
+        debug_size_group.add_widget(self.debug_mode_label)
+        debug_size_group.add_widget(self.debug_mode_switch)
+
+        hbox_header.pack_end(debug_block, False, False, 0)
+
+        vbox.pack_start(hbox_header, False, False, 0)
 
         # --- Cambiar fondo al inicio ---
         self.persist_switch = Gtk.Switch(active=True, halign=Gtk.Align.END)
@@ -290,7 +326,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         hbox_back_effect.pack_start(self.back_effect_combo, False, False, 0)
 
         # --- Color de fondo ---
-        # Contenedor horizontal como los efectos, para mantener label izquierda y contenido derecha
+        # Contenedor horizontal con label a la izquierda y controles a la derecha
         hbox_color = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         hbox_color.pack_start(Gtk.Label(label=_("Background color") + ":", halign=Gtk.Align.START), True, True, 0)
 
@@ -298,7 +334,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         for key, label in ConfigHandler.COLOR_MODES.items():
             self.bg_mode_combo.append_text(_(label))
         self.bg_mode_combo.set_active(0)
-        self.bg_mode_combo.set_halign(Gtk.Align.END)  # Alinear el combo a la derecha dentro del box
+        self.bg_mode_combo.set_halign(Gtk.Align.END)
         self.bg_mode_combo.connect("changed", self._on_bg_mode_changed)
 
         self.bg_color_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
@@ -323,10 +359,10 @@ class WMMControlPanel(Gtk.ApplicationWindow):
 
         # Empaquetar combo y botones en un box a la derecha
         color_controls_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
-        color_controls_box.pack_start(self.bg_mode_combo, False, False, 0)
-        color_controls_box.pack_start(self.bg_color_box, False, False, 0)
+        color_controls_box.pack_end(self.bg_mode_combo, False, False, 0)
+        color_controls_box.pack_end(self.bg_color_box, False, False, 0)
 
-        hbox_color.pack_start(color_controls_box, False, False, 0)
+        hbox_color.pack_end(color_controls_box, False, False, 0)
 
         # --- Presentación Diapositivas ---
         self.slideshow_switch = Gtk.Switch(active=True, halign=Gtk.Align.END)
@@ -434,7 +470,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         self.backend.save_setting("solid_color", hex_color)
         self._notify_engine({"action": "apply_manual_selection"})
         if not self.backend.edit_mode_active:
-            self._load_monitors()        
+            self._load_monitors()
 
     def _on_gradient_h_changed(self, button):
         """Guarda los colores del degradado horizontal en settings.json."""
@@ -473,6 +509,96 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         mode = "sync" if switch.get_active() else "async"
         self.backend.save_setting("slideshow_mode", mode)
         self._update_mode_info_label()
+
+    def _on_debug_mode_changed(self, switch, param):
+        """Actualiza el label, guarda el estado y refleja el modo Debug en la UI."""
+        if self._loading:
+            return
+        debug_mode = switch.get_active()
+        self.debug_mode_label.set_text(_("Debug mode ON") if debug_mode else _("Debug mode OFF"))
+        self.backend.save_setting("debug_mode", debug_mode)
+        # Actualizar título de la ventana
+        title = _("Control Panel")
+        if debug_mode:
+            title += " (DEBUG)"
+        self.set_title(title)
+        # Mostrar u ocultar el botón Reiniciar
+        if hasattr(self, 'restart_btn'):
+            if self._opened_in_debug:
+                self.restart_btn.set_visible(True)  # Siempre visible si se abrió en debug
+            else:
+                self.restart_btn.set_visible(debug_mode)
+        # Mostrar u ocultar el botón de log
+        if hasattr(self, 'view_log_btn'):
+            if self._opened_in_debug:
+                self.view_log_btn.set_visible(True)
+            else:
+                self.view_log_btn.set_visible(debug_mode)
+
+    def _on_restart_clicked(self, widget):
+        """Reinicia el motor y el panel en el modo correspondiente al switch Debug."""
+        debug_mode = self.debug_mode_switch.get_active()
+        # Rutas de los scripts
+        engine_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "main.py")
+        panel_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "panel.py")
+        # Matar el motor actual usando su PID (más agresivo)
+        pid_path = os.path.join(self.handler.cache_dir, "pid_main.pid")
+        if os.path.exists(pid_path):
+            try:
+                with open(pid_path, "r") as f:
+                    old_pid = int(f.read().strip())
+                os.kill(old_pid, signal.SIGKILL)  # SIGKILL para asegurar
+                time.sleep(0.5)  # Esperar un poco más
+                os.remove(pid_path)
+            except (OSError, ValueError, FileNotFoundError):
+                pass
+        # Lanzar el nuevo motor antes de cerrar el panel
+        if debug_mode:
+            subprocess.Popen(
+                ["gnome-terminal", "--", "bash", "-c",
+                 f"WMM_DEBUG=1 python3 {engine_path}"],
+                start_new_session=True,
+                env=os.environ.copy()
+            )
+        else:
+            subprocess.Popen(
+                ["python3", engine_path],
+                start_new_session=True,
+                env=os.environ.copy(),
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        # Pequeña pausa para que el motor arranque
+        time.sleep(0.5)
+        # Limpiar PID del panel y cerrar
+        panel_pid_path = os.path.join(self.handler.cache_dir, "pid_panel.pid")
+        if os.path.exists(panel_pid_path):
+            try:
+                os.remove(panel_pid_path)
+            except OSError:
+                pass
+        app = self.get_application()
+        if app:
+            app.quit()  # Cerrar sin timeout, con un pequeño retraso ya dado por el sleep
+
+    def _on_view_log_clicked(self, widget):
+        """Muestra el archivo de log de errores en un diálogo."""
+        log_path = os.path.join(self.handler.data_dir, "error_log.txt")
+        if not os.path.exists(log_path):
+            self._show_warning_dialog(_("No errors logged yet."))
+            return
+        with open(log_path, "r", encoding="utf-8") as f:
+            content = f.read()
+        dialog = Gtk.MessageDialog(
+            transient_for=self,
+            flags=0,
+            message_type=Gtk.MessageType.INFO,
+            buttons=Gtk.ButtonsType.OK,
+            text=_("Error Log")
+        )
+        dialog.format_secondary_text(content if content else _("No errors logged yet."))
+        dialog.run()
+        dialog.destroy()
 
     def _update_mode_info_label(self):
         """Actualiza el label informativo del modo según el estado de los switches."""
@@ -642,7 +768,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
                     img_path = entry or ""
                     active = True
 
-                display_name = os.path.basename(img_path) if img_path else "(" + _("Empty") + ")" 
+                display_name = os.path.basename(img_path) if img_path else "(" + _("Empty") + ")"
                 self.presets_model.append(parent_iter, [display_name, img_path, False])
 
     def _render_preset_name(self, column, cell, model, iter, data):
@@ -932,6 +1058,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
             return
         self.backend.save_setting("spanned_enabled", switch.get_active())
         self._notify_engine({"action": "apply_manual_selection"})
+        self._set_monitor_switches_sensitive(not switch.get_active())
         if not self.backend.edit_mode_active:
             self._load_monitors()
 
@@ -1266,7 +1393,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
             _("Will be removed from your library") + ":" + "\n" +
             folder_path + "\n" +
             _("Images will no longer be available")
-        )  
+        )
         response = dialog.run()
         if response == Gtk.ResponseType.YES:
             deleted_count = self.handler.purge_folder_cache(folder_path)
@@ -1386,7 +1513,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
                 text=_("Delete image source?")
             )
             dialog.format_secondary_text(
-                source_name + " " + _("will be removed from your library") + "\n" + 
+                source_name + " " + _("will be removed from your library") + "\n" +
                 _("Images will no longer be available")
             )
             response = dialog.run()
@@ -1777,12 +1904,12 @@ class WMMControlPanel(Gtk.ApplicationWindow):
                     manufacturer_code = info.get("manufacturer", "")
                     connector = info.get("connector", "?")
                     manufacturer_name = mfg_map.get(manufacturer_code, manufacturer_code)
-                    
+
                     if manufacturer_name and manufacturer_name != connector:
                         display_name = f"{connector}:{manufacturer_name}"
                     else:
                         display_name = connector
-                        
+
                     w_mm = info.get("width_mm", 0)
                     h_mm = info.get("height_mm", 0)
                     if w_mm > 0 and h_mm > 0:
@@ -1793,7 +1920,12 @@ class WMMControlPanel(Gtk.ApplicationWindow):
                         label_text = display_name
                 else:
                     label_text = _("Display") + " " + m_hash[:6]
-                label = Gtk.Label(label=label_text)
+                # Resaltar el monitor primario en amarillo
+                if info and info.get("primary", False):
+                    label = Gtk.Label()
+                    label.set_markup(f"<span foreground='yellow'>{label_text}</span>")
+                else:
+                    label = Gtk.Label(label=label_text)
                 # Guardar el nombre enriquecido para usarlo en tooltips
                 self._monitor_display_names[m_hash] = label_text
 
@@ -1807,8 +1939,8 @@ class WMMControlPanel(Gtk.ApplicationWindow):
                 switch_event_box = Gtk.EventBox()
                 switch_event_box.add(hbox)
                 # Los eventos ahora van en el switch, no en el EventBox
-                switch.connect("enter-notify-event", self._on_switch_enter, m_hash)
-                switch.connect("leave-notify-event", self._on_switch_leave, m_hash)
+                switch_event_box.connect("enter-notify-event", self._on_switch_enter, m_hash)
+                switch_event_box.connect("leave-notify-event", self._on_switch_leave, m_hash)
 
                 self.monitor_switches_box.pack_start(switch_event_box, False, False, 4)
                 self._monitor_switches[m_hash] = (switch, switch_event_box)
@@ -1824,6 +1956,11 @@ class WMMControlPanel(Gtk.ApplicationWindow):
             self.spanned_switch.set_sensitive(len(self._monitor_widgets) > 1)
             if len(self._monitor_widgets) <= 1:
                 self.spanned_switch.set_active(False)
+
+        # Insensibilizar los switches si el modo Distribuido está activo
+        settings = self.backend.load_settings()
+        if settings.get("spanned_enabled", False):
+            self._set_monitor_switches_sensitive(False)
 
         self.monitor_switches_box.show_all()
         self._updating_switches = False
@@ -2462,6 +2599,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
                 os.remove(command_path)
         except Exception as e:
             print(f" [PANEL] Error al procesar señal: {e}")
+            self.handler.log_error(f"Error al procesar señal: {e}", reason="PANEL_SIGNAL")
 
     def _on_delete_event(self, widget, event):
         # Limpiar archivo PID del panel
@@ -2472,6 +2610,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
                 print(" [PANEL] Archivo PID eliminado. Cierre limpio.")
             except Exception as e:
                 print(f" [PANEL] Error al eliminar PID: {e}")
+                self.handler.log_error(f"Error al eliminar PID: {e}", reason="PANEL_PID")
 
         app = self.get_application()
         if app:
@@ -2512,6 +2651,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         self.back_effect_combo.set_active(index)
         # Switch spanned
         self.spanned_switch.set_active(settings.get("spanned_enabled", False))
+        self._set_monitor_switches_sensitive(not settings.get("spanned_enabled", False))
         keys = list(ConfigHandler.COLOR_MODES.keys())
         index = keys.index(color_mode) if color_mode in keys else 0
         self.bg_mode_combo.set_active(index)
@@ -2542,7 +2682,25 @@ class WMMControlPanel(Gtk.ApplicationWindow):
             # Sincronizar el control visual (los labels)
             if hasattr(self, 'align_label_start'):
                 self._update_align_labels(align_map.get(align_value, Gtk.Align.START))
-
+        # Modo Debug
+        debug_mode = settings.get("debug_mode", False)
+        self._opened_in_debug = debug_mode
+        self.debug_mode_switch.set_active(debug_mode)
+        self.debug_mode_label.set_text(_("Debug mode ON") if debug_mode else _("Debug mode OFF"))
+        title = _("Control Panel")
+        if debug_mode:
+            title += " (DEBUG)"
+        self.set_title(title)
+        if hasattr(self, 'restart_btn') and self.restart_btn:
+            if self._opened_in_debug:
+                self.restart_btn.set_visible(True)
+            else:
+                self.restart_btn.set_visible(debug_mode)
+        if hasattr(self, 'view_log_btn') and self.view_log_btn:
+            if self._opened_in_debug:
+                self.view_log_btn.set_visible(True)
+            else:
+                self.view_log_btn.set_visible(debug_mode)
 
 # ==========================================================
 # APLICACIÓN GTK (INSTANCIA ÚNICA)

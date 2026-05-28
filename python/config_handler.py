@@ -103,7 +103,7 @@ class ConfigHandler:
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.applet_root = os.path.dirname(self.base_dir)
         self.data_dir = os.path.join(self.applet_root, "data")
-        
+
         # --- RUTAS DE SISTEMA (Caché de usuario) ---
         self.cache_dir = os.path.expanduser("~/.cache/wmm")
         self.master_canvas = os.path.join(self.cache_dir, "wallpaper_master.jpg")
@@ -128,7 +128,7 @@ class ConfigHandler:
             "bookmarks":os.path.join(self.data_dir, "bookmarks.json"),
             "bookmarks_single":os.path.join(self.data_dir, "bookmarks_single_list.json")
         }
-        
+
         self.ensure_structure()
 
     def ensure_structure(self):
@@ -139,16 +139,16 @@ class ConfigHandler:
         os.makedirs(self.thumbnails_dir, exist_ok=True)
         os.makedirs(self.data_dir, exist_ok=True)
         os.makedirs(self.cache_dir, exist_ok=True)
-        
+
         # --- MAPA DE INICIALIZACIÓN POR DEFECTO ---
         default_map = {
             "settings": {
                 "global": {
                     "slideshow_enabled": True,
                     "slideshow_mode": "sync",
-                    "slideshow_bookmark": False,    
+                    "slideshow_bookmark": False,
                     "slideshow_interval": 15,
-                    "slideshow_max_interval": 60,   
+                    "slideshow_max_interval": 60,
                     "wallpaper_mode": "fit",
                     "wallpaper_effect": "none",
                     "wallpaper_effect_scope": "blur",
@@ -161,7 +161,8 @@ class ConfigHandler:
                     "solid_color": "#000000",
                     "gradient_h": ["#000000", "#8D9797"],
                     "gradient_v": ["#000000", "#8D9797"],
-                    "monitor_group_align": "START"
+                    "monitor_group_align": "START",
+                    "debug_mode": False
                 }
             },
             "sources": {"sources": []},
@@ -188,11 +189,11 @@ class ConfigHandler:
         sources_data = self.load_json("sources")
         settings_data = self.load_json("settings")
         global_conf = settings_data.get("global", {})
-        
+
         # 1. Migración: De settings.json -> sources.json
         # Extraemos la lista según tu JSON real
         legacy_sources = global_conf.get("sources", [])
-        
+
         if legacy_sources and not sources_data.get("sources"):
             print(" [MIGRACIÓN] Trasvasando fuentes a sources.json...")
             for item in legacy_sources:
@@ -200,21 +201,21 @@ class ConfigHandler:
                 folder_path = item.get("path") if isinstance(item, dict) else item
                 # Extraemos la recursividad (si existe en el dict, si no, True por defecto)
                 is_recursive = item.get("recursive", True) if isinstance(item, dict) else True
-                
-                if not folder_path or not isinstance(folder_path, str): 
-                    continue 
+
+                if not folder_path or not isinstance(folder_path, str):
+                    continue
 
                 # Evitar duplicados y añadir
                 if not any(s.get("path") == folder_path for s in sources_data["sources"]):
                     sources_data["sources"].append({
-                        "id": hashlib.md5(folder_path.encode()).hexdigest()[:8], 
+                        "id": hashlib.md5(folder_path.encode()).hexdigest()[:8],
                         "name": os.path.basename(folder_path.rstrip(os.sep)) or folder_path,
                         "path": folder_path,
                         "type": "physical",
                         "locked": False,
-                        "recursive": is_recursive 
+                        "recursive": is_recursive
                     })
-            
+
             # Limpieza del settings.json para no volver a migrar
             if "sources" in global_conf:
                 del global_conf["sources"]
@@ -223,7 +224,7 @@ class ConfigHandler:
         # 2. Garantía del VAULT VIRTUAL (Siempre el primero por defecto)
         # Buscamos si ya existe por ID
         vault_exists = any(s.get("id") == "vault" for s in sources_data["sources"])
-        
+
         if not vault_exists:
             vault_source = {
                 "id": "vault",
@@ -252,13 +253,13 @@ class ConfigHandler:
 
     def sync_vault(self, current_active_hashes):
         """
-        Sincroniza el Vault y retorna True si ha habido cambios en la 
+        Sincroniza el Vault y retorna True si ha habido cambios en la
         composición de monitores (altas o bajas).
         """
         vault = self.load_json("vault")
         active = vault.get("active_session", {})
         history = vault.get("history", {})
-        
+
         has_changed = False
         new_active = {}
 
@@ -297,7 +298,7 @@ class ConfigHandler:
             vault["active_session"] = new_active
             vault["history"] = history
             self.save_json("vault", vault)
-        
+
         return has_changed, vault
 
     def get_monitors_layout_data(self, area_w, area_h):
@@ -357,7 +358,7 @@ class ConfigHandler:
             hist_v = self.load_json("history_vault")
             hist_v["parent_total"] = len(self.load_json("bookmarks_single"))
             self.save_json("history_vault", hist_v)
-        
+
             # 3. General (Sincronía con la caché completa)
             hist_g = self.load_json("history")
             h, v = self._get_cache_totals(self.load_json("cache"))
@@ -366,6 +367,7 @@ class ConfigHandler:
 
         except Exception as e:
             print(f" [!] Error en refresh_metadata: {e}")
+            self.log_error(f"Error en refresh_metadata: {e}", reason="METADATA")
 
     def update_monitor_image(self, m_hash, image_path):
         """Actualiza la asociación de imagen para un monitor específico en la sesión activa."""
@@ -397,12 +399,12 @@ class ConfigHandler:
             with open(path, 'w', encoding='utf-8') as f:
                 # Generamos el JSON estándar con indentación para procesar
                 raw_json = json.dumps(data, indent=4, ensure_ascii=False)
-            
+
                 if key == "cache":
                     # Formato compacto para 3 elementos: ["ruta", w, h]
                     compact_json = re.sub(
-                        r'\[\s+"([^"]+)",\s+(\d+),\s+(\d+)\s+\]', 
-                        r'["\1", \2, \3]', 
+                        r'\[\s+"([^"]+)",\s+(\d+),\s+(\d+)\s+\]',
+                        r'["\1", \2, \3]',
                         raw_json
                     )
                     f.write(compact_json)
@@ -444,12 +446,13 @@ class ConfigHandler:
                 else:
                     # Settings, vault, geometry, etc. (Formato expandido estándar)
                     f.write(raw_json)
-                    
+
         except Exception as e:
             print(f" [!] Error al guardar {key}: {e}")
+            self.log_error(f"Error al guardar {key}: {e}", reason="SAVE_JSON")
 
         # --- PERSISTENCIA DE ESTADOS ---
-    
+
     def update_source_recursive(self, path, state):
         """Actualiza el modo recursivo de una raíz en sources.json."""
         data = self.load_json("sources")
@@ -475,13 +478,13 @@ class ConfigHandler:
         """Actualiza todos los hijos de una raíz en el scan_index."""
         index = self.load_json("index")
         changed = False
-        
+
         # Normalización absoluta para evitar fallos con espacios o "/" finales
         root = os.path.abspath(parent_path)
-        
+
         for path in index.keys():
             current_path = os.path.abspath(path)
-            
+
             # Verificamos si es un hijo (está dentro de la carpeta pero no es la carpeta misma)
             if current_path.startswith(root) and current_path != root:
                 if isinstance(index[path], list) and len(index[path]) > 1:
@@ -494,7 +497,7 @@ class ConfigHandler:
             self.save_json("index", index)
             print(f" [SISTEMA] Cambio masivo completado: {len(index)} entradas procesadas.")
             return True
-        
+
         # Si llegamos aquí sin cambios, es que no había hijos o ya estaban en ese estado
         return False
 
@@ -505,7 +508,7 @@ class ConfigHandler:
         """
         bookmarks = self.load_json("bookmarks")
         cache = self.load_json("cache")
-        
+
         # 1. Mapa de linaje (rápido)
         lookup = {}
         for folder_data in cache.get("folders", {}).values():
@@ -524,12 +527,12 @@ class ConfigHandler:
                     actual_path = path_entry.get("path", "") or ""
                 else:
                     actual_path = path_entry if path_entry else ""
-                
+
                 if not actual_path or not os.path.exists(actual_path):
                     continue
                 if actual_path in existing_paths:
                     continue
-                
+
                 info = lookup.get(actual_path)
                 if info:
                     entry = [actual_path, info[0], info[1], info[2]]
@@ -541,7 +544,7 @@ class ConfigHandler:
                         entry = [actual_path, w, h, orient]
                     except:
                         continue
-                
+
                 current_list.append(entry)
                 existing_paths.add(actual_path)
 
@@ -555,13 +558,13 @@ class ConfigHandler:
         """
         # Cargamos la lista plana usando su clave oficial
         flat_list = self.load_json("bookmarks_single")
-        
+
         if not flat_list:
             return
 
         # Filtramos: Solo mantenemos lo que os.path.exists confirme
         new_list = [item for item in flat_list if item[0] and os.path.exists(item[0])]
-        
+
         # Si el tamaño ha cambiado, es que había "paja"
         if len(new_list) != len(flat_list):
             num_removed = len(flat_list) - len(new_list)
@@ -588,7 +591,7 @@ class ConfigHandler:
                 if not key.startswith("__"):
                     ordered[key] = bookmarks[bookmark_name][key]
             bookmarks[bookmark_name] = ordered
-    
+
             self._cleanup_preset_data(bookmarks[bookmark_name])
             self.save_json("bookmarks", bookmarks)
 
@@ -597,6 +600,7 @@ class ConfigHandler:
             return True
         except Exception as e:
             print(f" [!] Error al guardar favorito '{bookmark_name}': {e}")
+            self.log_error(f"Error al guardar favorito '{bookmark_name}': {e}", reason="SAVE_BOOKMARK")
             return False
 
     def get_next_bookmark_id(self):
@@ -606,7 +610,7 @@ class ConfigHandler:
         try:
             data = self.load_json("bookmarks")
             if not data: return 1
-            
+
             next_id = 1
             while True:
                 candidate = f"Bookmark {next_id:02d}"
@@ -648,6 +652,7 @@ class ConfigHandler:
             return True, "SUCCESS"
         except Exception as e:
             return False, f"ERROR: {str(e)}"
+            self.log_error(f"ERROR: {str(e)}", reason="SAVE:BOOKMARK")
 
     def _cleanup_preset_data(self, preset_data):
         """
@@ -686,10 +691,10 @@ class ConfigHandler:
     def delete_bookmark(self, name):
         """
         Elimina un preset de bookmarks.json y actualiza la lista plana y metadatos.
-    
+
         Args:
             name (str): Nombre del favorito a eliminar.
-    
+
         Returns:
             bool: True si se eliminó correctamente, False si no existía.
         """
@@ -708,11 +713,11 @@ class ConfigHandler:
         flat_list = self.load_json("bookmarks_single")
         if any(entry[0] == img_path for entry in flat_list):
             return False  # ya existe
-        
+
         orient, w, h = ImageEngine.process_image(img_path)
         if orient is None:
             return False  # no se pudo procesar la imagen
-        
+
         flat_list.append([img_path, w, h, orient])
         self.save_json("bookmarks_single", flat_list)
         self.refresh_history_metadata()
@@ -780,13 +785,13 @@ class ConfigHandler:
         scan_index = self.load_json("index")  # Formato: {ruta: [mtime, active]}
         extensions = self.img_extensions
         # Mapa de carpetas que el motor DEBE tener en cuenta
-        active_folders_mtime = {} 
+        active_folders_mtime = {}
         # print(f">>> sync_library: active_folders_mtime keys = {list(active_folders_mtime.keys())}")
         # --- 2. MAPEO DE REALIDAD FÍSICA Y PODA LÓGICA ---
         for source in sources_data:
             if source.get("type") != "physical" or not os.path.exists(source.get("path", "")):
                 continue
-            
+
             root_path = source.get("path")
             if not root_path or not os.path.exists(root_path):
                 continue
@@ -799,13 +804,13 @@ class ConfigHandler:
                     # Si es totalmente nueva, nace en el índice lista para procesar
                     if root not in scan_index:
                         scan_index[root] = [0, True]
-                    
+
                     # Normalización por si venimos de versiones antiguas (mtime float simple)
                     idx_entry = scan_index[root]
-                    if not isinstance(idx_entry, list): 
+                    if not isinstance(idx_entry, list):
                         idx_entry = [idx_entry, True]
                         scan_index[root] = idx_entry
-                    
+
                     folder_active = idx_entry[1]
 
                     if not folder_active:
@@ -814,7 +819,7 @@ class ConfigHandler:
                             dirs[:] = []
                         continue
                         # Si está cubierta, la consideramos activa
-                    
+
                     active_folders_mtime[root] = os.path.getmtime(root)
             else:
                 # Fuente no recursiva: solo la raíz
@@ -905,7 +910,7 @@ class ConfigHandler:
                 print(f" [CACHE] Eliminando caché de carpeta inactiva: {f}")
                 self._delete_thumbnails_for_folder(full_cache["folders"][f])
                 del full_cache["folders"][f]
-            
+
             # 2. BISTURÍ EN EL ÍNDICE: Solo borramos si el disco duro confirma que no existe
             if not os.path.exists(f):
                 del scan_index[f]
@@ -914,7 +919,7 @@ class ConfigHandler:
         # B. Escaneo de carpetas modificadas
         if folders_to_rescan:
             print(f" [!] Sincronizando {len(folders_to_rescan)} directorios...")
-            
+
         for folder in folders_to_rescan:
             # Limpiar caché previo de la carpeta para actualizar estadísticas
             if folder in full_cache["folders"]:
@@ -948,7 +953,7 @@ class ConfigHandler:
         # --- 5. PERSISTENCIA Y REPORTE ---
         self.save_json("cache", full_cache)
         self.save_json("index", scan_index)
-        
+
         detail_msg = self._notify_detailed_changes(stats, full_cache)  # Ahora devuelve el detalle o None
         h, v = self._get_cache_totals(full_cache)
         has_changes = any((
@@ -1043,6 +1048,7 @@ class ConfigHandler:
 
         except Exception as e:
             print(f" [ERROR] Fallo en escaneo asíncrono: {e}")
+            self.log_error(f"Fallo en escaneo asíncrono: {e}", reason="PROCESS_FOLDER")
             # Forzar el callback final para que el semáforo se destrabe
             if hasattr(self, '_async_state'):
                 total = len(self._async_state.get('folders_to_rescan', []))
@@ -1061,7 +1067,7 @@ class ConfigHandler:
 
         # Generar ID basado en la ruta (igual que en la migración)
         source_id = hashlib.md5(path.encode()).hexdigest()[:8]
-        
+
         # Evitar duplicados por ruta o por ID
         if any(s.get('path') == path or s.get('id') == source_id for s in sources_list if isinstance(s, dict)):
             return False
@@ -1074,11 +1080,11 @@ class ConfigHandler:
             "locked": False,
             "recursive": recursive
         }
-        
+
         sources_list.append(new_entry)
         data["sources"] = sources_list # Actualizamos el diccionario original
         self.save_json("sources", data) # Guardamos el objeto completo
-        
+
         print(f" >>> [CONFIG] Fuente añadida: {name}")
         # self.sync_library() # La sincronización ahora se hace asíncronamente desde el panel
         return True
@@ -1087,24 +1093,24 @@ class ConfigHandler:
         """Elimina una fuente y limpia la caché de imágenes asociada."""
         data = self.load_json("sources")
         sources_list = data.get("sources", [])
-        
+
         # Filtramos la lista para quitar la fuente que coincida con la ruta
         # Verificamos que no sea una fuente 'locked' (como el Vault)
         original_count = len(sources_list)
         sources_list = [
-            s for s in sources_list 
+            s for s in sources_list
             if not (s.get('path') == path and not s.get('locked', False))
         ]
-        
+
         if len(sources_list) < original_count:
             data["sources"] = sources_list
             self.save_json("sources", data)
             print(f" >>> [CONFIG] Fuente eliminada: {path}")
-            
+
             # Sincronizamos para que el daemon elimine las fotos de la caché
             self.sync_library()
             return True
-            
+
         print(f" [!] No se pudo eliminar la fuente (no encontrada o protegida): {path}")
         return False
 
@@ -1199,6 +1205,34 @@ class ConfigHandler:
 
     # --- [SIGUIENTE SECCIÓN: HISTORIAL Y LOGS] ---
 
+    def log_error(self, message, reason=None):
+        """
+        Registra un error en el archivo de log.
+        Mantiene solo las últimas 10 entradas.
+        """
+        log_path = os.path.join(self.data_dir, "error_log.txt")
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        entry = f"[{timestamp}]"
+        if reason:
+            entry += f" [{reason}]"
+        entry += f" {message}\n"
+
+        # Leer entradas existentes
+        lines = []
+        if os.path.exists(log_path):
+            with open(log_path, "r", encoding="utf-8") as f:
+                lines = f.readlines()
+
+        # Añadir nueva entrada al principio
+        lines.insert(0, entry)
+
+        # Mantener solo las últimas 10
+        lines = lines[:10]
+
+        # Guardar
+        with open(log_path, "w", encoding="utf-8") as f:
+            f.writelines(lines)
+
     def _get_cache_totals(self, cache):
         """Helper para sumar totales del caché V5"""
         total_h = sum(len(d['h']) for d in cache.get("folders", {}).values())
@@ -1213,17 +1247,17 @@ class ConfigHandler:
         full_cache = self.load_json("cache")
         h_list = []
         v_list = []
-        
+
         for folder_data in full_cache.get("folders", {}).values():
             h_list.extend(folder_data.get("h", []))
             v_list.extend(folder_data.get("v", []))
-            
+
         return h_list, v_list
 
     def _update_history(self, entry_id, mode="history"):
         """
         Registra una entrada en el historial aplicando 'Aleatoriedad Redonda':
-        Si el ciclo está a punto de completarse, se vacía preventivamente para 
+        Si el ciclo está a punto de completarse, se vacía preventivamente para
         garantizar que el último elemento no se repita en el nuevo inicio.
         """
         # 1. Configuración de claves según el modo
@@ -1244,7 +1278,7 @@ class ConfigHandler:
         # 4. Gestión quirúrgica del log: evitar duplicados y mover al top
         if entry_id in log:
             log.remove(entry_id)
-        
+
         log.insert(0, entry_id)
 
         # 5. Persistencia y actualización de timestamp
@@ -1263,11 +1297,11 @@ class ConfigHandler:
         """
         final_candidates = []
         m_ratio = m_w / m_h
-        
+
         for item in candidates:
             # Soportar tanto [path, w, h] como [path, w, h, orient]
             path, w, h = item[0], item[1], item[2]
-            
+
             # 1. Filtro de Orientación Físico
             img_orient = "h" if w >= h else "v"
             if img_orient != orientation:
@@ -1279,33 +1313,33 @@ class ConfigHandler:
                 ratio = w / h
                 if ratio > 1.0: # Si es horizontal (ancho > alto), descartar.
                     continue
-            
+
             # 3. Filtro de Smart Ratio (evitar deformación excesiva)
             img_ratio = w / h
             diff = abs(img_ratio - m_ratio)
-            
+
             if diff < 0.5:
                 final_candidates.append(path)
-                
+
         return final_candidates
 
     def get_vault_selection(self, orientation="h", exclude=None):
         """
-        Selección inteligente del Vault evitando duplicados inmediatos 
+        Selección inteligente del Vault evitando duplicados inmediatos
         y respetando el historial global.
         """
         exclude = exclude or [] # Rutas ya usadas en este ciclo por otros monitores
         vault_data = self.load_json("bookmarks_single")
-        
+
         if not vault_data: return None
-        
+
         # 1. Filtro: Misma orientación Y que no esté ya en pantalla
         pool = [img for img in vault_data if len(img) >= 4 and img[3] == orientation and img[0] not in exclude]
-        
+
         # Si no hay de esa orientación (libres), buscamos cualquiera que no esté en pantalla
         if not pool:
             pool = [img for img in vault_data if img[0] not in exclude]
-            
+
         # Si todo falla (caso extremo), usamos todo el vault
         if not pool: pool = vault_data
 
@@ -1313,9 +1347,9 @@ class ConfigHandler:
         history = self.load_json("history_vault").get("log", [])
         # print(f"[DEBUG] Vault selection: history_len={len(history)}, vault_total={len(vault_data)}")
         fresh_pool = [img for img in pool if img[0] not in history]
-        
+
         selected_path = random.choice(fresh_pool)[0] if fresh_pool else random.choice(pool)[0]
-        
+
         # Registramos para que no se repita pronto
         self._update_history(selected_path, mode="vault")
         return selected_path
@@ -1337,7 +1371,7 @@ class ConfigHandler:
         # print(f"[DEBUG] Spanned filter: candidates_total={len(candidates)}, after_filter={len(pool)}, target_ratio={target_w/target_h:.2f}")
         # Quitamos lo que ya ha salido recientemente
         fresh_pool = [p for p in pool if p not in history]
-        
+
         # 3. Fallback: Si no hay ideales, buscamos en la "otra" lista (solo para verticales)
         if not fresh_pool and orientation == "v":
             pool = self._filter_by_smart_ratio(h_list, target_w, target_h, "v")
@@ -1347,20 +1381,20 @@ class ConfigHandler:
         selected = None
         if fresh_pool:
             selected = random.choice(fresh_pool)
-        elif pool: 
+        elif pool:
             selected = random.choice(pool)
-        else: 
+        else:
             all_candidates = v_list + h_list
             if all_candidates: # Solo ejecutamos max si hay material
                 selected = max(all_candidates, key=lambda x: x[1] * x[2])[0]
             else:
                 # El abismo: no hay imágenes en ninguna lista
-                return None 
+                return None
 
         # 5. Registrar en el historial solo si tenemos éxito
         if selected:
             self._update_history(selected)
-        
+
         return selected
 
     def _process_image(self, path):
@@ -1379,13 +1413,13 @@ class ConfigHandler:
         """Construye un informe basado en entradas y salidas reales."""
         # Calculamos el movimiento total (Añadidas + Eliminadas)
         total_changes = sum(stats.values())
-        
+
         # Si el movimiento es 0, salimos sin devolver nada
         if total_changes == 0:
             return None
 
         msg_lines = []
-        
+
         # Bloque de Altas
         if stats["added_h"] > 0 or stats["added_v"] > 0:
             added = []
@@ -1402,17 +1436,17 @@ class ConfigHandler:
 
         # Totales actuales para contexto
         total_h, total_v = self._get_cache_totals(cache)
-        
+
         body = "\n".join(msg_lines)
         summary = "\n" + _("Total library") + ": {}H | {}V".format(total_h, total_v)
-        
+
         # Devolvemos el texto completo para que otro método (main.py) lo use en la notificación
         return f"{body}\n{summary}"
 
     def _send_notification(self, reason, detail_msg, action=None, level="info"):
         """
         Motor de notificaciones con jerarquía visual automática.
-        Niveles: 
+        Niveles:
           - 'info' (default): icon dialog-information
           - 'warn': icon dialog-warning
           - 'error': icon dialog-error
@@ -1432,7 +1466,7 @@ class ConfigHandler:
         if action:
             lines.append(_("Action") + ": " + action)
         lines.append(f"\n<i>{detail_msg}</i>")
-        
+
         full_message = "\n".join(lines)
 
         try:
@@ -1445,6 +1479,7 @@ class ConfigHandler:
             ], check=False)
         except Exception as e:
             print(f" [!] Error en notificación: {e}")
+            self.log_error(f"Error en notificación: {e}", reason="NOTIFY")
 
     def open_in_file_manager(self, path):
         """
@@ -1462,6 +1497,7 @@ class ConfigHandler:
             return False
         except Exception as e:
             print(f" [ERROR] No se pudo abrir: {e}")
+            self.log_error(f"No se pudo abrir: {e}", reason="OPEN_FILE")
             return False
 
 # --- DEBUGGER & DIAGNOSTIC MODE ---
@@ -1469,9 +1505,9 @@ if __name__ == "__main__":
     print("\n" + "═"*50)
     print("  WMM CONFIG HANDLER - SYSTEM CHECKUP")
     print("═"*50)
-    
+
     handler = ConfigHandler()
-    
+
     # 1. Rutas Críticas
     print(f"\n[PATH CHECK]")
     print(f"  Root:  {handler.applet_root}")
@@ -1500,28 +1536,28 @@ if __name__ == "__main__":
     print(f"\n[SOURCES STAT]")
     settings = handler.load_json("settings")
     cache = handler.load_json("cache")
-    
+
     # Accedemos a la lista de diccionarios
     sources_list = settings.get("global", {}).get("sources", [])
-    
+
     if not sources_list:
         print("  (!) No sources defined in settings.json")
     else:
         for source_item in sources_list:
             # EXTRAEMOS LA RUTA (aquí estaba el fallo)
-            path = source_item.get("path") 
-            
+            path = source_item.get("path")
+
             if not path:
                 continue
 
             # Ahora path es un string, os.path.exists funcionará
             exists = "✔" if os.path.exists(path) else "✘ NOT FOUND"
-            
+
             # Buscamos en el caché
             #folder_data = cache.get("folders", {}).get(path, {"h": [], "v": []})
             #num_h = len(folder_data["h"])
             #num_v = len(folder_data["v"])
-            
+
             # Formateamos la salida
             folder_name = os.path.basename(path) or path
             print(f"  [{exists}] {folder_name[:20].ljust(20)}") # | H: {str(num_h).ljust(4)} | V: {str(num_v).ljust(4)}")
@@ -1531,4 +1567,3 @@ if __name__ == "__main__":
     print("\n" + "═"*50)
     print("  Diagnostic complete.")
     print("═"*50 + "\n")
-
