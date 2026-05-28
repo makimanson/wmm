@@ -1,72 +1,70 @@
 # WMM - Wallpaper Multi-Monitor Manager
 
-Un applet para Cinnamon para la gestión de fondos de pantalla en configuraciones multi-monitor.
-Olvídate de fondos deformados, recortados o repetidos.
-Con WMM, tú tienes el control total.
+A Cinnamon applet for managing wallpapers in multi-monitor setups.
+Forget about deformed, cropped or repeated wallpapers.
+With WMM, you are in full control.
 
-## ✨ Características principales
+## ✨ Main features
 
-*   **Gestión multi-monitor real**: Asigna fondos diferentes a cada monitor o "extiende" (spanned) una imagen panorámica por todos ellos.
-*   **Asignación de imágenes**: Intenta adaptar la imagen más apropiada a cada monitor según su orientación (Vertical-Horizontal).
-*   **Modos de aspecto flexibles**: Controla cómo se ajusta la imagen: `Scaled` (sin deformar), `Zoom` (llenar recortando) o `Stretched` (llenar deformando).
-*   **Efectos visuales**: Aplica filtros `Sepia` o `Blanco y Negro` a las imágenes por monitor.
-*   **Efectos de fondo**: Aplica filtros `Desenfoque` o `Color` al fondo si la imagen no ocupa toda el área del monitor.
-*   **Rotación automática**: Configura un temporizador para cambiar los fondos automáticamente, ya sea de forma síncrona o asíncrona.
-*   **Favoritos (Presets)**: Guarda tus combinaciones de fondos favoritas como "Presets" y carga la que quieras al instante.
-*   **Internacionalización**: Interfaz preparada para múltiples idiomas (Inglés, Español, Catalán) con soporte para heredar traducciones del sistema.
+*   **Real multi-monitor management**: Assign different wallpapers to each monitor or span a panoramic image across all of them.
+*   **Image assignment**: Tries to adapt most suitable image to each monitor according to its orientation (Vertical-Horizontal).
+*   **Flexible aspect modes**: Control how image fits: `Scaled` (no distortion), `Zoom` (fill by cropping) or `Stretched` (fill by stretching).
+*   **Visual effects**: Apply `Sepia` or `Black & White` filters to images per monitor.
+*   **Background effects**: Apply `Blur` or `Color` filters to background if image does not cover entire monitor area.
+*   **Automatic rotation**: Set up a timer to change wallpapers automatically, either synchronously or asynchronously.
+*   **Favorites (Presets)**: Save your favorite wallpaper combinations as Presets and load them instantly.
+*   **Internationalization**: Interface ready for multiple languages (English, Spanish, Catalan) with support for inheriting system translations.
 
-## ⚙️ Configuración ideal del sistema
+## ⚙️ Ideal system configuration
 
-Para que WMM funcione correctamente y las transiciones de fondos sean limpias, necesita que el escritorio tenga los siguientes ajustes en Configuración del sistema → Fondos de pantalla:
+For WMM to work correctly and wallpaper transitions to be smooth, your desktop needs following settings in System Settings → Backgrounds:
 
-| Ajuste                           | Valor necesario       | Motivo                                                        |
-|----------------------------------|-----------------------|---------------------------------------------------------------|
-| Relación de aspecto de la imagen | Distribuida (spanned) | Evitar que el sistema deforme o recorte la composición de WMM |
-| Tipo de degradado	               | Sólido (solid)        | Evitar mezclas con otros colores durante la transición        |
-| Presentación de diapositivas     | Desactivada (false)   | Evitar que el sistema interfiera en los cambios de WMM        |
-|----------------------------------|-----------------------|---------------------------------------------------------------|
+| Setting               | Required value    | Reason                                                     |
+|-----------------------|-------------------|------------------------------------------------------------|
+| Picture aspect ratio  | Spanned           | Prevents system from distorting or cropping WMM composition |
+| Gradient type         | Solid             | Avoids mixing with other colors during transition          |
+| Slideshow             | Disabled (false)  | Prevents system from interfering with WMM changes      |
 
-*   WMM intenta forzar estos ajustes automáticamente cada vez que aplica un fondo.
-*   Si no puede (por ejemplo, por restricciones del sistema), te mostrará una notificación con los pasos a seguir.
-*   Puedes configurarlos manualmente en cualquier momento en Configuración del sistema → Fondos de pantalla.
+*   WMM tries to enforce these settings automatically every time it applies a wallpaper.
+*   If it cannot (for example, due to system restrictions), it will show a notification with steps to follow.
+*   You can manually configure them at any time in System Settings → Backgrounds.
 
-## 🚀 Instalación
+## 🚀 Installation
 
-*   Descarga o clona este repositorio en tu ordenador.
+*   Download or clone this repository on your computer.
 
-*   Abre una terminal en la carpeta raíz del proyecto (wmm-applet@maki).
+*   Open a terminal in project root folder (wmm-applet@maki).
 
-*   Ejecuta el script de instalación:
+*   Run installation script:
 
     ```bash
     chmod +x install.sh
     ./install.sh
     ```
 
-*   El script comprobará tus dependencias y te preguntará si quieres instalarlas automáticamente.
+*   Script will check your dependencies and ask if you want to install them automatically.
 
-*   Activa el applet: Ve a la configuración de Applets de Cinnamon, busca "WMM - Wallpaper Multi-Monitor Manager" y actívalo.
+*   Enable applet: Go to Cinnamon Applets settings, look for "WMM - Wallpaper Multi-Monitor Manager" and enable it.
 
-### 📋 Dependencias
+### 📋 Dependencies
 
-Antes de instalar, asegúrate de tener estas dependencias. Puedes instalarlas manualmente o dejar que el script `install.sh` lo haga por ti.
+Before installing, make sure you have these dependencies. You can install them manually or let `install.sh` script do it for you.
 
-| Paquete            | Descripción                                                          |
-|--------------------|----------------------------------------------------------------------|
-| `python3`          | Intérprete de Python 3                                               |
-| `python3-pillow`   | Librería de manipulación de imágenes                                 |
-| `python3-numpy`    | Librería de computación científica para procesado rápido de imágenes |
-| `python3-gi`       | Bindings de GTK para Python                                          |
-| `python3-gi-cairo` | Bindings de Cairo para Python                                        |
-| `gir1.2-gtk-3.0`   | Información de tipos para GTK+ 3.0                                   |
-| `gir1.2-glib-2.0`  | Información de tipos para GLib 2.0                                   |
-| `gettext`          | Herramientas de internacionalización                                 |
-| `libnotify-bin`    | Para enviar notificaciones de escritorio                             |
-| `zenity`           | Para mostrar diálogos gráficos                                       |
-| `procps`           | Para la herramienta de gestión de procesos `pkill`                   |
-|--------------------|----------------------------------------------------------------------|
+| Package            | Description                                                    |
+|--------------------|----------------------------------------------------------------|
+| `python3`          | Python 3 interpreter                                           |
+| `python3-pillow`   | Image manipulation library                                     |
+| `python3-numpy`    | Scientific computing library for fast image processing         |
+| `python3-gi`       | GTK bindings for Python                                        |
+| `python3-gi-cairo` | Cairo bindings for Python                                      |
+| `gir1.2-gtk-3.0`   | GTK+ 3.0 type information                                      |
+| `gir1.2-glib-2.0`  | GLib 2.0 type information                                      |
+| `gettext`          | Internationalization tools                                     |
+| `libnotify-bin`    | For sending desktop notifications                              |
+| `zenity`           | For displaying graphical dialogs                               |
+| `procps`           | For `pkill` process management tool                        |
 
-### Instalación rápida de dependencias (si no usas `install.sh`)
+### Quick dependency install (if not using `install.sh`)
 
 *   **Linux Mint / Ubuntu / Debian**:
 
@@ -85,22 +83,22 @@ Antes de instalar, asegúrate de tener estas dependencias. Puedes instalarlas ma
     sudo pacman -S python python-pillow python-numpy python-gobject gtk3 glib2 gettext libnotify zenity procps-ng
     ```
 
-## 🛠️ Modo Debug
+## 🛠️ Debug Mode
 
-Para solucionar problemas o ver qué está pasando entre bambalinas, puedes abrir el panel de control en modo debug. Verás una terminal con todos los mensajes de diagnóstico.
+To troubleshoot or see what is happening behind scenes, you can open control panel in debug mode. You will see a terminal with all diagnostic messages.
 
-*    Desde el applet: Haz clic derecho en el icono de WMM > Ajustes WMM (Debug).
+*    From applet: Right-click on WMM icon > WMM Settings (Debug).
 
-*    Manual: Abre una terminal y ejecuta WMM_DEBUG=1 python3 ~/.local/share/cinnamon/applets/wmm-applet@maki/python/panel.py.
+*    Manual: Open a terminal and run WMM_DEBUG=1 python3 ~/.local/share/cinnamon/applets/wmm-applet@maki/python/panel.py.
 
-## 🌍 Traducción
+## 🌍 Translation
 
-WMM soporta múltiples idiomas. Las traducciones se instalan automáticamente al ejecutar install.sh.
-*   Los archivos fuente se encuentran en la carpeta locale/ del proyecto.
-*   La interfaz se mostrará automáticamente en tu idioma si las traducciones están disponibles.
-Si quieres ayudarnos a traducir WMM a tu idioma, ¡serás más que bienvenido!
+WMM supports multiple languages. Translations are installed automatically when running install.sh.
+*   Source files are located in locale/ folder of project.
+*   Interface will automatically display in your language if translations are available.
+If you want to help us translate WMM into your language, you are more than welcome!
 
-## 📜 Licencia
+## 📜 License
 
-WMM se distribuye bajo la licencia [GPL-3.0](LICENSE).
-Eres libre de usar, modificar y distribuir este software, siempre que mantengas la misma licencia y la atribución a los autores originales.
+WMM is distributed under [GPL-3.0](LICENSE).
+You are free to use, modify and distribute this software, as long as you keep same license and attribution to original authors.
