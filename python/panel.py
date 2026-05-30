@@ -13,6 +13,7 @@ panel.py – Panel de control de WMM (Ajustes).
 """
 import traceback
 import os
+DEBUG = os.environ.get('WMM_DEBUG', '0') == '1'
 import sys
 import gi
 import base64
@@ -166,14 +167,14 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         # ==========================================================
         # CONTENEDOR RAÍZ
         # ==========================================================
-        self.main_layout = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        self.main_layout = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         self.main_layout.set_border_width(10)
         self.add(self.main_layout)
 
         # ==========================================================
         # COLUMNA IZQUIERDA: Opciones, Favoritos, Fuentes
         # ==========================================================
-        self.left_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=15)
+        self.left_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         self.left_col.set_size_request(350, -1)
         self.main_layout.pack_start(self.left_col, False, False, 0)
 
@@ -188,15 +189,13 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         # ==========================================================
         # COLUMNA DERECHA: Monitores, Thumbnails
         # ==========================================================
-        self.right_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=15)
+        self.right_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         self.main_layout.pack_start(self.right_col, True, True, 0)
 
         self._build_monitors_section()
 
         # Separador entre la sección de Monitores y la de Thumbnails
         sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-        #sep.set_margin_top(1)
-        #sep.set_margin_bottom(1)
         self.right_col.pack_start(sep, False, False, 0)
 
         self._build_thumbnails_section()
@@ -244,7 +243,10 @@ class WMMControlPanel(Gtk.ApplicationWindow):
 
         # Cabecera: label Options (izquierda) + bloque Debug (derecha)
         hbox_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        hbox_header.pack_start(self._create_section_label(_("Options")), True, True, 0)
+        options_label = self._create_section_label(_("Options"))
+        options_label.set_margin_top(8)
+        options_label.set_margin_bottom(8)
+        hbox_header.pack_start(options_label, True, True, 0)
 
         # Bloque derecho: botón Reiniciar + label dinámico + switch Debug
         debug_block = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
@@ -268,16 +270,8 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         self.debug_mode_switch.connect("notify::active", self._on_debug_mode_changed)
         debug_block.pack_end(self.debug_mode_switch, False, False, 0)
         debug_block.pack_end(self.debug_mode_label, False, False, 0)
-        # Forzar altura uniforme en el bloque Debug para evitar saltos al mostrar/ocultar botones
-        debug_size_group = Gtk.SizeGroup(mode=Gtk.SizeGroupMode.VERTICAL)
-        debug_size_group.add_widget(self.restart_btn)
-        debug_size_group.add_widget(self.view_log_btn)
-        debug_size_group.add_widget(self.debug_mode_label)
-        debug_size_group.add_widget(self.debug_mode_switch)
 
         hbox_header.pack_end(debug_block, False, False, 0)
-
-        vbox.pack_start(hbox_header, False, False, 0)
 
         # --- Cambiar fondo al inicio ---
         self.persist_switch = Gtk.Switch(active=True, halign=Gtk.Align.END)
@@ -403,6 +397,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         # ==========================================================
         # ORDEN DE EMPAQUETADO EN LA SECCIÓN OPCIONES
         # ==========================================================
+        vbox.pack_start(hbox_header, False, False, 0)           # Cabezera Opciones
         vbox.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
         vbox.pack_start(hbox_persist, False, False, 0)          # Cambiar fondo al inicio
         vbox.pack_start(hbox_spanned, False, False, 0)          # Modo Distribuido
@@ -515,24 +510,20 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         if self._loading:
             return
         debug_mode = switch.get_active()
-        self.debug_mode_label.set_text(_("Debug mode ON") if debug_mode else _("Debug mode OFF"))
+        self.debug_mode_label.set_text(_("Debug mode ON ") if debug_mode else _("Debug mode OFF"))
         self.backend.save_setting("debug_mode", debug_mode)
         # Actualizar título de la ventana
         title = _("Control Panel")
         if debug_mode:
             title += " (DEBUG)"
         self.set_title(title)
-        # Mostrar u ocultar el botón Reiniciar
+        # Mostrar u ocultar botones de Debug
         if hasattr(self, 'restart_btn'):
             if self._opened_in_debug:
-                self.restart_btn.set_visible(True)  # Siempre visible si se abrió en debug
-            else:
-                self.restart_btn.set_visible(debug_mode)
-        # Mostrar u ocultar el botón de log
-        if hasattr(self, 'view_log_btn'):
-            if self._opened_in_debug:
+                self.restart_btn.set_visible(True)
                 self.view_log_btn.set_visible(True)
             else:
+                self.restart_btn.set_visible(debug_mode)
                 self.view_log_btn.set_visible(debug_mode)
 
     def _on_restart_clicked(self, widget):
@@ -1910,12 +1901,9 @@ class WMMControlPanel(Gtk.ApplicationWindow):
                     else:
                         display_name = connector
 
-                    w_mm = info.get("width_mm", 0)
-                    h_mm = info.get("height_mm", 0)
-                    if w_mm > 0 and h_mm > 0:
-                        diag_mm = (w_mm**2 + h_mm**2) ** 0.5
-                        inches = int(round(diag_mm / 25.4))      # ← redondeo a entero
-                        label_text = f"{display_name} ({inches}\")"  # ← sin decimales
+                    inches = info.get("inches", 0)
+                    if inches > 0:
+                        label_text = f"{display_name} ({inches}\")"
                     else:
                         label_text = display_name
                 else:
@@ -2089,7 +2077,8 @@ class WMMControlPanel(Gtk.ApplicationWindow):
                 "action": "apply_manual_selection",
                 "temp_settings": temp_settings
             })
-            print(f" [Notificacion] {action} enviada al motor")
+            if DEBUG:
+                print(" [Notificacion] apply_manual_selection enviada al motor")
             # Desactivar slideshow
             settings = self.backend.load_settings()
             settings["slideshow_enabled"] = False
@@ -2686,7 +2675,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         debug_mode = settings.get("debug_mode", False)
         self._opened_in_debug = debug_mode
         self.debug_mode_switch.set_active(debug_mode)
-        self.debug_mode_label.set_text(_("Debug mode ON") if debug_mode else _("Debug mode OFF"))
+        self.debug_mode_label.set_text(_("Debug mode ON ") if debug_mode else _("Debug mode OFF"))
         title = _("Control Panel")
         if debug_mode:
             title += " (DEBUG)"

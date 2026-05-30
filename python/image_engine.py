@@ -362,6 +362,8 @@ class ImageEngine:
         """
         if img.mode != 'RGB':
             img = img.convert('RGB')
+        # Aplicar efecto de imagen (sepia, bw) antes de redimensionar
+        img = ImageEngine.apply_image_effect(img, image_effect)
 
         # Aplicar efecto de imagen (sepia, bw, none) a la imagen original
         img_effected = ImageEngine.apply_image_effect(img, image_effect)
@@ -652,9 +654,9 @@ class ImageEngine:
                                 image_effect=image_effect
                             )
                         elif wallpaper_mode == "zoom":
-                            processed = ImageEngine.apply_zoom(img_obj, inner_w, inner_h)
+                            processed = ImageEngine.apply_zoom(img_obj, inner_w, inner_h, image_effect=image_effect)
                         elif wallpaper_mode == "stretched":
-                            processed = ImageEngine.apply_stretched(img_obj, inner_w, inner_h)
+                            processed = ImageEngine.apply_stretched(img_obj, inner_w, inner_h, image_effect=image_effect)
                         else:
                             processed = ImageEngine.apply_fit(
                                 img_obj, inner_w, inner_h,

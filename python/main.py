@@ -384,76 +384,8 @@ class WMMDaemon:
 
         # --- MODO SELECCIÓN MANUAL (aplicar lo que hay en el vault sin rotar) ---
         if reason == ConfigHandler.REASON_SELECTION:
-            # Cargar la sesión activa del vault
-            vault = self.ch.load_json("vault")
-            active_session = vault.get("active_session", {})
-            selection = {}
-
-            # Leer los ajustes de color una sola vez
-            settings = self.ch.load_json("settings").get("global", {})
-            solid_color = settings.get("solid_color", "#000000")
-            color_mode = settings.get("color_mode", "solid_color")
-            gradient_h = settings.get("gradient_h", ["#000000", "#8D9797"])
-            gradient_v = settings.get("gradient_v", ["#000000", "#8D9797"])
-            wallpaper_effect_scope = settings.get("wallpaper_effect_scope", "blur")
-            # Leer el efecto de imagen, dando prioridad a los ajustes temporales enviados desde el panel
-            wallpaper_effect = temp_settings.get("wallpaper_effect", settings.get("wallpaper_effect", "none")) if temp_settings else settings.get("wallpaper_effect", "none")
-            spanned_enabled = temp_settings.get("spanned_enabled", settings.get("spanned_enabled", False)) if temp_settings else settings.get("spanned_enabled", False)
-            wp_mode = temp_settings.get("wallpaper_mode", settings.get("wallpaper_mode", "fit")) if temp_settings else settings.get("wallpaper_mode", "fit")
-
-            for m_hash in active_hashes:
-                entry = active_session.get(m_hash, {})
-                if isinstance(entry, dict):
-                    path = entry.get("path")
-                    is_active = entry.get("active", True)
-                else:
-                    path = entry if entry else None
-                    is_active = True
-
-                if is_active:
-                    if path and os.path.exists(path):
-                        # Usar la ruta existente y registrarla en el historial
-                        selection[m_hash] = path
-                        self.ch._update_history(path)
-                    else:
-                        # Monitor activo pero sin imagen: asignar una aleatoria
-                        m = monitors_map_real.get(m_hash, {})
-                        if m:
-                            orient = m.get('orientation', 'horizontal')[0].lower()
-                            new_path = self.ch.get_smart_selection(m.get('width', 1920), m.get('height', 1080), orientation=orient)
-                            if new_path:
-                                selection[m_hash] = new_path
-                                self.ch.update_monitor_image(m_hash, new_path)
-                                self.ch._update_history(new_path)
-                            else:
-                                # Fallback: si no hay imágenes en la biblioteca, usar color sólido
-                                selection[m_hash] = ("color", color_mode, solid_color, gradient_h, gradient_v)
-                        else:
-                            # Sin datos del monitor, color sólido
-                            selection[m_hash] = ("color", color_mode, solid_color, gradient_h, gradient_v)
-                else:
-                    # Monitor inactivo: pintar color de fondo
-                    selection[m_hash] = ("color", color_mode, solid_color, gradient_h, gradient_v)
-
-            if selection:
-                # Renderizar y aplicar directamente
-                master_path = self.ie.render_master_wallpaper(
-                    selection,
-                    full_canvas=spanned_enabled,
-                    solid_color=solid_color,
-                    color_mode=color_mode,
-                    gradient_h=gradient_h,
-                    gradient_v=gradient_v,
-                    wallpaper_effect_scope=wallpaper_effect_scope,
-                    wallpaper_mode=wp_mode,
-                    image_effect=wallpaper_effect
-                )
-                self.apply_to_cinnamon(master_path)
-                if self.timer_id is None:
-                    self.manage_timer(action="start")
-            else:
-                print(" [AVISO] Selección manual: no hay imágenes que aplicar.")
-            return  # Salimos sin ejecutar el resto del ciclo
+            self._handle_selection_mode(temp_settings, monitors_map_real, active_hashes)
+            return
 
         # --- GESTIÓN DE GEOMETRÍA ---
         if reason in ConfigHandler.RECONFIGURATION_REASONS:
@@ -486,284 +418,17 @@ class WMMDaemon:
         # Nuevo: leer el efecto de imagen global
         wallpaper_effect = settings.get("wallpaper_effect", "none")
 
-        # TRAZA TEMPORAL para diagnóstico
-        # print(f"[DIAG] spanned_enabled={spanned_enabled} | wallpaper_effect_scope={wallpaper_effect_scope} | wallpaper_mode={wp_mode} | color_mode={color_mode}")
-        selection = {}
-        target_hashes = active_hashes if target_hashes is None else target_hashes
-
         # El centinela: Controla si el motor encuentra material NUEVO o VÁLIDO en este ciclo
         valid_assets_found = False
 
         # --- LÓGICA ASYNC (Rotación por turnos) ---
-        # NUEVO: spanned ya no es un modo, es una opción independiente. La condición de async
-        # solo se aplica si NO está activado spanned.
-        if sl_mode == "async" and reason in ConfigHandler.ASYNC_ROTATION_REASONS and not spanned_enabled and not target_bookmark:
-            # Calcular qué monitores realmente tienen imagen (active:true)
-            active_image_hashes = []
-            for h in active_hashes:
-                entry = active_session.get(h, {})
-                if isinstance(entry, dict):
-                    if entry.get("active", True):
-                        active_image_hashes.append(h)
-                else:
-                    active_image_hashes.append(h)  # formato antiguo, asumimos activo
-
-            # Filtrar la cola actual para quitar monitores que ya no tienen imagen
-            self.rotation_queue = [h for h in self.rotation_queue if h in active_image_hashes]
-
-            # Si la cola quedó vacía o es inválida, reconstruirla
-            invalid_queue = not set(self.rotation_queue).issubset(set(active_image_hashes))
-            if not self.rotation_queue or invalid_queue:
-                if not active_image_hashes:
-                    target_hashes = []
-                    self.rotation_queue = []
-                else:
-                    new_queue = list(active_image_hashes)
-                    if len(new_queue) > 1:
-                        while True:
-                            random.shuffle(new_queue)
-                            if new_queue[0] != self.last_rotated_hash: break
-                    else:
-                        random.shuffle(new_queue)
-                    self.rotation_queue = new_queue
-
-                    target_hashes = [self.rotation_queue.pop(0)]
-                    self.last_rotated_hash = target_hashes[0]
-                    print(f" -> Modo Async: Turno del monitor {target_hashes[0]}.")
-            else:
-                # La cola es válida y no está vacía: rotar normalmente
-                target_hashes = [self.rotation_queue.pop(0)]
-                self.last_rotated_hash = target_hashes[0]
-                print(f" -> Modo Async: Turno del monitor {target_hashes[0]}.")
+        target_hashes = self._resolve_async_targets(reason, active_hashes, active_session, settings)
 
         # --- CONSTRUCCIÓN DE LA SELECCIÓN ---
-        if reason in ConfigHandler.RECONFIGURATION_REASONS:
-            # --- RECONFIGURACIÓN SIN ROTACIÓN (cambio de hardware o inicio) ---
-            for m_hash in active_hashes:
-                if m_hash not in monitors_map:
-                    continue
-                entry = active_session.get(m_hash, {})
-                if isinstance(entry, dict):
-                    path = entry.get("path")
-                    is_active = entry.get("active", True)
-                else:
-                    path = entry if entry else None
-                    is_active = True
-
-                if not is_active:
-                    selection[m_hash] = ("color", color_mode, solid_color, gradient_h, gradient_v)
-                    continue
-
-                if path and os.path.exists(path):
-                    selection[m_hash] = path
-                    self.ch._update_history(path)
-                else:
-                    m = monitors_map[m_hash]
-                    orient = m.get('orientation', 'horizontal')[0].lower()
-                    new_path = self.ch.get_smart_selection(m.get('width', 1920), m.get('height', 1080), orientation=orient)
-                    if new_path:
-                        selection[m_hash] = new_path
-                        self.ch.update_monitor_image(m_hash, new_path)
-                        self.ch._update_history(new_path)
-                    else:
-                        selection[m_hash] = ("color", color_mode, solid_color, gradient_h, gradient_v)
-            valid_assets_found = bool(selection)
-        else:
-        # --- ROTACIÓN NORMAL ---
-            target_preset = None
-            preset_assigned_paths = []
-            # Variables que pueden ser sobrescritas por el preset
-            preset_wp_mode = None
-            preset_spanned = None
-            preset_effect_scope = None
-            # Nuevo: variable para el efecto de imagen del preset
-            preset_effect = None
-
-            # 1. Determinamos qué preset usar (Manual o Automático)
-            if target_bookmark or (sl_mode == "sync" and fav_mode):
-                bookmarks = self.ch.load_json("bookmarks")
-
-                if target_bookmark:
-                    target_preset = target_bookmark
-                    print(f" [BOOKMARK] Aplicando composición manual: '{target_preset}'")
-                else:
-                    if bookmarks:
-                        # Cargar historial de presets
-                        presets_history = self.ch.load_json("history_presets").get("log", [])
-                        # Filtrar los que no han salido recientemente
-                        available = [k for k in bookmarks if k not in presets_history]
-                        if not available:
-                            # Todos han salido → vaciamos el log para empezar ciclo nuevo
-                            self.ch.save_json("history_presets", {
-                                "last_update": time.time(),
-                                "log": [],
-                                "parent_total": len(bookmarks)
-                            })
-                            available = list(bookmarks.keys())
-
-                        target_preset = random.choice(available)
-                        print(f" [SYNC] Preset global elegido: {target_preset}")
-
-                # 2. Validación y Pre-carga de rutas para la regla de exclusión
-                if target_preset:
-                    bm_data = bookmarks.get(target_preset, {})
-                    if not bm_data:
-                        print(f" [!] Error: El favorito '{target_preset}' no existe en el JSON.")
-                    else:
-                        # --- Extraer preferencias del preset (NUEVO) ---
-                        # Las claves reservadas __mode__, __spanned__ y __effect_scope__
-                        # definen la configuración visual del preset sin alterar los ajustes globales.
-                        if "__mode__" in bm_data:
-                            preset_wp_mode = bm_data.pop("__mode__")
-                        if "__spanned__" in bm_data:
-                            preset_spanned = bm_data.pop("__spanned__")
-                        if "__effect_scope__" in bm_data:
-                            preset_effect_scope = bm_data.pop("__effect_scope__")
-                        # Extraer el efecto de imagen del preset
-                        if "__effect__" in bm_data:
-                            preset_effect = bm_data.pop("__effect__")
-
-                        # Migrar formato antiguo (string) a dict si es necesario
-                        for m_hash, val in list(bm_data.items()):
-                            if m_hash.startswith("__"):
-                                continue  # Saltar cualquier otra clave reservada
-                            if isinstance(val, str):
-                                bm_data[m_hash] = {"path": val if val else "", "active": True}
-                        self.ch._update_history(target_preset, mode="presets")
-                        # Guardamos las rutas que YA están en el preset para que el relleno no las use
-                        preset_assigned_paths = [v.get("path", "") for v in bm_data.values() if isinstance(v, dict) and v.get("path")]
-                        # Asegurar que bm_data esté disponible más abajo
-                        target_preset_data = bm_data
-
-            # --- APLICAR PREFERENCIAS DEL PRESET (NUEVO) ---
-            # Si el preset definía valores, sobrescriben temporalmente los globales
-            if preset_wp_mode:
-                wp_mode = preset_wp_mode
-            if preset_spanned is not None:
-                spanned_enabled = preset_spanned
-            if preset_effect_scope:
-                wallpaper_effect_scope = preset_effect_scope
-            # Nuevo: aplicar el efecto de imagen del preset
-            if preset_effect is not None:
-                wallpaper_effect = preset_effect
-
-            # NUEVO: spanned ya no es un modo de aspecto, es una opción independiente
-            if spanned_enabled:
-                # Caso A: Distribución sobre el lienzo completo (Spanned)
-                # La imagen maestra se asigna únicamente al monitor principal
-                canvas_w, canvas_h = self.mm.get_total_canvas_geometry(monitors_map)
-
-                # Buscar el monitor principal (o el primero si no hay)
-                primary_hash = None
-                for m_hash in active_hashes:
-                    if monitors_map.get(m_hash, {}).get("primary", False):
-                        primary_hash = m_hash
-                        break
-                if primary_hash is None:
-                    primary_hash = active_hashes[0]  # Fallback: primer monitor
-
-                entry = active_session.get(primary_hash)
-                if isinstance(entry, dict):
-                    current_path = entry.get("path")
-                else:
-                    current_path = entry
-
-                if reason == ConfigHandler.REASON_HARDWARE and current_path and os.path.exists(current_path):
-                    path = current_path
-                else:
-                    # Prioridad: 1. Bookmark seleccionado | 2. Rotación de Favoritos | 3. Smart Selection
-                    if target_bookmark:
-                        # En spanned, cogemos la primera ruta disponible del preset
-                        path = preset_assigned_paths[0] if preset_assigned_paths else self._get_smart_favorite(primary_hash, "sync", "h", target_bookmark)
-                    elif fav_mode:
-                        path = self.ch.get_vault_selection(orientation="h")
-                    else:
-                        path = self.ch.get_smart_selection(canvas_w, canvas_h, orientation="h")
-
-                if not path:
-                     print(" [!] Spanned: Imposible encontrar imagen.")
-                else:
-                    selection = {primary_hash: path}
-                    valid_assets_found = True
-                    self.ch.update_monitor_image(primary_hash, path)
-            else:
-                # Caso B: Cada monitor con su imagen ajustada (modo real: fit/zoom/stretched)
-                current_f_mode = sl_mode.lower()
-
-                for m_hash in active_hashes:
-                    if m_hash not in monitors_map: continue
-                    # Leer el estado activo del monitor desde el vault
-                    vault_entry = active_session.get(m_hash, {})
-                    if isinstance(vault_entry, dict):
-                        is_active = vault_entry.get("active", True)
-                    else:
-                        is_active = True
-
-                    if not is_active:
-                        # Monitor inactivo: pintar color de fondo
-                        selection[m_hash] = ("color", color_mode, solid_color, gradient_h, gradient_v)
-                        continue
-                    m = monitors_map[m_hash]
-                    m_orient = m['orientation'][0].lower()
-                    entry = active_session.get(m_hash)
-                    if isinstance(entry, dict):
-                        current_vault_path = entry.get("path")
-                    else:
-                        current_vault_path = entry
-
-                    is_target = (m_hash in target_hashes) if reason in ConfigHandler.ASYNC_ROTATION_REASONS else True
-                    # 2. Selección de ruta
-                    img_path = None
-                    # --- Caso 1: Favoritos (Manual o por Temporizador) ---
-                    # Si hay un preset elegido (target_preset) y es el momento de cambiar (is_target)
-                    if is_target and (target_preset or fav_mode):
-                        # Si tenemos un preset específico cargado, aplicamos su composición
-                        if target_preset and m_hash in target_preset_data:
-                            entry = target_preset_data[m_hash]  # dict con "path" y "active"
-                            # Monitor inactivo en el preset → pintar color de fondo
-                            if not entry.get("active", True):
-                                selection[m_hash] = ("color", color_mode, solid_color, gradient_h, gradient_v)
-                                continue  # ya está asignado, pasar al siguiente monitor
-                            # Monitor activo con imagen definida en el preset
-                            elif entry.get("path"):
-                                img_path = entry["path"]
-                                if os.path.exists(img_path):
-                                    selection[m_hash] = img_path
-                                    self.ch.update_monitor_image(m_hash, img_path)
-                                    valid_assets_found = True
-                                    continue  # asignado, siguiente monitor
-                                else:
-                                    # La imagen del preset no existe en disco; se dejará caer
-                                    # al fallback de _get_smart_favorite para rellenar
-                                    pass
-                        # Si no se ha asignado nada (monitor sin entrada en el preset,
-                        # o preset no definido), usar el comportamiento normal de favoritos
-                        img_path = self._get_smart_favorite(
-                            m_hash,
-                            current_f_mode,
-                            m_orient,
-                            forced_bookmark=target_preset,
-                            exclude_paths=preset_assigned_paths
-                        )
-
-                    # --- Caso 2: Biblioteca Normal (Si no hay favoritos o no toca favoritos) ---
-                    elif is_target:
-                        img_path = self.ch.get_smart_selection(m['width'], m['height'], orientation=m_orient)
-
-                    # Persistencia para evitar pantallas en negro
-                    if img_path:
-                        selection[m_hash] = img_path
-                        self.ch.update_monitor_image(m_hash, img_path)
-                        valid_assets_found = True
-                    elif current_vault_path and os.path.exists(str(current_vault_path)):
-                        selection[m_hash] = current_vault_path
-                    else:
-                        # Último recurso
-                        img_path = self.ch.get_smart_selection(m['width'], m['height'], orientation=m_orient)
-                        if img_path:
-                            selection[m_hash] = img_path
-                            self.ch.update_monitor_image(m_hash, img_path)
-                            valid_assets_found = True
+        selection, valid_assets_found, spanned_enabled, wp_mode, wallpaper_effect, wallpaper_effect_scope, solid_color, color_mode, gradient_h, gradient_v = self._build_selection(
+            reason, active_hashes, monitors_map, active_session, target_hashes, settings,
+            target_bookmark=target_bookmark
+        )
 
         # 5. Renderizado y Aplicación final
         # Si todos los monitores están inactivos, pintar el color de fondo global
@@ -971,6 +636,333 @@ class WMMDaemon:
         )
         return False
 
+    def _handle_selection_mode(self, temp_settings, monitors_map_real, active_hashes):
+        """
+        Aplica la selección manual sin rotar (REASON_SELECTION).
+        Carga las imágenes actuales del vault y las renderiza directamente.
+        """
+        # Cargar la sesión activa del vault
+        vault = self.ch.load_json("vault")
+        active_session = vault.get("active_session", {})
+        selection = {}
+
+        # Leer los ajustes de color una sola vez
+        settings = self.ch.load_json("settings").get("global", {})
+        solid_color = settings.get("solid_color", "#000000")
+        color_mode = settings.get("color_mode", "solid_color")
+        gradient_h = settings.get("gradient_h", ["#000000", "#8D9797"])
+        gradient_v = settings.get("gradient_v", ["#000000", "#8D9797"])
+        wallpaper_effect_scope = settings.get("wallpaper_effect_scope", "blur")
+        wallpaper_effect = temp_settings.get("wallpaper_effect", settings.get("wallpaper_effect", "none")) if temp_settings else settings.get("wallpaper_effect", "none")
+        spanned_enabled = temp_settings.get("spanned_enabled", settings.get("spanned_enabled", False)) if temp_settings else settings.get("spanned_enabled", False)
+        wp_mode = temp_settings.get("wallpaper_mode", settings.get("wallpaper_mode", "fit")) if temp_settings else settings.get("wallpaper_mode", "fit")
+
+        for m_hash in active_hashes:
+            entry = active_session.get(m_hash, {})
+            if isinstance(entry, dict):
+                path = entry.get("path")
+                is_active = entry.get("active", True)
+            else:
+                path = entry if entry else None
+                is_active = True
+
+            if is_active:
+                if path and os.path.exists(path):
+                    selection[m_hash] = path
+                    self.ch._update_history(path)
+                else:
+                    m = monitors_map_real.get(m_hash, {})
+                    if m:
+                        orient = m.get('orientation', 'horizontal')[0].lower()
+                        new_path = self.ch.get_smart_selection(m.get('width', 1920), m.get('height', 1080), orientation=orient)
+                        if new_path:
+                            selection[m_hash] = new_path
+                            self.ch.update_monitor_image(m_hash, new_path)
+                            self.ch._update_history(new_path)
+                        else:
+                            selection[m_hash] = ("color", color_mode, solid_color, gradient_h, gradient_v)
+                    else:
+                        selection[m_hash] = ("color", color_mode, solid_color, gradient_h, gradient_v)
+            else:
+                selection[m_hash] = ("color", color_mode, solid_color, gradient_h, gradient_v)
+
+        if selection:
+            master_path = self.ie.render_master_wallpaper(
+                selection,
+                full_canvas=spanned_enabled,
+                solid_color=solid_color,
+                color_mode=color_mode,
+                gradient_h=gradient_h,
+                gradient_v=gradient_v,
+                wallpaper_effect_scope=wallpaper_effect_scope,
+                wallpaper_mode=wp_mode,
+                image_effect=wallpaper_effect
+            )
+            self.apply_to_cinnamon(master_path)
+            if self.timer_id is None:
+                self.manage_timer(action="start")
+        else:
+            print(" [AVISO] Selección manual: no hay imágenes que aplicar.")
+
+    def _resolve_async_targets(self, reason, active_hashes, active_session, settings):
+        """
+        Aplica la lógica de rotación asíncrona (async).
+        Devuelve la lista de hashes objetivo (target_hashes) para este ciclo.
+        """
+        target_hashes = active_hashes[:]  # Copia inicial
+        sl_mode = settings.get("slideshow_mode", "sync")
+
+        if sl_mode == "async" and reason in ConfigHandler.ASYNC_ROTATION_REASONS:
+            # Calcular qué monitores realmente tienen imagen (active:true)
+            active_image_hashes = []
+            for h in active_hashes:
+                entry = active_session.get(h, {})
+                if isinstance(entry, dict):
+                    if entry.get("active", True):
+                        active_image_hashes.append(h)
+                else:
+                    active_image_hashes.append(h)
+
+            # Filtrar la cola actual para quitar monitores que ya no tienen imagen
+            self.rotation_queue = [h for h in self.rotation_queue if h in active_image_hashes]
+
+            # Si la cola quedó vacía o es inválida, reconstruirla
+            invalid_queue = not set(self.rotation_queue).issubset(set(active_image_hashes))
+            if not self.rotation_queue or invalid_queue:
+                if not active_image_hashes:
+                    target_hashes = []
+                    self.rotation_queue = []
+                else:
+                    new_queue = list(active_image_hashes)
+                    if len(new_queue) > 1:
+                        while True:
+                            random.shuffle(new_queue)
+                            if new_queue[0] != self.last_rotated_hash:
+                                break
+                    else:
+                        random.shuffle(new_queue)
+                    self.rotation_queue = new_queue
+                    target_hashes = [self.rotation_queue.pop(0)]
+                    self.last_rotated_hash = target_hashes[0]
+                    print(f" -> Modo Async: Turno del monitor {target_hashes[0]}.")
+            else:
+                # La cola es válida y no está vacía: rotar normalmente
+                target_hashes = [self.rotation_queue.pop(0)]
+                self.last_rotated_hash = target_hashes[0]
+                print(f" -> Modo Async: Turno del monitor {target_hashes[0]}.")
+
+        return target_hashes
+
+    def _build_selection(self, reason, active_hashes, monitors_map, active_session, target_hashes,
+                         settings, target_bookmark=None, preset_data=None):
+        """
+        Construye el diccionario 'selection' (monitor -> ruta de imagen).
+        Devuelve (selection, valid_assets_found).
+        """
+        # Cargar parámetros de settings
+        color_mode = settings.get("color_mode", "solid_color")
+        solid_color = settings.get("solid_color", "#000000")
+        gradient_h = settings.get("gradient_h", ["#000000", "#8D9797"])
+        gradient_v = settings.get("gradient_v", ["#000000", "#8D9797"])
+        sl_mode = settings.get("slideshow_mode", "sync")
+        wp_mode = settings.get("wallpaper_mode", "fit")
+        fav_mode = settings.get("slideshow_bookmark", False)
+        current_f_mode = sl_mode.lower()
+        spanned_enabled = settings.get("spanned_enabled", False)
+        wallpaper_effect_scope = settings.get("wallpaper_effect_scope", "blur")
+        wallpaper_effect = settings.get("wallpaper_effect", "none")
+
+        selection = {}
+        valid_assets_found = False
+
+        # --- CONSTRUCCIÓN DE LA SELECCIÓN ---
+        if reason in ConfigHandler.RECONFIGURATION_REASONS:
+            # --- RECONFIGURACIÓN SIN ROTACIÓN (cambio de hardware o inicio) ---
+            for m_hash in active_hashes:
+                if m_hash not in monitors_map:
+                    continue
+                entry = active_session.get(m_hash, {})
+                if isinstance(entry, dict):
+                    path = entry.get("path")
+                    is_active = entry.get("active", True)
+                else:
+                    path = entry if entry else None
+                    is_active = True
+
+                if not is_active:
+                    selection[m_hash] = ("color", color_mode, solid_color, gradient_h, gradient_v)
+                    continue
+
+                if path and os.path.exists(path):
+                    selection[m_hash] = path
+                    self.ch._update_history(path)
+                else:
+                    m = monitors_map[m_hash]
+                    orient = m.get('orientation', 'horizontal')[0].lower()
+                    new_path = self.ch.get_smart_selection(m.get('width', 1920), m.get('height', 1080), orientation=orient)
+                    if new_path:
+                        selection[m_hash] = new_path
+                        self.ch.update_monitor_image(m_hash, new_path)
+                        self.ch._update_history(new_path)
+                    else:
+                        selection[m_hash] = ("color", color_mode, solid_color, gradient_h, gradient_v)
+            valid_assets_found = bool(selection)
+        else:
+            # --- ROTACIÓN NORMAL ---
+            target_preset = None
+            preset_assigned_paths = []
+            preset_wp_mode = None
+            preset_spanned = None
+            preset_effect_scope = None
+            preset_effect = None
+
+            # 1. Determinamos qué preset usar (Manual o Automático)
+            if target_bookmark or (sl_mode == "sync" and fav_mode):
+                bookmarks = self.ch.load_json("bookmarks")
+                if target_bookmark:
+                    target_preset = target_bookmark
+                    print(f" [BOOKMARK] Aplicando composición manual: '{target_preset}'")
+                else:
+                    if bookmarks:
+                        presets_history = self.ch.load_json("history_presets").get("log", [])
+                        available = [k for k in bookmarks if k not in presets_history]
+                        if not available:
+                            self.ch.save_json("history_presets", {
+                                "last_update": time.time(),
+                                "log": [],
+                                "parent_total": len(bookmarks)
+                            })
+                            available = list(bookmarks.keys())
+                        target_preset = random.choice(available)
+                        print(f" [SYNC] Preset global elegido: {target_preset}")
+
+                if target_preset:
+                    bm_data = bookmarks.get(target_preset, {})
+                    if not bm_data:
+                        print(f" [!] Error: El favorito '{target_preset}' no existe en el JSON.")
+                    else:
+                        if "__mode__" in bm_data:
+                            preset_wp_mode = bm_data.pop("__mode__")
+                        if "__spanned__" in bm_data:
+                            preset_spanned = bm_data.pop("__spanned__")
+                        if "__effect_scope__" in bm_data:
+                            preset_effect_scope = bm_data.pop("__effect_scope__")
+                        if "__effect__" in bm_data:
+                            preset_effect = bm_data.pop("__effect__")
+
+                        for m_hash, val in list(bm_data.items()):
+                            if m_hash.startswith("__"):
+                                continue
+                            if isinstance(val, str):
+                                bm_data[m_hash] = {"path": val if val else "", "active": True}
+                        self.ch._update_history(target_preset, mode="presets")
+                        preset_assigned_paths = [v.get("path", "") for v in bm_data.values() if isinstance(v, dict) and v.get("path")]
+                        target_preset_data = bm_data
+
+            # Aplicar preferencias del preset
+            if preset_wp_mode:
+                wp_mode = preset_wp_mode
+            if preset_spanned is not None:
+                spanned_enabled = preset_spanned
+            if preset_effect_scope:
+                wallpaper_effect_scope = preset_effect_scope
+            if preset_effect is not None:
+                wallpaper_effect = preset_effect
+
+            if spanned_enabled:
+                # Caso A: Distribución sobre el lienzo completo (Spanned)
+                canvas_w, canvas_h = self.mm.get_total_canvas_geometry(monitors_map)
+                primary_hash = None
+                for m_hash in active_hashes:
+                    if monitors_map.get(m_hash, {}).get("primary", False):
+                        primary_hash = m_hash
+                        break
+                if primary_hash is None:
+                    primary_hash = active_hashes[0]
+
+                entry = active_session.get(primary_hash)
+                if isinstance(entry, dict):
+                    current_path = entry.get("path")
+                else:
+                    current_path = entry
+
+                if reason == ConfigHandler.REASON_HARDWARE and current_path and os.path.exists(current_path):
+                    path = current_path
+                else:
+                    if target_bookmark:
+                        path = preset_assigned_paths[0] if preset_assigned_paths else self._get_smart_favorite(primary_hash, "sync", "h", target_bookmark)
+                    elif fav_mode:
+                        path = self.ch.get_vault_selection(orientation="h")
+                    else:
+                        path = self.ch.get_smart_selection(canvas_w, canvas_h, orientation="h")
+
+                if not path:
+                    print(" [!] Spanned: Imposible encontrar imagen.")
+                else:
+                    selection = {primary_hash: path}
+                    valid_assets_found = True
+                    self.ch.update_monitor_image(primary_hash, path)
+            else:
+                # Caso B: Cada monitor con su imagen ajustada
+                current_f_mode = sl_mode.lower()
+                for m_hash in active_hashes:
+                    if m_hash not in monitors_map:
+                        continue
+                    vault_entry = active_session.get(m_hash, {})
+                    if isinstance(vault_entry, dict):
+                        is_active = vault_entry.get("active", True)
+                    else:
+                        is_active = True
+
+                    if not is_active:
+                        selection[m_hash] = ("color", color_mode, solid_color, gradient_h, gradient_v)
+                        continue
+                    m = monitors_map[m_hash]
+                    m_orient = m['orientation'][0].lower()
+                    entry = active_session.get(m_hash)
+                    if isinstance(entry, dict):
+                        current_vault_path = entry.get("path")
+                    else:
+                        current_vault_path = entry
+
+                    is_target = (m_hash in target_hashes) if reason in ConfigHandler.ASYNC_ROTATION_REASONS else True
+                    img_path = None
+                    if is_target and (target_preset or fav_mode):
+                        if target_preset and m_hash in target_preset_data:
+                            entry = target_preset_data[m_hash]
+                            if not entry.get("active", True):
+                                selection[m_hash] = ("color", color_mode, solid_color, gradient_h, gradient_v)
+                                continue
+                            elif entry.get("path"):
+                                img_path = entry["path"]
+                                if os.path.exists(img_path):
+                                    selection[m_hash] = img_path
+                                    self.ch.update_monitor_image(m_hash, img_path)
+                                    valid_assets_found = True
+                                    continue
+                        img_path = self._get_smart_favorite(
+                            m_hash, current_f_mode, m_orient,
+                            forced_bookmark=target_preset,
+                            exclude_paths=preset_assigned_paths
+                        )
+                    elif is_target:
+                        img_path = self.ch.get_smart_selection(m['width'], m['height'], orientation=m_orient)
+
+                    if img_path:
+                        selection[m_hash] = img_path
+                        self.ch.update_monitor_image(m_hash, img_path)
+                        valid_assets_found = True
+                    elif current_vault_path and os.path.exists(str(current_vault_path)):
+                        selection[m_hash] = current_vault_path
+                    else:
+                        img_path = self.ch.get_smart_selection(m['width'], m['height'], orientation=m_orient)
+                        if img_path:
+                            selection[m_hash] = img_path
+                            self.ch.update_monitor_image(m_hash, img_path)
+                            valid_assets_found = True
+
+        return selection, valid_assets_found, spanned_enabled, wp_mode, wallpaper_effect, wallpaper_effect_scope, solid_color, color_mode, gradient_h, gradient_v
+
     def _update_geometry(self, monitors_map_real, reason):
         """
         Calcula y guarda la geometría del lienzo maestro.
@@ -1000,6 +992,7 @@ class WMMDaemon:
         has_changed, _ = self.ch.sync_vault(active_hashes)
         if has_changed:
             print(" [VAULT] Sincronizado con la geometría actual.")
+        return has_changed
 
     def run(self):
         # print("--- WMM DAEMON INICIADO ---")
@@ -1016,15 +1009,16 @@ class WMMDaemon:
             print(f" [ERROR] Escaneo inicial: {e}")
             self.ch.log_error(f"Escaneo inicial: {e}", reason="SYNC_LIB")
 
-        # Sincronizar geometría y vault siempre
-        self.startup_sync()
-
         # Al iniciar, si el usuario no quiere cambios, nos saltamos el ciclo.
         settings = self.ch.load_json("settings").get("global", {})
-        if not settings.get("persist_on_reboot", True):  # Por defecto, mantener
+        if not settings.get("persist_on_reboot", True):
             self.execute_full_cycle(reason=ConfigHandler.REASON_SERVICE)
         else:
-            print(" -> Persistencia activa. Se mantiene el fondo actual.")
+            if self.startup_sync():
+                print(" -> Cambio de hardware detectado. Regenerando fondo...")
+                self.execute_full_cycle(reason=ConfigHandler.REASON_HARDWARE)
+            else:
+                print(" -> Persistencia activa. Se mantiene el fondo actual.")
 
         try:
             self.loop.run()

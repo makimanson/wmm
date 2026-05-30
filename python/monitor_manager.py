@@ -36,7 +36,7 @@ class MonitorManager:
         self.display = Gdk.Display.get_default()
         if self.display:
             self.display.sync() # Asegurar que GDK está al día con el SO
-            
+
         monitors_data = {}
         n_monitors = self.display.get_n_monitors()
         physical_hashes = self.get_physical_edid_hashes()
@@ -54,8 +54,14 @@ class MonitorManager:
                 m_hash = physical_hashes[i]
             else:
                 m_hash = hashlib.shake_128(connector.encode()).hexdigest(4)
-            
+
             orientation = "horizontal" if geometry.width >= geometry.height else "vertical"
+
+            # Calcular diagonal en pulgadas (una sola vez)
+            inches = 0
+            if w_mm > 0 and h_mm > 0:
+                diag_mm = (w_mm ** 2 + h_mm ** 2) ** 0.5
+                inches = int(round(diag_mm / 25.4))
 
             monitors_data[m_hash] = {
                 "connector": connector,
@@ -66,15 +72,16 @@ class MonitorManager:
                 "height": geometry.height,
                 "width_mm": w_mm,
                 "height_mm": h_mm,
+                "inches": inches,
                 "orientation": orientation,
                 "primary": is_primary,
             }
-            
+
         return monitors_data
 
     def get_total_canvas_geometry(self, monitors_map):
         """
-        Calcula el tamaño del lienzo basándose en el punto más lejano 
+        Calcula el tamaño del lienzo basándose en el punto más lejano
         al que llega cualquier monitor (Borde derecho y Borde inferior).
         """
         if not monitors_map:
@@ -150,11 +157,11 @@ if __name__ == "__main__":
     manager = MonitorManager()
     active = manager.get_active_monitors_map()
     canvas_w, canvas_h = manager.get_total_canvas_geometry(active)
-    
+
     print(f"--- Diagnóstico de Monitores ---")
     for m_hash, data in active.items():
         # Verás que los IDs ahora coincidirán con los de HARDWARE de tu test
         print(f"ID: {m_hash} | {data['width']}x{data['height']} en ({data['x']},{data['y']}) | {data['orientation']}")
-    
+
     print(f"---")
     print(f"Lienzo Maestro Requerido: {canvas_w}x{canvas_h}")
