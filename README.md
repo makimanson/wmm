@@ -4,6 +4,12 @@ A Cinnamon applet for managing wallpapers in multi-monitor setups.
 Forget about deformed, cropped or repeated wallpapers.
 With WMM, you are in full control.
 
+<p align="center">
+  <a href="screenshots/screenshot.png">
+    <img src="screenshots/screenshot.png" alt="WMM Screenshot" width="100%"/>
+  </a>
+</p>
+
 ## ✨ Main features
 
 *   **Real multi-monitor management**: Assign different wallpapers to each monitor or span a panoramic image across all of them.

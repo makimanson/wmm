@@ -4,6 +4,12 @@ Un applet para Cinnamon para la gestión de fondos de pantalla en configuracione
 Olvídate de fondos deformados, recortados o repetidos.
 Con WMM, tú tienes el control total.
 
+<p align="center">
+  <a href="screenshots/screenshot.png">
+    <img src="screenshots/screenshot.png" alt="WMM Screenshot" width="100%"/>
+  </a>
+</p>
+
 ## ✨ Características principales
 
 *   **Gestión multi-monitor real**: Asigna fondos diferentes a cada monitor o "extiende" (spanned) una imagen panorámica por todos ellos.
