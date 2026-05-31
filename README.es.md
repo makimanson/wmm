@@ -53,18 +53,36 @@ Para que WMM funcione correctamente y las transiciones de fondos sean limpias, n
 
 *   Activa el applet: Ve a la configuración de Applets de Cinnamon, busca "WMM - Wallpaper Multi-Monitor Manager" y actívalo.
 
+## 🔧 Instalación manual
+
+Si prefieres no usar el script:
+
+*   1.  **Crea la carpeta del applet**:
+
+    ```bash
+    mkdir -p ~/.local/share/cinnamon/applets/wmm-applet@maki
+    ```
+*   2. Copia los archivos del proyecto en esa carpeta (el contenido del zip, no la carpeta padre)
+*   3.  **Compila las traducciones**
+
+    ```bash
+    for po in po/*.po; do lang=$(basename "$po" .po); msgfmt "$po" -o ~/.local/share/locale/$lang/LC_MESSAGES/wmm-applet@maki.mo; done
+    ```
+*   4.  **Instalar dependencias** listadas a continuacion:
+*   5.  **Activa el applet:** Ve a la configuración de Applets de Cinnamon, busca "WMM - Wallpaper Multi-Monitor Manager" y actívalo.
+
 ### 📋 Dependencias
 
 Antes de instalar, asegúrate de tener estas dependencias. Puedes instalarlas manualmente o dejar que el script `install.sh` lo haga por ti.
 
 | Paquete | Descripción |
 |---|---|
-| **Dependencias instalables (se instalan con `install.sh`)** | |
+| **Dependencias instalables** | **(se instalan con `install.sh`)** |
 | `python3` | Intérprete de Python 3 |
 | `python3-pillow` | Librería de manipulación de imágenes |
 | `python3-numpy` | Librería de computación científica para procesado rápido de imágenes |
 | `libnotify-bin` | Para enviar notificaciones de escritorio |
-| **Dependencias del sistema (vienen con Cinnamon)** | |
+| **Dependencias del sistema** | **(vienen con Cinnamon)** |
 | `python3-gi` | Bindings de GTK para Python |
 | `python3-gi-cairo` | Bindings de Cairo para Python |
 | `gir1.2-gtk-3.0` | Información de tipos para GTK+ 3.0 |
@@ -90,6 +108,15 @@ Antes de instalar, asegúrate de tener estas dependencias. Puedes instalarlas ma
 
     ```bash
     sudo pacman -Sy --noconfirm python python-pillow python-numpy libnotify
+    ```
+
+### 🗑️ Desinstalación
+
+1.  Haz clic derecho en el applet del panel y selecciona **Eliminar**.
+2.  Abre **Miniaplicaciones**, busca WMM Manager y pulsa **Desinstalar**.
+3.  Borra la carpeta de caché:
+    ```bash
+    rm -rf ~/.cache/wmm
     ```
 
 ## 🛠️ Modo Debug

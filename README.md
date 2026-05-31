@@ -52,18 +52,36 @@ For WMM to work correctly and wallpaper transitions to be smooth, your desktop n
 
 *   Enable applet: Go to Cinnamon Applets settings, look for "WMM - Wallpaper Multi-Monitor Manager" and enable it.
 
+## 🔧 Manual installation
+
+If you prefer not to use script:
+
+1.  **Create the applet folder**:
+
+    ```bash
+    mkdir -p ~/.local/share/cinnamon/applets/wmm-applet@maki
+    ```
+*   2. Copy project files into that folder (content of zip, not parent folder).
+*   3.  **Compile the translations**
+
+    ```bash
+    for po in po/*.po; do lang=$(basename "$po" .po); msgfmt "$po" -o ~/.local/share/locale/$lang/LC_MESSAGES/wmm-applet@maki.mo; done
+    ```
+*   4.  **Install dependencies** listed in the table below:
+*   5.  **Enable applet** from Cinnamon Applets settings.
+
 ### 📋 Dependencies
 
 Before installing, make sure you have these dependencies. You can install them manually or let `install.sh` script do it for you.
 
 | Package | Description |
 |---|---|
-| **Installable dependencies (installed by `install.sh`)** | |
+| **Installable dependencies** | **(installed by `install.sh`)** |
 | `python3` | Python 3 interpreter |
 | `python3-pillow` | Image manipulation library |
 | `python3-numpy` | Scientific computing library for fast image processing |
 | `libnotify-bin` | For sending desktop notifications |
-| **System dependencies (included with Cinnamon)** | |
+| **System dependencies** | **(included with Cinnamon)** |
 | `python3-gi` | GTK bindings for Python |
 | `python3-gi-cairo` | Cairo bindings for Python |
 | `gir1.2-gtk-3.0` | GTK+ 3.0 type information |
@@ -89,6 +107,15 @@ Before installing, make sure you have these dependencies. You can install them m
 
     ```bash
     sudo pacman -Sy --noconfirm python python-pillow python-numpy libnotify
+    ```
+
+### 🗑️ Uninstallation
+
+1.  Right-click the applet on the panel and select **Remove**.
+2.  Open **Applets**, find WMM Manager and click **Uninstall**.
+3.  Delete the cache folder:
+    ```bash
+    rm -rf ~/.cache/wmm
     ```
 
 ## 🛠️ Debug Mode
