@@ -56,37 +56,39 @@ For WMM to work correctly and wallpaper transitions to be smooth, your desktop n
 
 Before installing, make sure you have these dependencies. You can install them manually or let `install.sh` script do it for you.
 
-| Package            | Description                                                    |
-|--------------------|----------------------------------------------------------------|
-| `python3`          | Python 3 interpreter                                           |
-| `python3-pillow`   | Image manipulation library                                     |
-| `python3-numpy`    | Scientific computing library for fast image processing         |
-| `python3-gi`       | GTK bindings for Python                                        |
-| `python3-gi-cairo` | Cairo bindings for Python                                      |
-| `gir1.2-gtk-3.0`   | GTK+ 3.0 type information                                      |
-| `gir1.2-glib-2.0`  | GLib 2.0 type information                                      |
-| `gettext`          | Internationalization tools                                     |
-| `libnotify-bin`    | For sending desktop notifications                              |
-| `zenity`           | For displaying graphical dialogs                               |
-| `procps`           | For `pkill` process management tool                        |
+| Package | Description |
+|---|---|
+| **Installable dependencies (installed by `install.sh`)** | |
+| `python3` | Python 3 interpreter |
+| `python3-pillow` | Image manipulation library |
+| `python3-numpy` | Scientific computing library for fast image processing |
+| `libnotify-bin` | For sending desktop notifications |
+| **System dependencies (included with Cinnamon)** | |
+| `python3-gi` | GTK bindings for Python |
+| `python3-gi-cairo` | Cairo bindings for Python |
+| `gir1.2-gtk-3.0` | GTK+ 3.0 type information |
+| `gir1.2-glib-2.0` | GLib 2.0 type information |
+| `gettext` | Internationalization tools |
+| `zenity` | For displaying graphical dialogs |
+| `procps` | For the `pkill` process management tool |
 
 ### Quick dependency install (if not using `install.sh`)
 
 *   **Linux Mint / Ubuntu / Debian**:
 
     ```bash
-    sudo apt install python3 python3-pillow python3-numpy python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-glib-2.0 gettext libnotify-bin zenity procps
+    sudo apt install -y python3 python3-pillow python3-numpy libnotify-bin
     ```
 
 *   **Fedora**:
 
     ```bash
-    sudo dnf install python3 python3-pillow python3-numpy python3-gobject gtk3 glib2 gettext libnotify zenity procps-ng
+    sudo dnf install -y python3 python3-pillow python3-numpy libnotify
     ```
 *   **Arch Linux / Manjaro**:
 
     ```bash
-    sudo pacman -S python python-pillow python-numpy python-gobject gtk3 glib2 gettext libnotify zenity procps-ng
+    sudo pacman -Sy --noconfirm python python-pillow python-numpy libnotify
     ```
 
 ## 🛠️ Debug Mode

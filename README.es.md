@@ -57,38 +57,39 @@ Para que WMM funcione correctamente y las transiciones de fondos sean limpias, n
 
 Antes de instalar, asegúrate de tener estas dependencias. Puedes instalarlas manualmente o dejar que el script `install.sh` lo haga por ti.
 
-| Paquete            | Descripción                                                          |
-|--------------------|----------------------------------------------------------------------|
-| `python3`          | Intérprete de Python 3                                               |
-| `python3-pillow`   | Librería de manipulación de imágenes                                 |
-| `python3-numpy`    | Librería de computación científica para procesado rápido de imágenes |
-| `python3-gi`       | Bindings de GTK para Python                                          |
-| `python3-gi-cairo` | Bindings de Cairo para Python                                        |
-| `gir1.2-gtk-3.0`   | Información de tipos para GTK+ 3.0                                   |
-| `gir1.2-glib-2.0`  | Información de tipos para GLib 2.0                                   |
-| `gettext`          | Herramientas de internacionalización                                 |
-| `libnotify-bin`    | Para enviar notificaciones de escritorio                             |
-| `zenity`           | Para mostrar diálogos gráficos                                       |
-| `procps`           | Para la herramienta de gestión de procesos `pkill`                   |
-|--------------------|----------------------------------------------------------------------|
+| Paquete | Descripción |
+|---|---|
+| **Dependencias instalables (se instalan con `install.sh`)** | |
+| `python3` | Intérprete de Python 3 |
+| `python3-pillow` | Librería de manipulación de imágenes |
+| `python3-numpy` | Librería de computación científica para procesado rápido de imágenes |
+| `libnotify-bin` | Para enviar notificaciones de escritorio |
+| **Dependencias del sistema (vienen con Cinnamon)** | |
+| `python3-gi` | Bindings de GTK para Python |
+| `python3-gi-cairo` | Bindings de Cairo para Python |
+| `gir1.2-gtk-3.0` | Información de tipos para GTK+ 3.0 |
+| `gir1.2-glib-2.0` | Información de tipos para GLib 2.0 |
+| `gettext` | Herramientas de internacionalización |
+| `zenity` | Para mostrar diálogos gráficos |
+| `procps` | Para la herramienta de gestión de procesos `pkill` |
 
 ### Instalación rápida de dependencias (si no usas `install.sh`)
 
 *   **Linux Mint / Ubuntu / Debian**:
 
     ```bash
-    sudo apt install python3 python3-pillow python3-numpy python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-glib-2.0 gettext libnotify-bin zenity procps
+    sudo apt install -y python3 python3-pillow python3-numpy libnotify-bin
     ```
 
 *   **Fedora**:
 
     ```bash
-    sudo dnf install python3 python3-pillow python3-numpy python3-gobject gtk3 glib2 gettext libnotify zenity procps-ng
+    sudo dnf install -y python3 python3-pillow python3-numpy libnotify
     ```
 *   **Arch Linux / Manjaro**:
 
     ```bash
-    sudo pacman -S python python-pillow python-numpy python-gobject gtk3 glib2 gettext libnotify zenity procps-ng
+    sudo pacman -Sy --noconfirm python python-pillow python-numpy libnotify
     ```
 
 ## 🛠️ Modo Debug

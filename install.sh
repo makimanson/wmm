@@ -2,70 +2,73 @@
 
 # ==========================================================
 # WMM - Wallpaper Master Manager
-# Instalador interactivo y verificación de dependencias
+# Interactive installer and dependency checker
 # ==========================================================
 
-set -e
-
-# Colores para el checklist
+# Colors for the checklist
 GREEN='\033[0;32m'
 RED='\033[0;31m'
-NC='\033[0m' # Sin color
+NC='\033[0m' # No color
 
 APPLET_DIR="$HOME/.local/share/cinnamon/applets/wmm-applet@maki"
 CACHE_DIR="$HOME/.cache/wmm"
 
 # ----------------------------------------------------------
-# Verificar que Cinnamon está instalado
+# Verify that Cinnamon is installed
 # ----------------------------------------------------------
 if ! command -v cinnamon &> /dev/null; then
-    echo -e "${RED}ERROR: Cinnamon no está instalado en este sistema.${NC}"
-    echo "WMM es un applet exclusivo para el escritorio Cinnamon."
-    echo "Por favor, instala Cinnamon antes de ejecutar este instalador."
+    echo -e "${RED}ERROR: Cinnamon is not installed on this system.${NC}"
+    echo "WMM is an applet exclusively for the Cinnamon desktop."
+    echo "Please install Cinnamon before running this installer."
     exit 1
 fi
-echo -e "${GREEN}Cinnamon detectado.${NC}"
+echo -e "${GREEN}Cinnamon detected.${NC}"
 
 # ----------------------------------------------------------
-# Definición de dependencias: "Nombre" "Comando de prueba" "Paquete(s)"
+# Dependencies that the script can install safely
 # ----------------------------------------------------------
 declare -A DEPENDENCIES
 DEPENDENCIES=(
     ["Python 3"]="python3 --version|python3"
     ["Pillow (Python Imaging)"]="python3 -c 'from PIL import Image'|python3-pillow"
-    ["PyGObject (GTK bindings)"]="python3 -c 'import gi; gi.require_version(\"Gtk\", \"3.0\")'|python3-gi python3-gi-cairo"
-    ["GTK 3.0 Introspection"]="pkg-config --exists gtk+-3.0|gir1.2-gtk-3.0"
-    ["GLib 2.0 Introspection"]="pkg-config --exists glib-2.0|gir1.2-glib-2.0"
     ["NumPy (Python scientific computing)"]="python3 -c 'import numpy'|python3-numpy"
-    ["GetText"]="command -v xgettext|gettext"
-    ["Libnotify (notificaciones)"]="command -v notify-send|libnotify-bin"
-    ["Zenity (diálogos)"]="command -v zenity|zenity"
-    ["pkill (señales)"]="command -v pkill|procps"
+    ["Libnotify (notifications)"]="command -v notify-send|libnotify-bin"
+)
+
+# System dependencies (should already be present with Cinnamon, only verified)
+declare -A SYSTEM_DEPENDENCIES
+SYSTEM_DEPENDENCIES=(
+    ["PyGObject (GTK bindings)"]="python3 -c 'import gi; gi.require_version(\"Gtk\", \"3.0\")'"
+    ["GTK 3.0 Introspection"]="python3 -c 'import gi; gi.require_version(\"Gtk\", \"3.0\")'"
+    ["GLib 2.0 Introspection"]="python3 -c 'import gi; gi.require_version(\"GLib\", \"2.0\")'"
+    ["GetText"]="command -v xgettext"
+    ["Zenity (dialogs)"]="command -v zenity"
+    ["pkill (signals)"]="command -v pkill"
 )
 
 # ----------------------------------------------------------
-# Función para verificar una dependencia
+# Function to verify a dependency
 # ----------------------------------------------------------
 check_dep() {
     local test_cmd="$1"
     if eval "$test_cmd" &> /dev/null; then
-        echo 1 # Instalada
+        echo 1 # Installed
     else
-        echo 0 # No instalada
+        echo 0 # Not installed
     fi
 }
 
 # ----------------------------------------------------------
-# Función para mostrar el checklist
+# Function to display the checklist
 # ----------------------------------------------------------
 print_checklist() {
     local installed_count=0
     local missing_count=0
-    echo -e "\nEstado de las dependencias:"
+    echo -e "\nDependency status:"
+    # Installable dependencies
     for dep_name in "${!DEPENDENCIES[@]}"; do
-        local test_cmd="${DEPENDENCIES[$dep_name]%%|*}"
-        local packages="${DEPENDENCIES[$dep_name]##*|}"
-        local status=$(check_dep "$test_cmd")
+        test_cmd="${DEPENDENCIES[$dep_name]%%|*}"
+        status=$(check_dep "$test_cmd")
         if [ "$status" -eq 1 ]; then
             echo -e "  ${GREEN}[✔]${NC} $dep_name"
             ((installed_count++))
@@ -74,68 +77,103 @@ print_checklist() {
             ((missing_count++))
         fi
     done
-    echo -e "\n${GREEN}$installed_count instaladas${NC}, ${RED}$missing_count faltantes${NC}"
+    # System dependencies (verification only)
+    for dep_name in "${!SYSTEM_DEPENDENCIES[@]}"; do
+        test_cmd="${SYSTEM_DEPENDENCIES[$dep_name]}"
+        status=$(check_dep "$test_cmd")
+        if [ "$status" -eq 1 ]; then
+            echo -e "  ${GREEN}[✔]${NC} $dep_name (system)"
+            ((installed_count++))
+        else
+            echo -e "  ${RED}[✘]${NC} $dep_name (system - required for Cinnamon)"
+            ((missing_count++))
+        fi
+    done
+    echo -e "\n${GREEN}$installed_count installed${NC}, ${RED}$missing_count missing${NC}"
     return $missing_count
 }
 
 # ----------------------------------------------------------
-# INICIO DEL SCRIPT
+# SCRIPT START
 # ----------------------------------------------------------
 clear
 echo "=============================================="
 echo "  WMM - Wallpaper Multi-Monitor Manager"
-echo "  Verificación de dependencias"
+echo "  Dependency Check"
 echo "=============================================="
 
-# Primer pase: mostrar estado actual
+# First pass: show current status
 print_checklist
 missing=$?
 
 if [ $missing -eq 0 ]; then
-    echo "Todas las dependencias están instaladas."
-    # Instalación de archivos
-    echo -e "\nCreando estructura de carpetas y copiando archivos..."
-    mkdir -p "$APPLET_DIR/data" "$APPLET_DIR/python" "$APPLET_DIR/locale"
+    # Install files
+    echo -e "\nCreating directory structure and copying files..."
+    SCRIPT_DIR="$(dirname "$0")"
+    if [ ! -f "$SCRIPT_DIR/metadata.json" ] || [ ! -d "$SCRIPT_DIR/python" ]; then
+        echo "ERROR: Project structure not found (missing metadata.json or python/)."
+        echo "Make sure you run the script from the project root folder."
+        exit 1
+    fi
+    mkdir -p "$APPLET_DIR/data" "$APPLET_DIR/python"
     mkdir -p "$CACHE_DIR/thumbnails"
-    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-    cp -r "$SCRIPT_DIR"/* "$APPLET_DIR/"
-    # Compilar e instalar traducciones
-    echo "Instalando traducciones..."
+    cp -r "$SCRIPT_DIR"/* "$APPLET_DIR/" || {
+        echo "Error copying files. Do you have write permission on $APPLET_DIR?"
+        exit 1
+    }
+    echo "Files copied successfully."
+    # Compile and install translations
+    echo "Installing translations..."
+    shopt -s nullglob
     for po_file in po/*.po; do
-        if [ -f "$po_file" ]; then
-            # Extraer el código de idioma del nombre del archivo (ej. "ca" de "ca.po")
-            lang=$(basename "$po_file" .po)
-            # Crear directorio de destino
-            lang_dir="$HOME/.local/share/locale/$lang/LC_MESSAGES"
-            mkdir -p "$lang_dir"
-            # Compilar .po a .mo y copiarlo
-            msgfmt "$po_file" -o "$lang_dir/wmm-applet@maki.mo"
-            echo "  Traducción $lang instalada."
-        fi
+        lang=$(basename "$po_file" .po)
+        lang_dir="$HOME/.local/share/locale/$lang/LC_MESSAGES"
+        mkdir -p "$lang_dir"
+        msgfmt "$po_file" -o "$lang_dir/wmm-applet@maki.mo" || echo "Error compiling $po_file"
+        echo "  Translation $lang installed."
     done
-    done
+    shopt -u nullglob
     echo -e "\n=============================================="
-    echo "  ¡Instalación completada con éxito!"
-    echo "  WMM se ha instalado en: $APPLET_DIR"
+    echo "  Installation completed successfully!"
+    echo "  WMM has been installed at: $APPLET_DIR"
     echo "=============================================="
-    echo "Cerrando en 5 segundos..."
+    echo -e "\nTo enable the applet, go to Cinnamon Applets settings and activate 'WMM Manager'."
+
+    # (Opcional: activación automática - retirada por inestabilidad)
+    # echo -e "\nDo you want to enable the applet now? (y/n)"
+    # printf "Option: "
+    # read enable_answer || enable_answer="n"
+    # if [ "$enable_answer" = "y" ] || [ "$enable_answer" = "Y" ]; then
+    #     current_applets=$(gsettings get org.cinnamon enabled-applets)
+    #     if echo "$current_applets" | grep -q "wmm-applet@maki"; then
+    #         echo "WMM applet is already enabled."
+    #     else
+    #         new_applets=$(echo "$current_applets" | sed 's/]$/, "wmm-applet@maki"]/')
+    #         gsettings set org.cinnamon enabled-applets "$new_applets"
+    #         echo "WMM applet has been enabled."
+    #     fi
+    # else
+    #     echo "You can enable it later from the Cinnamon Applets settings."
+    # fi
+
+    echo "Closing in 5 seconds..."
     sleep 5
     exit 0
 fi
 
-# Si faltan dependencias, preguntar si instalarlas
-echo -e "\n¿Deseas instalar las dependencias faltantes? (s/n)"
-read -p "Opción: " respuesta
-if [ "$respuesta" != "s" ] && [ "$respuesta" != "S" ]; then
-    echo "Instalación cancelada. No se instalarán dependencias."
-    echo "Puedes instalarlas manualmente más tarde."
+# If dependencies are missing, ask whether to install them
+echo -e "\nDo you want to install the missing dependencies? (y/n)"
+read -p "Option: " answer || true
+if [ "$answer" != "y" ] && [ "$answer" != "Y" ]; then
+    echo "Installation cancelled. No dependencies will be installed."
+    echo "You can install them manually later."
     exit 1
 fi
 
-# Intentar instalar las dependencias faltantes
-echo -e "\nInstalando dependencias..."
+# Attempt to install the missing dependencies
+echo -e "\nInstalling dependencies..."
 
-# Detectar gestor de paquetes
+# Detect package manager
 if command -v apt &> /dev/null; then
     PKG_MANAGER="apt"
     INSTALL_CMD="sudo apt install -y"
@@ -145,68 +183,106 @@ elif command -v dnf &> /dev/null; then
 elif command -v pacman &> /dev/null; then
     PKG_MANAGER="pacman"
     INSTALL_CMD="sudo pacman -Sy --noconfirm"
+    # Package name mapping for Arch
+    declare -A PACMAN_MAP
+    PACMAN_MAP=(
+        ["python3"]="python"
+        ["python3-pillow"]="python-pillow"
+        ["python3-numpy"]="python-numpy"
+        ["libnotify-bin"]="libnotify"
+    )
 else
-    echo "No se pudo detectar el gestor de paquetes."
-    echo "Por favor, instala manualmente los paquetes indicados arriba."
+    echo "Could not detect package manager."
+    echo "Please install the packages listed above manually."
     exit 1
 fi
 
-# Construir lista de paquetes faltantes
+# Build list of missing packages (from DEPENDENCIES only)
 MISSING_PKGS=""
 for dep_name in "${!DEPENDENCIES[@]}"; do
-    local test_cmd="${DEPENDENCIES[$dep_name]%%|*}"
-    local packages="${DEPENDENCIES[$dep_name]##*|}"
-    local status=$(check_dep "$test_cmd")
+    test_cmd="${DEPENDENCIES[$dep_name]%%|*}"
+    packages="${DEPENDENCIES[$dep_name]##*|}"
+    status=$(check_dep "$test_cmd")
     if [ "$status" -eq 0 ]; then
-        MISSING_PKGS="$MISSING_PKGS $packages"
+        if [ "$PKG_MANAGER" = "pacman" ]; then
+            for pkg in $packages; do
+                MISSING_PKGS="$MISSING_PKGS ${PACMAN_MAP[$pkg]:-$pkg}"
+            done
+        else
+            MISSING_PKGS="$MISSING_PKGS $packages"
+        fi
     fi
 done
 
-# Instalar
+# Install
 if [ -n "$MISSING_PKGS" ]; then
-    echo "Ejecutando: $INSTALL_CMD $MISSING_PKGS"
+    echo "Running: $INSTALL_CMD $MISSING_PKGS"
     $INSTALL_CMD $MISSING_PKGS
 else
-    echo "No hay paquetes pendientes."
+    echo "No pending packages."
 fi
 
-# Segundo pase: verificar después de la instalación
-echo -e "\nVerificando dependencias tras la instalación..."
+# Second pass: verify after installation
+echo -e "\nVerifying dependencies after installation..."
 print_checklist
 missing=$?
 
 if [ $missing -eq 0 ]; then
-    echo "Todas las dependencias han sido instaladas correctamente."
-    # Instalación de archivos
-    echo -e "\nCreando estructura de carpetas y copiando archivos..."
-    mkdir -p "$APPLET_DIR/data" "$APPLET_DIR/python" "$APPLET_DIR/locale"
+    echo "All dependencies have been successfully installed."
+    # Install files
+    echo -e "\nCreating directory structure and copying files..."
+    SCRIPT_DIR="$(dirname "$0")"
+    if [ ! -d "$SCRIPT_DIR/python" ]; then
+        echo "ERROR: Project directory not found."
+        echo "Make sure you run the script from the project root folder."
+        exit 1
+    fi
+    mkdir -p "$APPLET_DIR/data" "$APPLET_DIR/python"
     mkdir -p "$CACHE_DIR/thumbnails"
-    SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
-    cp -r "$SCRIPT_DIR"/* "$APPLET_DIR/"
-    # Compilar e instalar traducciones
-    echo "Instalando traducciones..."
+    cp -r "$SCRIPT_DIR"/* "$APPLET_DIR/" || {
+        echo "Error copying files. Do you have write permission on $APPLET_DIR?"
+        exit 1
+    }
+    echo "Files copied successfully."
+    # Compile and install translations
+    echo "Installing translations..."
+    shopt -s nullglob
     for po_file in po/*.po; do
-        if [ -f "$po_file" ]; then
-            # Extraer el código de idioma del nombre del archivo (ej. "ca" de "ca.po")
-            lang=$(basename "$po_file" .po)
-            # Crear directorio de destino
-            lang_dir="$HOME/.local/share/locale/$lang/LC_MESSAGES"
-            mkdir -p "$lang_dir"
-            # Compilar .po a .mo y copiarlo
-            msgfmt "$po_file" -o "$lang_dir/wmm-applet@maki.mo"
-            echo "  Traducción $lang instalada."
-        fi
+        lang=$(basename "$po_file" .po)
+        lang_dir="$HOME/.local/share/locale/$lang/LC_MESSAGES"
+        mkdir -p "$lang_dir"
+        msgfmt "$po_file" -o "$lang_dir/wmm-applet@maki.mo" || echo "Error compiling $po_file"
+        echo "  Translation $lang installed."
     done
-    done
+    shopt -u nullglob
     echo -e "\n=============================================="
-    echo "  ¡Instalación completada con éxito!"
-    echo "  WMM se ha instalado en: $APPLET_DIR"
+    echo "  Installation completed successfully!"
+    echo "  WMM has been installed at: $APPLET_DIR"
     echo "=============================================="
-    echo "Cerrando en 5 segundos..."
+    echo -e "\nTo enable the applet, go to Cinnamon Applets settings and activate 'WMM Manager'."
+
+    # (Opcional: activación automática - retirada por inestabilidad)
+    # echo -e "\nDo you want to enable the applet now? (y/n)"
+    # printf "Option: "
+    # read enable_answer || enable_answer="n"
+    # if [ "$enable_answer" = "y" ] || [ "$enable_answer" = "Y" ]; then
+    #     current_applets=$(gsettings get org.cinnamon enabled-applets)
+    #     if echo "$current_applets" | grep -q "wmm-applet@maki"; then
+    #         echo "WMM applet is already enabled."
+    #     else
+    #         new_applets=$(echo "$current_applets" | sed 's/]$/, "wmm-applet@maki"]/')
+    #         gsettings set org.cinnamon enabled-applets "$new_applets"
+    #         echo "WMM applet has been enabled."
+    #     fi
+    # else
+    #     echo "You can enable it later from the Cinnamon Applets settings."
+    # fi
+
+    echo "Closing in 5 seconds..."
     sleep 5
     exit 0
 else
-    echo -e "\nAlgunas dependencias no pudieron ser instaladas."
-    echo "Revisa los mensajes de error e inténtalo manualmente."
+    echo -e "\nSome dependencies could not be installed."
+    echo "Check the error messages and try manually."
     exit 1
 fi
