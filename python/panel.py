@@ -23,10 +23,14 @@ import json
 import gettext
 import subprocess
 import time
-# import locale
+
+# Añadir la raíz del proyecto al path para encontrar wmm_platform
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _PROJECT_ROOT)
 
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, Pango, GLib, Gio, GdkPixbuf
+from wmm_platform.core import PlatformManager
 from config_handler import ConfigHandler
 from backend import WMMBackend
 from image_engine import ImageEngine
@@ -545,12 +549,8 @@ class WMMControlPanel(Gtk.ApplicationWindow):
                 pass
         # Lanzar el nuevo motor antes de cerrar el panel
         if debug_mode:
-            subprocess.Popen(
-                ["gnome-terminal", "--", "bash", "-c",
-                 f"WMM_DEBUG=1 python3 {engine_path}"],
-                start_new_session=True,
-                env=os.environ.copy()
-            )
+            platform = PlatformManager()
+            platform.open_in_terminal(f"WMM_DEBUG=1 python3 {engine_path}")
         else:
             subprocess.Popen(
                 ["python3", engine_path],
@@ -1393,7 +1393,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
             if deleted_count > 0:
                 self.handler._send_notification(
                     reason=_("Cache deleted"),
-                    detail_msg= deleted_count + " " + _("thumbnails have been removed from cache"),
+                    detail_msg= str(deleted_count) + " " + _("thumbnails have been removed from cache"),
                     level="info"
                 )
             else:

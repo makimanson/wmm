@@ -20,11 +20,20 @@ import signal
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config_handler import ConfigHandler
 
-
 def main():
+    #Testeo de rutas
+    import datetime
+    with open("/tmp/wmm_nemo_debug.log", "a") as f:
+        f.write(f"{datetime.datetime.now()}: sys.argv = {sys.argv}\n")
+        f.write(f"{datetime.datetime.now()}: CWD = {os.getcwd()}\n")
+
     if len(sys.argv) < 2:
         print("Uso: nemo_send_to_monitor.py <ruta_imagen>")
         sys.exit(1)
+
+    # Reconstruir la ruta si Nemo la ha fragmentado por espacios
+    if len(sys.argv) > 2:
+        sys.argv = [sys.argv[0], ' '.join(sys.argv[1:])]
 
     image_path = sys.argv[1]
     if not os.path.isfile(image_path):

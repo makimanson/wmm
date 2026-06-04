@@ -6,13 +6,16 @@ import re
 import time
 import subprocess
 import gi
-# import locale
 import gettext
+# Añadir la raíz del proyecto al path para encontrar wmm_platform
+import sys
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _PROJECT_ROOT)
 
 gi.require_version('GLib', '2.0')
 from gi.repository import GLib
 from image_engine import ImageEngine
-from monitor_manager import MonitorManager
+from wmm_platform.core import PlatformManager
 
 # ==========================================================
 # Traducciones
@@ -20,16 +23,10 @@ from monitor_manager import MonitorManager
 
 # Captura de traducibles
 _ = gettext.gettext
-# Usa el idioma configurado en el sistema
-# locale.setlocale(locale.LC_ALL, '')
 # Ruta estándar de traducciones para extensiones de Cinnamon
 locale_dir = os.path.expanduser('~/.local/share/locale')
 # Usar el dominio 'wmm-applet@maki'
 gettext.bindtextdomain('wmm-applet@maki', locale_dir)
-# También vincular el dominio 'cinnamon' para heredar traducciones del sistema
-# gettext.bindtextdomain('cinnamon', None)
-# Establecer el dominio principal
-# gettext.textdomain('wmm-applet@maki')
 
 # Función de traducción personalizada: busca primero en el sistema, luego en nuestro dominio
 def _(text):
@@ -318,7 +315,8 @@ class ConfigHandler:
         active_session = vault.get("active_session", {})
 
         # Obtener coordenadas escaladas desde MonitorManager
-        scaled = MonitorManager.scale_monitors_to_area(monitors_map, area_w, area_h)
+        platform = PlatformManager()
+        scaled = platform.scale_monitors_to_area(monitors_map, area_w, area_h)
 
         layout_data = []
         for m_hash, coords in scaled.items():
@@ -1409,6 +1407,23 @@ class ConfigHandler:
         """Delega en ImageEngine la generación de miniaturas compuestas con blur."""
         return ImageEngine.generate_composite_thumbnail(img_path, target_w, target_h, thumb_dir=self.thumbnails_dir)
 
+    def open_in_file_manager(self, path):
+        """
+        Abre la ruta con la aplicación predeterminada del sistema.
+        La comprobación de existencia y el manejo de errores se mantienen aquí.
+        La ejecución se delega en PlatformManager.
+        """
+        try:
+            if os.path.exists(path):
+                platform = PlatformManager()
+                platform.open_file(path)
+                return True
+            return False
+        except Exception as e:
+            print(f" [ERROR] No se pudo abrir: {e}")
+            self.log_error(f"No se pudo abrir: {e}", reason="OPEN_FILE")
+            return False
+
     def _notify_detailed_changes(self, stats, cache):
         """Construye un informe basado en entradas y salidas reales."""
         # Calculamos el movimiento total (Añadidas + Eliminadas)
@@ -1446,6 +1461,8 @@ class ConfigHandler:
     def _send_notification(self, reason, detail_msg, action=None, level="info"):
         """
         Motor de notificaciones con jerarquía visual automática.
+        La lógica de construcción del mensaje se mantiene aquí.
+        La ejecución se delega en PlatformManager para usar la implementación adecuada según el SO.
         Niveles:
           - 'info' (default): icon dialog-information
           - 'warn': icon dialog-warning
@@ -1457,7 +1474,6 @@ class ConfigHandler:
             "warn": "dialog-warning-symbolic",
             "error": "dialog-error-symbolic"
         }
-        # Si el nivel no existe, usamos info por defecto
         selected_icon = icon_map.get(level, "dialog-information")
 
         # 2. Construcción dinámica del cuerpo
@@ -1469,36 +1485,13 @@ class ConfigHandler:
 
         full_message = "\n".join(lines)
 
+        # 3. Delegar la ejecución en PlatformManager
         try:
-            subprocess.run([
-                "notify-send",
-                "-i", selected_icon,
-                fixed_title,
-                full_message,
-                "-a", "WMM_DEBUG"
-            ], check=False)
+            platform = PlatformManager()
+            platform.send_notification(fixed_title, full_message, selected_icon)
         except Exception as e:
             print(f" [!] Error en notificación: {e}")
             self.log_error(f"Error en notificación: {e}", reason="NOTIFY")
-
-    def open_in_file_manager(self, path):
-        """
-        Abre la ruta con la aplicación predeterminada del sistema.
-        - Si es un directorio, lo abre en el gestor de archivos.
-        - Si es un archivo, lo abre con la aplicación asociada (visor de imágenes, etc.).
-        """
-        try:
-            if os.path.exists(path):
-                if os.path.isdir(path):
-                    subprocess.Popen(['xdg-open', path], stderr=subprocess.DEVNULL)
-                else:
-                    subprocess.Popen(['xdg-open', path], stderr=subprocess.DEVNULL)
-                return True
-            return False
-        except Exception as e:
-            print(f" [ERROR] No se pudo abrir: {e}")
-            self.log_error(f"No se pudo abrir: {e}", reason="OPEN_FILE")
-            return False
 
 # --- DEBUGGER & DIAGNOSTIC MODE ---
 if __name__ == "__main__":

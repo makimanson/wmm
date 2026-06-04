@@ -44,8 +44,11 @@ class WMMApplet extends Applet.IconApplet {
 
         try {
             this.set_applet_icon_name("video-display");
-            this.set_applet_tooltip(_("WMM: Multi-Monitor Management"));
-
+            this.set_applet_tooltip(
+                _("WMM: Multi-Monitor Management") + "\n" +
+                _("Click action") + ": " + _("Next Background") + "\n" +
+                _("Secondary Click") + ": " + _("Context Menu")
+            );
             this.appletPath = metadata.path;
             this.enginePath = this.appletPath + "/python/main.py";
             this.commandsPath = this.appletPath + "/data/commands.json";

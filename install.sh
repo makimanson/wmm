@@ -115,7 +115,7 @@ if [ $missing -eq 0 ]; then
         echo "Make sure you run the script from the project root folder."
         exit 1
     fi
-    mkdir -p "$APPLET_DIR/data" "$APPLET_DIR/python"
+    mkdir -p "$APPLET_DIR/data" "$APPLET_DIR/python" "$APPLET_DIR/wmm_platform"
     mkdir -p "$CACHE_DIR/thumbnails"
     cp -r "$SCRIPT_DIR"/* "$APPLET_DIR/" || {
         echo "Error copying files. Do you have write permission on $APPLET_DIR?"
@@ -125,7 +125,7 @@ if [ $missing -eq 0 ]; then
     # Compile and install translations
     echo "Installing translations..."
     shopt -s nullglob
-    for po_file in po/*.po; do
+    for po_file in "$SCRIPT_DIR"/po/*.po; do
         lang=$(basename "$po_file" .po)
         lang_dir="$HOME/.local/share/locale/$lang/LC_MESSAGES"
         mkdir -p "$lang_dir"
@@ -133,28 +133,22 @@ if [ $missing -eq 0 ]; then
         echo "  Translation $lang installed."
     done
     shopt -u nullglob
+
+    # Copy Nemo actions (only if Nemo is installed)
+    if command -v nemo &> /dev/null; then
+        echo "Installing Nemo actions..."
+        mkdir -p "$HOME/.local/share/nemo/actions"
+        cp "$SCRIPT_DIR/nemo_action/"*.nemo_action "$HOME/.local/share/nemo/actions/" 2>/dev/null && echo "Nemo actions installed." || echo "No Nemo actions found, skipping."
+
+    else
+        echo "Nemo not found, skipping Nemo actions."
+    fi
+
     echo -e "\n=============================================="
     echo "  Installation completed successfully!"
     echo "  WMM has been installed at: $APPLET_DIR"
     echo "=============================================="
     echo -e "\nTo enable the applet, go to Cinnamon Applets settings and activate 'WMM Manager'."
-
-    # (Opcional: activación automática - retirada por inestabilidad)
-    # echo -e "\nDo you want to enable the applet now? (y/n)"
-    # printf "Option: "
-    # read enable_answer || enable_answer="n"
-    # if [ "$enable_answer" = "y" ] || [ "$enable_answer" = "Y" ]; then
-    #     current_applets=$(gsettings get org.cinnamon enabled-applets)
-    #     if echo "$current_applets" | grep -q "wmm-applet@maki"; then
-    #         echo "WMM applet is already enabled."
-    #     else
-    #         new_applets=$(echo "$current_applets" | sed 's/]$/, "wmm-applet@maki"]/')
-    #         gsettings set org.cinnamon enabled-applets "$new_applets"
-    #         echo "WMM applet has been enabled."
-    #     fi
-    # else
-    #     echo "You can enable it later from the Cinnamon Applets settings."
-    # fi
 
     echo "Closing in 5 seconds..."
     sleep 5
@@ -247,7 +241,7 @@ if [ $missing -eq 0 ]; then
     # Compile and install translations
     echo "Installing translations..."
     shopt -s nullglob
-    for po_file in po/*.po; do
+    for po_file in "$SCRIPT_DIR"/po/*.po; do
         lang=$(basename "$po_file" .po)
         lang_dir="$HOME/.local/share/locale/$lang/LC_MESSAGES"
         mkdir -p "$lang_dir"
@@ -255,28 +249,21 @@ if [ $missing -eq 0 ]; then
         echo "  Translation $lang installed."
     done
     shopt -u nullglob
+
+    # Copy Nemo actions (only if Nemo is installed)
+    if command -v nemo &> /dev/null; then
+        echo "Installing Nemo actions..."
+        mkdir -p "$HOME/.local/share/nemo/actions"
+        cp "$SCRIPT_DIR/nemo_action/"*.nemo_action "$HOME/.local/share/nemo/actions/" 2>/dev/null && echo "Nemo actions installed." || echo "No Nemo actions found, skipping."
+    else
+        echo "Nemo not found, skipping Nemo actions."
+    fi
+
     echo -e "\n=============================================="
     echo "  Installation completed successfully!"
     echo "  WMM has been installed at: $APPLET_DIR"
     echo "=============================================="
     echo -e "\nTo enable the applet, go to Cinnamon Applets settings and activate 'WMM Manager'."
-
-    # (Opcional: activación automática - retirada por inestabilidad)
-    # echo -e "\nDo you want to enable the applet now? (y/n)"
-    # printf "Option: "
-    # read enable_answer || enable_answer="n"
-    # if [ "$enable_answer" = "y" ] || [ "$enable_answer" = "Y" ]; then
-    #     current_applets=$(gsettings get org.cinnamon enabled-applets)
-    #     if echo "$current_applets" | grep -q "wmm-applet@maki"; then
-    #         echo "WMM applet is already enabled."
-    #     else
-    #         new_applets=$(echo "$current_applets" | sed 's/]$/, "wmm-applet@maki"]/')
-    #         gsettings set org.cinnamon enabled-applets "$new_applets"
-    #         echo "WMM applet has been enabled."
-    #     fi
-    # else
-    #     echo "You can enable it later from the Cinnamon Applets settings."
-    # fi
 
     echo "Closing in 5 seconds..."
     sleep 5

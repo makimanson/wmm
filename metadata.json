@@ -3,8 +3,9 @@
     "name": "WMM Manager",
     "description": "Multi-Monitor Wallpaper Manager",
     "icon": "video-display",
-    "version": "0.9.0",
-    "website": "https://github.com/makimanson/wmm",
+    "version": "0.9.3",
+    "url": "https://github.com/makimanson/wmm",
     "cinnamon-version": ["5.0"],
-    "author": "Maki & Ain"
+    "author": "makimanson",
+    "multiversion": false
 }

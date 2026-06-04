@@ -1,4 +1,17 @@
 {
-    "active_session": {},
+    "active_session": {
+        "8e10d1af": {
+            "path": null,
+            "active": true
+        },
+        "a3edd721": {
+            "path": null,
+            "active": true
+        },
+        "967120c0": {
+            "path": null,
+            "active": true
+        }
+    },
     "history": {}
 }

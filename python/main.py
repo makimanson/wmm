@@ -6,12 +6,15 @@ import signal
 import atexit
 import random
 import json
-# import locale
 import gettext
+# Añadir la raíz del proyecto al path para encontrar wmm_platform
+import sys
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _PROJECT_ROOT)
 
 gi.require_version('Gdk', '3.0')
 from gi.repository import Gdk, GLib
-from monitor_manager import MonitorManager
+from wmm_platform.core import PlatformManager
 from config_handler import ConfigHandler
 from image_engine import ImageEngine
 from PIL import Image
@@ -22,16 +25,10 @@ from PIL import Image
 
 # Captura de traducibles
 _ = gettext.gettext
-# Usa el idioma configurado en el sistema
-# locale.setlocale(locale.LC_ALL, '')
 # Ruta estándar de traducciones para extensiones de Cinnamon
 locale_dir = os.path.expanduser('~/.local/share/locale')
 # Usar el dominio 'wmm-applet@maki'
 gettext.bindtextdomain('wmm-applet@maki', locale_dir)
-# También vincular el dominio 'cinnamon' para heredar traducciones del sistema
-# gettext.bindtextdomain('cinnamon', None)
-# Establecer el dominio principal
-# gettext.textdomain('wmm-applet@maki')
 
 # Función de traducción personalizada: busca primero en el sistema, luego en nuestro dominio
 def _(text):
@@ -42,9 +39,9 @@ def _(text):
 
 class WMMDaemon:
     def __init__(self):
-        self.mm = MonitorManager()
+        self.platform = PlatformManager()
         self.ch = ConfigHandler()
-        self.ie = ImageEngine(self.ch, self.mm)
+        self.ie = ImageEngine(self.ch, None)  # None temporal hasta migrar MonitorManager
         self.loop = GLib.MainLoop()
         self.timer_id = None
         self.rotation_queue = []
@@ -291,12 +288,7 @@ class WMMDaemon:
                 panel_path = os.path.join(os.path.dirname(__file__), "panel.py")
                 try:
                     if debug_mode:
-                        # Abrir con terminal y variable de entorno WMM_DEBUG=1
-                        subprocess.Popen(
-                            ["gnome-terminal", "--", "bash", "-c",
-                             f"WMM_DEBUG=1 python3 {panel_path}; echo 'Cerrando en 2 segundos...'; sleep 2"],
-                            start_new_session=True
-                        )
+                        self.platform.open_in_terminal(f"WMM_DEBUG=1 python3 {panel_path}; sleep 2")
                     else:
                         subprocess.Popen(
                             ["python3", panel_path],
@@ -379,7 +371,8 @@ class WMMDaemon:
             context.iteration(False)
 
         # 2. Obtener la realidad actual del hardware
-        monitors_map_real = self.mm.get_active_monitors_map()
+        platform = PlatformManager()
+        monitors_map_real = platform.get_monitors()
         active_hashes = list(monitors_map_real.keys())
 
         # --- MODO SELECCIÓN MANUAL (aplicar lo que hay en el vault sin rotar) ---
@@ -445,7 +438,7 @@ class WMMDaemon:
                 wallpaper_mode=wp_mode,
                 image_effect=wallpaper_effect
             )
-            self.apply_to_cinnamon(master_path)
+            self.platform.set_wallpaper(master_path, self.ch)
 
         elif valid_assets_found and selection:
             # NUEVO: full_canvas se decide por spanned_enabled (opción independiente)
@@ -460,7 +453,7 @@ class WMMDaemon:
                 wallpaper_mode=wp_mode,
                 image_effect=wallpaper_effect
             )
-            self.apply_to_cinnamon(master_path)
+            self.platform.set_wallpaper(master_path, self.ch)
 
             # Aseguramos que el temporizador esté corriendo si no lo está
             if self.timer_id is None:
@@ -521,98 +514,6 @@ class WMMDaemon:
         else:
             # Rotación libre de favoritos evitando los que ya están en pantalla
             return self.ch.get_vault_selection(orientation=t_orient, exclude=exclude_paths)
-
-    def apply_to_cinnamon(self, final_path):
-        try:
-            # ------------------------------------------------------
-            # 1. Imponer el entorno visual ideal para WMM
-            #    Todos los cambios son necesarios para garantizar
-            #    una transición limpia y una visualización correcta.
-            # ------------------------------------------------------
-
-            # Desactivar el pase de diapositivas nativo para que no interfiera
-            os.system("gsettings set org.cinnamon.desktop.background.slideshow slideshow-enabled false")
-
-            # La imagen debe ocupar todo el lienzo sin deformarse
-            os.system("gsettings set org.cinnamon.desktop.background picture-options spanned")
-
-            # El tipo de sombreado debe ser sólido, sin degradados
-            os.system("gsettings set org.cinnamon.desktop.background color-shading-type 'solid'")
-
-            # ------------------------------------------------------
-            # 2. Verificar que los ajustes se han aplicado realmente.
-            #    Si alguno falla, se añade un texto descriptivo a la
-            #    lista 'issues' para notificarlo al usuario.
-            # ------------------------------------------------------
-            issues = []
-
-            # Comprobar 'slideshow-enabled'
-            result_slideshow = subprocess.run(
-                ["gsettings", "get", "org.cinnamon.desktop.background.slideshow", "slideshow-enabled"],
-                capture_output=True, text=True
-            )
-            if result_slideshow.stdout.strip().lower() != "false":
-                issues.append(_("Slideshow disabled"))
-
-            # Comprobar 'picture-options'
-            result = subprocess.run(
-                ["gsettings", "get", "org.cinnamon.desktop.background", "picture-options"],
-                capture_output=True, text=True
-            )
-            if "spanned" not in result.stdout.lower():
-                issues.append(_("Picture aspect set to 'Spanned'"))
-
-            # Comprobar 'color-shading-type'
-            result_shading = subprocess.run(
-                ["gsettings", "get", "org.cinnamon.desktop.background", "color-shading-type"],
-                capture_output=True, text=True
-            )
-            if "solid" not in result_shading.stdout.lower():
-                issues.append(_("Color shading type set to 'solid'"))
-
-            # Si alguna verificación falló, notificar al usuario
-            if issues:
-                self.ch._send_notification(
-                    reason="WMM: " + _("Configuration issue"),
-                    detail_msg=_("Please set the following in 'System Settings > Backgrounds':") +
-                               "\n" + "\n".join(issues),
-                    level="warn"
-                )
-
-            # ------------------------------------------------------
-            # 3. Aplicar la imagen final según el modo de rotación
-            # ------------------------------------------------------
-            settings = self.ch.load_json("settings").get("global", {})
-            sl_mode = settings.get("slideshow_mode", "sync")
-            print(f">>> [DIAG] apply_to_cinnamon: final_path={final_path}, sl_mode={sl_mode}")
-            if sl_mode == "sync":
-                # 1.1 Capturar el color de fondo actual y generar imagen temporal para transición
-                result_color = subprocess.run(
-                    ["gsettings", "get", "org.cinnamon.desktop.background", "primary-color"],
-                    capture_output=True, text=True
-                )
-                color_str = result_color.stdout.strip().lower().replace("'", "")
-                rgba = Gdk.RGBA()
-                if rgba.parse(color_str):
-                    r = int(rgba.red * 255)
-                    g = int(rgba.green * 255)
-                    b = int(rgba.blue * 255)
-                else:
-                    r, g, b = 0, 0, 0
-                fade_color_path = os.path.join(self.ch.cache_dir, "fade_color.png")
-                Image.new('RGB', (1, 1), (r, g, b)).save(fade_color_path)
-
-                os.system(f"gsettings set org.cinnamon.desktop.background picture-uri 'file://{fade_color_path}'")
-                time.sleep(1.5)
-                os.system(f"gsettings set org.cinnamon.desktop.background picture-uri 'file://{final_path}'")
-                print(" -> [Sync] Transición Cine aplicada.")
-                # Cambio inmediato
-                os.system(f"gsettings set org.cinnamon.desktop.background picture-uri 'file://{final_path}'")
-                print(" -> [Async] Transicion Crossfade aplicada.")
-
-        except Exception as e:
-            print(f" [ERROR] Cinnamon no respondió: {e}")
-            self.ch.log_error(f"Cinnamon no respondió: {e}", reason="CINNAMON")
 
     def on_hardware_change(self, display, monitor):
         print(f"\n[{time.strftime('%H:%M:%S')}] Cambio físico detectado. Estabilizando geometría...")
@@ -698,7 +599,7 @@ class WMMDaemon:
                 wallpaper_mode=wp_mode,
                 image_effect=wallpaper_effect
             )
-            self.apply_to_cinnamon(master_path)
+            self.platform.set_wallpaper(master_path, self.ch)
             if self.timer_id is None:
                 self.manage_timer(action="start")
         else:
@@ -871,7 +772,7 @@ class WMMDaemon:
 
             if spanned_enabled:
                 # Caso A: Distribución sobre el lienzo completo (Spanned)
-                canvas_w, canvas_h = self.mm.get_total_canvas_geometry(monitors_map)
+                canvas_w, canvas_h = self.platform.get_total_canvas_geometry(monitors_map_real)
                 primary_hash = None
                 for m_hash in active_hashes:
                     if monitors_map.get(m_hash, {}).get("primary", False):
@@ -968,7 +869,7 @@ class WMMDaemon:
         Calcula y guarda la geometría del lienzo maestro.
         Retorna una tupla (geo_snapshot, canvas_w, canvas_h).
         """
-        canvas_w, canvas_h = self.mm.get_total_canvas_geometry(monitors_map_real)
+        canvas_w, canvas_h = self.platform.get_total_canvas_geometry(monitors_map_real)
         geo_snapshot = {
             "timestamp": time.time(),
             "canvas": {"w": canvas_w, "h": canvas_h},
@@ -984,7 +885,8 @@ class WMMDaemon:
         Se ejecuta siempre al arrancar el motor.
         """
         print("[SISTEMA] Sincronizando geometría inicial...")
-        monitors_map_real = self.mm.get_active_monitors_map()
+        platform = PlatformManager()
+        monitors_map_real = platform.get_monitors()
         self._update_geometry(monitors_map_real, "Inicio de Servicio")
 
         # Sincronizar el vault con los monitores detectados

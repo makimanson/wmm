@@ -10,7 +10,6 @@ nemo_add_bookmark.py – Añade una imagen a favoritos desde Nemo.
 import sys
 import os
 import subprocess
-# import locale
 import gettext
 
 # Asegurar la importación del módulo vecino
@@ -25,16 +24,10 @@ from PIL import Image
 
 # Captura de traducibles
 _ = gettext.gettext
-# Usa el idioma configurado en el sistema
-# locale.setlocale(locale.LC_ALL, '')
 # Ruta estándar de traducciones para extensiones de Cinnamon
 # locale_dir = os.path.expanduser('~/.local/share/locale')
 # Usar el dominio 'wmm-applet@maki'
 # gettext.bindtextdomain('wmm-applet@maki', locale_dir)
-# También vincular el dominio 'cinnamon' para heredar traducciones del sistema
-# gettext.bindtextdomain('cinnamon', None)
-# Establecer el dominio principal
-# gettext.textdomain('wmm-applet@maki')
 
 # Función de traducción personalizada: busca primero en el sistema, luego en nuestro dominio
 def _(text):
@@ -44,8 +37,19 @@ def _(text):
     return gettext.dgettext('wmm-applet@maki', text)
 
 def main():
+    #Testeo de rutas
+    import datetime
+    with open("/tmp/wmm_nemo_debug.log", "a") as f:
+        f.write(f"{datetime.datetime.now()}: sys.argv = {sys.argv}\n")
+        f.write(f"{datetime.datetime.now()}: CWD = {os.getcwd()}\n")
+
     if len(sys.argv) < 2:
+        print("Uso: nemo_add_bookmark.py <ruta_imagen>")
         sys.exit(1)
+
+    # Reconstruir la ruta si Nemo la ha fragmentado por espacios
+    if len(sys.argv) > 2:
+        sys.argv = [sys.argv[0], ' '.join(sys.argv[1:])]
 
     image_path = sys.argv[1]
     if not os.path.isfile(image_path):
@@ -80,12 +84,6 @@ def main():
     ch.save_json("bookmarks_single", current_list)
     ch.refresh_history_metadata()
 
-    # Notificar éxito
-    # ch._send_notification(_("Add to favorites"),
-    #                      _("Image added successfully:") + "\n" + os.path.basename(image_path),
-    #                      level="info")
-
-    # Notificar al motor para que el panel refresque la lista de presets
     try:
         ch.save_json("commands", {"action": "bookmark_added", "name": os.path.basename(image_path)})
         subprocess.run(["pkill", "-USR1", "-f", "main.py"])
