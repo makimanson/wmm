@@ -12,6 +12,7 @@ backend.py – Backend de lógica de datos para el panel de control.
 """
 
 import subprocess
+from debug_logger import log_event
 
 class WMMBackend:
     """
@@ -139,8 +140,10 @@ class WMMBackend:
         try:
             self.ch.save_json("commands", action)
             subprocess.run(["pkill", "-USR1", "-f", "main.py"])
+            log_event(f"Notificación enviada al motor: {action.get('action', 'unknown')}", origin="BACKEND", level="DEBUG", reason="SIGNAL")
+
         except Exception as e:
-            print(f" [ERROR] Backend: no se pudo notificar al motor: {e}")
+            log_event(f"No se pudo notificar al motor: {e}", origin="BACKEND", level="ERROR", reason="SIGNAL")
 
     # --- MODO EDICIÓN ---
 
@@ -156,7 +159,7 @@ class WMMBackend:
         """
         bookmarks = self.ch.load_json("bookmarks")
         if preset_name not in bookmarks:
-            print(f" [ERROR] El preset '{preset_name}' no existe.")
+            log_event(f"El preset '{preset_name}' no existe", origin="BACKEND", level="ERROR", reason="BOOKMARK")
             return None
 
         preset_data = bookmarks[preset_name].copy()  # no modificar el original
@@ -188,9 +191,10 @@ class WMMBackend:
                 self.edit_active_session[m_hash] = path
                 self.edit_active_states[m_hash] = active
         except Exception as e:
-            print(f" [ERROR] Backend: fallo al procesar preset '{preset_name}': {e}")
+            log_event(f"Fallo al procesar preset '{preset_name}': {e}", origin="BACKEND", level="ERROR", reason="BOOKMARK")
             return None
 
+        log_event(f"Preset cargado para edición: {preset_name}", origin="BACKEND", level="DEBUG", reason="BOOKMARK")
         return preset_data
 
     def apply_edit_and_save(self, fav_checkbox_active, preset_name, monitor_hashes, get_path_func, get_active_func):
@@ -212,7 +216,7 @@ class WMMBackend:
             edit_session = {h: get_path_func(h) for h in monitor_hashes}
             edit_states = {h: get_active_func(h) for h in monitor_hashes}
         except Exception as e:
-            print(f" [ERROR] Backend: fallo al construir datos de edición: {e}")
+            log_event(f"Fallo al construir datos de edición: {e}", origin="BACKEND", level="ERROR", reason="BOOKMARK")
             return None, None, None
         self.apply_edit_changes(edit_session, edit_states)
 
@@ -248,6 +252,7 @@ class WMMBackend:
         # La notificación se hace desde panel.py porque usa self._notify_engine
         # Así que devolvemos los temp_settings para que el panel los envíe.
 
+        log_event("Cambios de edición aplicados correctamente", origin="BACKEND", level="INFO", reason="BOOKMARK")
         return log_msg, temp_settings, preset_name
 
     def cancel_edit(self):
@@ -261,4 +266,4 @@ class WMMBackend:
             self.edit_temp_image_effect = None
             self.edit_temp_wp_scope = None
         except Exception as e:
-            print(f" [ERROR] Backend: fallo al cancelar edición: {e}")
+            log_event(f"Fallo al cancelar edición: {e}", origin="BACKEND", level="ERROR", reason="BOOKMARK")

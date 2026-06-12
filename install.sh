@@ -94,20 +94,9 @@ print_checklist() {
 }
 
 # ----------------------------------------------------------
-# SCRIPT START
+# Function to install WMM files
 # ----------------------------------------------------------
-clear
-echo "=============================================="
-echo "  WMM - Wallpaper Multi-Monitor Manager"
-echo "  Dependency Check"
-echo "=============================================="
-
-# First pass: show current status
-print_checklist
-missing=$?
-
-if [ $missing -eq 0 ]; then
-    # Install files
+install_files() {
     echo -e "\nCreating directory structure and copying files..."
     SCRIPT_DIR="$(dirname "$0")"
     if [ ! -f "$SCRIPT_DIR/metadata.json" ] || [ ! -d "$SCRIPT_DIR/python" ]; then
@@ -122,6 +111,18 @@ if [ $missing -eq 0 ]; then
         exit 1
     }
     echo "Files copied successfully."
+
+    # Clean up development files
+    find "$APPLET_DIR" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
+    find "$APPLET_DIR" -type f -name "*.pyc" -delete 2>/dev/null
+    echo "Development files cleaned."
+
+    # Generate platform configuration (detects OS and desktop)
+    echo "Detecting platform..."
+    python3 "$APPLET_DIR/wmm_platform/setup_core.py" || {
+        echo "Warning: Could not detect platform. WMM may not work correctly."
+    }
+
     # Compile and install translations
     echo "Installing translations..."
     shopt -s nullglob
@@ -143,7 +144,23 @@ if [ $missing -eq 0 ]; then
     else
         echo "Nemo not found, skipping Nemo actions."
     fi
+}
 
+# ----------------------------------------------------------
+# SCRIPT START
+# ----------------------------------------------------------
+clear
+echo "=============================================="
+echo "  WMM - Wallpaper Multi-Monitor Manager"
+echo "  Dependency Check"
+echo "=============================================="
+
+# First pass: show current status
+print_checklist
+missing=$?
+
+if [ $missing -eq 0 ]; then
+    install_files
     echo -e "\n=============================================="
     echo "  Installation completed successfully!"
     echo "  WMM has been installed at: $APPLET_DIR"
@@ -223,42 +240,7 @@ missing=$?
 
 if [ $missing -eq 0 ]; then
     echo "All dependencies have been successfully installed."
-    # Install files
-    echo -e "\nCreating directory structure and copying files..."
-    SCRIPT_DIR="$(dirname "$0")"
-    if [ ! -d "$SCRIPT_DIR/python" ]; then
-        echo "ERROR: Project directory not found."
-        echo "Make sure you run the script from the project root folder."
-        exit 1
-    fi
-    mkdir -p "$APPLET_DIR/data" "$APPLET_DIR/python"
-    mkdir -p "$CACHE_DIR/thumbnails"
-    cp -r "$SCRIPT_DIR"/* "$APPLET_DIR/" || {
-        echo "Error copying files. Do you have write permission on $APPLET_DIR?"
-        exit 1
-    }
-    echo "Files copied successfully."
-    # Compile and install translations
-    echo "Installing translations..."
-    shopt -s nullglob
-    for po_file in "$SCRIPT_DIR"/po/*.po; do
-        lang=$(basename "$po_file" .po)
-        lang_dir="$HOME/.local/share/locale/$lang/LC_MESSAGES"
-        mkdir -p "$lang_dir"
-        msgfmt "$po_file" -o "$lang_dir/wmm-applet@maki.mo" || echo "Error compiling $po_file"
-        echo "  Translation $lang installed."
-    done
-    shopt -u nullglob
-
-    # Copy Nemo actions (only if Nemo is installed)
-    if command -v nemo &> /dev/null; then
-        echo "Installing Nemo actions..."
-        mkdir -p "$HOME/.local/share/nemo/actions"
-        cp "$SCRIPT_DIR/nemo_action/"*.nemo_action "$HOME/.local/share/nemo/actions/" 2>/dev/null && echo "Nemo actions installed." || echo "No Nemo actions found, skipping."
-    else
-        echo "Nemo not found, skipping Nemo actions."
-    fi
-
+    install_files
     echo -e "\n=============================================="
     echo "  Installation completed successfully!"
     echo "  WMM has been installed at: $APPLET_DIR"

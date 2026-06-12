@@ -5,44 +5,33 @@
 WMM Applet - Cinnamon Edition
 ----------------------------
 nemo_add_bookmark.py – Añade una imagen a favoritos desde Nemo.
+
+Recibe la ruta de una imagen desde el menú contextual de Nemo,
+la procesa y la añade a la lista plana de favoritos de WMM.
 """
 
+# ==========================================================
+# IMPORTS DE LIBRERÍA ESTÁNDAR
+# ==========================================================
 import sys
 import os
 import subprocess
-import gettext
 
-# Asegurar la importación del módulo vecino
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# ==========================================================
+# CONFIGURACIÓN DEL PATH DEL PROYECTO
+# ==========================================================
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _PROJECT_ROOT)
 
+# ==========================================================
+# IMPORTS DE MÓDULOS DEL PROYECTO
+# ==========================================================
 from config_handler import ConfigHandler
 from PIL import Image
-
-# ==========================================================
-# Traducciones
-# ==========================================================
-
-# Captura de traducibles
-_ = gettext.gettext
-# Ruta estándar de traducciones para extensiones de Cinnamon
-# locale_dir = os.path.expanduser('~/.local/share/locale')
-# Usar el dominio 'wmm-applet@maki'
-# gettext.bindtextdomain('wmm-applet@maki', locale_dir)
-
-# Función de traducción personalizada: busca primero en el sistema, luego en nuestro dominio
-def _(text):
-    translated = gettext.dgettext('cinnamon', text)
-    if translated != text:
-        return translated
-    return gettext.dgettext('wmm-applet@maki', text)
+from debug_logger import log_event, set_cache_dir
+from i18n import _
 
 def main():
-    #Testeo de rutas
-    import datetime
-    with open("/tmp/wmm_nemo_debug.log", "a") as f:
-        f.write(f"{datetime.datetime.now()}: sys.argv = {sys.argv}\n")
-        f.write(f"{datetime.datetime.now()}: CWD = {os.getcwd()}\n")
-
     if len(sys.argv) < 2:
         print("Uso: nemo_add_bookmark.py <ruta_imagen>")
         sys.exit(1)
@@ -55,7 +44,13 @@ def main():
     if not os.path.isfile(image_path):
         sys.exit(1)
 
+    # Crear ConfigHandler temprano y configurar el logger
     ch = ConfigHandler()
+    set_cache_dir(ch.cache_dir)
+
+    # Ahora los log_event de diagnóstico funcionarán correctamente
+    log_event(f"sys.argv = {sys.argv}", origin="NEMO_ADD", level="DEBUG", reason="BOOKMARK")
+    log_event(f"CWD = {os.getcwd()}", origin="NEMO_ADD", level="DEBUG", reason="BOOKMARK")
 
     # Obtener dimensiones y orientación
     try:
@@ -63,8 +58,9 @@ def main():
             w, h = img.size
             orient = "h" if w >= h else "v"
     except Exception as e:
+        log_event(f"Error al procesar imagen: {e}", origin="NEMO_ADD", level="ERROR", reason="BOOKMARK")
         ch._send_notification(_("Error adding to favorites"),
-                              _("Could not process image:") + "\n" + e,
+                              _("Could not process image:") + "\n" + str(e),
                               level="error")
         sys.exit(1)
 
@@ -74,6 +70,7 @@ def main():
     current_list = ch.load_json("bookmarks_single")
     existing_paths = [item[0] for item in current_list]
     if image_path in existing_paths:
+        log_event(f"Imagen ya en favoritos: {os.path.basename(image_path)}", origin="NEMO_ADD", level="INFO", reason="BOOKMARK")
         ch._send_notification(_("Add to favorites"),
                               _("Image is already in favorites."),
                               level="info")
@@ -81,6 +78,7 @@ def main():
 
     # Añadir y guardar
     current_list.append(entry)
+    log_event(f"Imagen añadida a favoritos: {os.path.basename(image_path)}", origin="NEMO_ADD", level="INFO", reason="BOOKMARK")
     ch.save_json("bookmarks_single", current_list)
     ch.refresh_history_metadata()
 
@@ -88,7 +86,7 @@ def main():
         ch.save_json("commands", {"action": "bookmark_added", "name": os.path.basename(image_path)})
         subprocess.run(["pkill", "-USR1", "-f", "main.py"])
     except Exception as e:
-        print(f" [AVISO] No se pudo notificar al motor: {e}")
+        log_event(f"No se pudo notificar al motor: {e}", origin="NEMO_ADD", level="WARN", reason="SIGNAL")
 
 if __name__ == "__main__":
     main()

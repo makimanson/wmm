@@ -3,25 +3,41 @@ Módulo de plataforma para Windows.
 Contiene funciones comunes a Windows (independientes del escritorio).
 """
 import os
+import sys
+import subprocess
 
-def get_terminal():
-    """
-    Devuelve el comando de la terminal por defecto en Windows (cmd o PowerShell).
-    """
-    return "cmd.exe"  # o 'powershell.exe'
+system_domain = None
+CACHE_DIR = None
 
-def open_in_terminal(command):
+def get_cache_dir(app_name="wmm"):
+    # TODO: Usar %LOCALAPPDATA% o similar cuando se implemente Windows
+    # return os.path.join(os.environ.get('LOCALAPPDATA', '.'), app_name)
+    return None
+
+def lock_file(f):
     """
-    Abre una terminal en Windows y ejecuta el comando especificado.
-    Detecta automáticamente entre cmd.exe y powershell.exe.
+    Bloquea el archivo para escritura exclusiva usando msvcrt.locking.
+
+    Args:
+        f: Objeto de archivo abierto en modo binario.
+
+    Nota:
+        msvcrt.locking requiere que el archivo se abra en modo binario.
+        Si se usa con archivos de texto, puede ser necesario ajustar
+        el modo de apertura en debug_logger.py según sys.platform.
     """
-    terminal = os.environ.get("ComSpec", "cmd.exe")  # ComSpec apunta a cmd.exe por defecto
-    # Si el usuario prefiere PowerShell, podemos detectarlo con WT_SESSION o PATHEXT
-    # Pero por simplicidad, usaremos cmd.exe como fallback y powershell si está disponible.
-    if "powershell" in terminal.lower() or os.environ.get("PSModulePath"):
-        subprocess.Popen([terminal, "-Command", command], start_new_session=True)
-    else:
-        subprocess.Popen([terminal, "/c", command], start_new_session=True)
+    import msvcrt
+    msvcrt.locking(f.fileno(), msvcrt.LK_LOCK, 1)
+
+def unlock_file(f):
+    """
+    Desbloquea el archivo previamente bloqueado con lock_file.
+
+    Args:
+        f: Objeto de archivo abierto.
+    """
+    import msvcrt
+    msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
 
 def open_file(path):
     """
@@ -50,3 +66,26 @@ def send_notification(title, message, level="info"):
     """
     # TODO: Implementar usando win32api o toasts
     print(f"[NOTIFICACIÓN] {title}: {message}")
+
+def _force_desktop_settings(config_handler):
+    """
+    Fuerza los ajustes del sistema necesarios para que WMM funcione
+    correctamente en Windows:
+      - Modo de aspecto  = 'spanned'  (no deformar el lienzo)
+      - Slideshow        = desactivado (evitar interferencias)
+      - Tipo de fondo    = 'solid'    (evitar mezclas de color)
+
+    En Windows, estos ajustes se controlan mediante la API de Win32
+    (SystemParametersInfo) o mediante el registro de Windows. Se debe
+    verificar cada ajuste y notificar al usuario si alguno no se aplicó.
+
+    TODO: Implementar usando ctypes o pywin32.
+    """
+    pass
+
+def ensure_shell_actions(applet_root):
+    """
+    Instala las acciones de shell necesarias para Windows (p. ej., menús contextuales del Explorador).
+    TODO: Implementar cuando se añada soporte para Windows.
+    """
+    pass

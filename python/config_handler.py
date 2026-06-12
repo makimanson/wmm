@@ -1,41 +1,47 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+WMM Applet - Cinnamon Edition
+----------------------------
+config_handler.py – Gestor de configuración y persistencia.
+"""
+
+# ==========================================================
+# IMPORTS DE LIBRERÍA ESTÁNDAR
+# ==========================================================
 import os
+import sys
 import json
 import hashlib
 import random
 import re
 import time
 import subprocess
-import gi
-import gettext
-# Añadir la raíz del proyecto al path para encontrar wmm_platform
-import sys
+
+# ==========================================================
+# CONFIGURACIÓN DEL PATH DEL PROYECTO
+# ==========================================================
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _PROJECT_ROOT)
 
+# ==========================================================
+# IMPORTS DE TERCEROS (GTK)
+# ==========================================================
+import gi
 gi.require_version('GLib', '2.0')
 from gi.repository import GLib
+
+# ==========================================================
+# IMPORTS DE MÓDULOS DEL PROYECTO
+# ==========================================================
 from image_engine import ImageEngine
 from wmm_platform.core import PlatformManager
-
-# ==========================================================
-# Traducciones
-# ==========================================================
-
-# Captura de traducibles
-_ = gettext.gettext
-# Ruta estándar de traducciones para extensiones de Cinnamon
-locale_dir = os.path.expanduser('~/.local/share/locale')
-# Usar el dominio 'wmm-applet@maki'
-gettext.bindtextdomain('wmm-applet@maki', locale_dir)
-
-# Función de traducción personalizada: busca primero en el sistema, luego en nuestro dominio
-def _(text):
-    translated = gettext.dgettext('cinnamon', text)
-    if translated != text:
-        return translated
-    return gettext.dgettext('wmm-applet@maki', text)
+from debug_logger import log_event
+from i18n import _
 
 class ConfigHandler:
+    ...
     """
     Gestor de configuración y persistencia para WMM (Wallpaper Master Manager).
     Maneja la lectura/escritura de JSONs, el escaneo de bibliotecas y la
@@ -72,13 +78,15 @@ class ConfigHandler:
     REASON_TIMER     = "timer_rotation"
     REASON_MANUAL    = "manual_next"
     REASON_SELECTION = "manual_selection"
+    REASON_BOOKMARK  = "bookmark_load"
 
     EXECUTION_REASONS = {
         REASON_HARDWARE:  "Hardware Plug/Unplug",
         REASON_SERVICE:   "WMM Service",
         REASON_TIMER:     "Timer",
         REASON_MANUAL:    "manual_next_wallpaper",
-        REASON_SELECTION: "manual_selection"
+        REASON_SELECTION: "manual_selection",
+        REASON_BOOKMARK: "Bookmark Load"
     }
 
     RECONFIGURATION_REASONS = (REASON_HARDWARE,)
@@ -95,37 +103,84 @@ class ConfigHandler:
     CMD_OPEN_PANEL      = "open_panel"
     CMD_APPLY_SELECTION = "apply_manual_selection"
 
-    def __init__(self):
-        # --- RUTAS DE PROYECTO (Relativas al script) ---
+    def __init__(self, cache_base_dir=None):
+        """
+        Inicializa el gestor de configuración.
+        Define todas las rutas del proyecto, la caché y los archivos JSON.
+
+        Args:
+            cache_base_dir (str, optional): Ruta base para la caché, proporcionada
+                                           por la plataforma (PlatformManager).
+                                           Si es None, se usa un fallback local.
+        """
+        # ==========================================================
+        # BLOQUE 1: RUTAS DEL PROYECTO (RELATIVAS AL SCRIPT)
+        # ==========================================================
+        # Estas rutas son independientes del SO y siempre apuntan
+        # a la estructura interna del applet.
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.applet_root = os.path.dirname(self.base_dir)
         self.data_dir = os.path.join(self.applet_root, "data")
 
-        # --- RUTAS DE SISTEMA (Caché de usuario) ---
-        self.cache_dir = os.path.expanduser("~/.cache/wmm")
+        # ==========================================================
+        # BLOQUE 2: RUTAS DE CACHÉ (DEPENDIENTES DEL SO)
+        # ==========================================================
+        # La ruta base de caché la proporciona la plataforma.
+        # En Linux: ~/.cache/wmm
+        # En Windows: %LOCALAPPDATA%/wmm (cuando se implemente)
+        # En macOS: ~/Library/Caches/wmm (cuando se implemente)
+        # Si no se proporciona, se usa un fallback local dentro del proyecto.
+        if cache_base_dir:
+            self.cache_dir = cache_base_dir
+        else:
+            self.cache_dir = os.path.join(self.applet_root, "cache")
+
+        # Rutas derivadas de la caché
         self.master_canvas = os.path.join(self.cache_dir, "wallpaper_master.jpg")
         self.thumbnails_dir = os.path.join(self.cache_dir, "thumbnails")
 
-        # --- CONSTANTES DE MOTOR ---
+        # ==========================================================
+        # BLOQUE 3: CONFIGURACIÓN DEL LOGGER CENTRALIZADO
+        # ==========================================================
+        # El debug_logger usa la misma ruta de caché que ConfigHandler.
+        # Así, los logs se guardan siempre en el directorio correcto
+        # independientemente del SO.
+        from debug_logger import set_cache_dir
+        set_cache_dir(self.cache_dir)
+
+        # ==========================================================
+        # BLOQUE 4: CONSTANTES DEL MOTOR
+        # ==========================================================
+        # Extensiones de imagen soportadas por WMM.
         self.img_extensions = ('.jpg', '.jpeg', '.png', '.bmp', '.webp', '.gif')
 
-        # --- MAPA DE ARCHIVOS JSON ---
+        # ==========================================================
+        # BLOQUE 5: MAPA DE ARCHIVOS JSON
+        # ==========================================================
+        # Centraliza las rutas de todos los archivos de persistencia.
+        # Así, si en el futuro se cambia la ubicación de data/, solo
+        # hay que modificar este diccionario.
         self.files = {
-            "settings": os.path.join(self.data_dir, "settings.json"),
-            "mfg_codes": os.path.join(self.data_dir, "monitor_mfg.json"),
-            "cache": os.path.join(self.data_dir, "image_cache.json"),
-            "index": os.path.join(self.data_dir, "scan_index.json"),
-            "sources": os.path.join(self.data_dir, "sources.json"),
-            "vault": os.path.join(self.data_dir, "monitor_vault.json"),
-            "geometry": os.path.join(self.data_dir, "geometry.json"),
-            "history": os.path.join(self.data_dir, "history.json"),
-            "history_vault": os.path.join(self.data_dir, "history_vault.json"),
-            "history_presets": os.path.join(self.data_dir, "history_presets.json"),
-            "commands":os.path.join(self.data_dir, "commands.json"),
-            "bookmarks":os.path.join(self.data_dir, "bookmarks.json"),
-            "bookmarks_single":os.path.join(self.data_dir, "bookmarks_single_list.json")
+            "settings":          os.path.join(self.data_dir, "settings.json"),
+            "mfg_codes":         os.path.join(self.data_dir, "monitor_mfg.json"),
+            "cache":             os.path.join(self.data_dir, "image_cache.json"),
+            "index":             os.path.join(self.data_dir, "scan_index.json"),
+            "sources":           os.path.join(self.data_dir, "sources.json"),
+            "vault":             os.path.join(self.data_dir, "monitor_vault.json"),
+            "geometry":          os.path.join(self.data_dir, "geometry.json"),
+            "history":           os.path.join(self.data_dir, "history.json"),
+            "history_vault":     os.path.join(self.data_dir, "history_vault.json"),
+            "history_presets":   os.path.join(self.data_dir, "history_presets.json"),
+            "commands":          os.path.join(self.data_dir, "commands.json"),
+            "bookmarks":         os.path.join(self.data_dir, "bookmarks.json"),
+            "bookmarks_single":  os.path.join(self.data_dir, "bookmarks_single_list.json")
         }
 
+        # ==========================================================
+        # BLOQUE 6: INICIALIZACIÓN DE LA ESTRUCTURA
+        # ==========================================================
+        # Garantiza que todos los directorios y archivos JSON existan.
+        # Si es la primera ejecución, los crea con valores por defecto.
         self.ensure_structure()
 
     def ensure_structure(self):
@@ -159,7 +214,6 @@ class ConfigHandler:
                     "gradient_h": ["#000000", "#8D9797"],
                     "gradient_v": ["#000000", "#8D9797"],
                     "monitor_group_align": "START",
-                    "debug_mode": False
                 }
             },
             "sources": {"sources": []},
@@ -192,7 +246,7 @@ class ConfigHandler:
         legacy_sources = global_conf.get("sources", [])
 
         if legacy_sources and not sources_data.get("sources"):
-            print(" [MIGRACIÓN] Trasvasando fuentes a sources.json...")
+            log_event("Migrando fuentes a sources.json", origin="CONFIG", level="INFO", reason="SETTINGS")
             for item in legacy_sources:
                 # Extraemos la ruta: en tu JSON es un dict con clave "path"
                 folder_path = item.get("path") if isinstance(item, dict) else item
@@ -233,7 +287,7 @@ class ConfigHandler:
             }
             # Insertar en la posición 0 (Cabecera)
             sources_data["sources"].insert(0, vault_source)
-            print(" [CONFIG] Fuente del sistema 'Vault' inicializada.")
+            log_event("Fuente del sistema 'Vault' inicializada", origin="CONFIG", level="INFO", reason="VAULT")
         else:
             # Si existe pero no está el primero, podríamos reordenar aquí si fuera crítico
             pass
@@ -268,7 +322,7 @@ class ConfigHandler:
             if m_hash not in current_active_hashes:
                 history[m_hash] = data       # guardar siempre, con o sin imagen
                 has_changed = True
-                print(f"Vault: Monitor {m_hash} movido a histórico.")
+                log_event(f"Monitor {m_hash} movido a histórico", origin="CONFIG", level="DEBUG", reason="VAULT")
 
         # 2. Reconstruir la sesión activa con los hashes actuales
         for m_hash in current_active_hashes:
@@ -284,15 +338,16 @@ class ConfigHandler:
                     entry = {"path": entry if entry else None, "active": True}
                 new_active[m_hash] = entry
                 has_changed = True
-                print(f"Vault: Monitor {m_hash} recuperado del histórico.")
+                log_event(f"Monitor {m_hash} recuperado del histórico", origin="CONFIG", level="DEBUG", reason="VAULT")
             else:
                 # Nuevo monitor: sin imagen y activo por defecto
                 new_active[m_hash] = {"path": None, "active": True}
                 has_changed = True
-                print(f"Vault: Nuevo monitor {m_hash} detectado.")
+                log_event(f"Nuevo monitor {m_hash} detectado", origin="CONFIG", level="INFO", reason="VAULT")
 
         if has_changed:
             vault["active_session"] = new_active
+            log_event("Vault sincronizado con cambios", origin="CONFIG", level="DEBUG", reason="VAULT")
             vault["history"] = history
             self.save_json("vault", vault)
 
@@ -364,8 +419,7 @@ class ConfigHandler:
             self.save_json("history", hist_g)
 
         except Exception as e:
-            print(f" [!] Error en refresh_metadata: {e}")
-            self.log_error(f"Error en refresh_metadata: {e}", reason="METADATA")
+            log_event(f"Error en refresh_metadata: {e}", origin="CONFIG", level="ERROR", reason="LIBRARY")
 
     def update_monitor_image(self, m_hash, image_path):
         """Actualiza la asociación de imagen para un monitor específico en la sesión activa."""
@@ -385,7 +439,7 @@ class ConfigHandler:
             with open(self.files[key], 'r', encoding='utf-8') as f:
                 return json.load(f)
         except (json.JSONDecodeError, Exception) as e:
-            print(f"Error cargando {key}: {e}")
+            log_event(f"Error cargando {key}: {e}", origin="CONFIG", level="ERROR", reason="SETTINGS")
             return {}
 
     def save_json(self, key, data):
@@ -446,8 +500,7 @@ class ConfigHandler:
                     f.write(raw_json)
 
         except Exception as e:
-            print(f" [!] Error al guardar {key}: {e}")
-            self.log_error(f"Error al guardar {key}: {e}", reason="SAVE_JSON")
+            log_event(f"Error al guardar {key}: {e}", origin="CONFIG", level="ERROR", reason="SETTINGS")
 
         # --- PERSISTENCIA DE ESTADOS ---
 
@@ -493,7 +546,7 @@ class ConfigHandler:
 
         if changed:
             self.save_json("index", index)
-            print(f" [SISTEMA] Cambio masivo completado: {len(index)} entradas procesadas.")
+            log_event(f"Cambio masivo completado: {len(index)} entradas procesadas", origin="CONFIG", level="INFO", reason="SETTINGS")
             return True
 
         # Si llegamos aquí sin cambios, es que no había hijos o ya estaban en ese estado
@@ -567,9 +620,9 @@ class ConfigHandler:
         if len(new_list) != len(flat_list):
             num_removed = len(flat_list) - len(new_list)
             self.save_json("bookmarks_single", new_list)
-            print(f" >>> [LIMPIEZA] Se han eliminado {num_removed} favoritos que ya no existen en disco.")
+            log_event(f"Limpieza: {num_removed} favoritos eliminados (no existen en disco)", origin="CONFIG", level="INFO", reason="BOOKMARK")
         else:
-            print(" >>> [SISTEMA] Lista de favoritos verificada: Sin huérfanos.")
+            log_event("Lista de favoritos verificada: sin huérfanos", origin="CONFIG", level="INFO", reason="BOOKMARK")
 
     def save_current_state_as_bookmark(self, bookmark_name, current_state):
         """
@@ -597,8 +650,7 @@ class ConfigHandler:
             self.refresh_history_metadata()
             return True
         except Exception as e:
-            print(f" [!] Error al guardar favorito '{bookmark_name}': {e}")
-            self.log_error(f"Error al guardar favorito '{bookmark_name}': {e}", reason="SAVE_BOOKMARK")
+            log_event(f"Error al guardar favorito '{bookmark_name}': {e}", origin="CONFIG", level="ERROR", reason="BOOKMARK")
             return False
 
     def get_next_bookmark_id(self):
@@ -650,7 +702,7 @@ class ConfigHandler:
             return True, "SUCCESS"
         except Exception as e:
             return False, f"ERROR: {str(e)}"
-            self.log_error(f"ERROR: {str(e)}", reason="SAVE:BOOKMARK")
+            log_event(f"Error al guardar bookmark: {e}", origin="CONFIG", level="ERROR", reason="BOOKMARK")
 
     def _cleanup_preset_data(self, preset_data):
         """
@@ -784,7 +836,8 @@ class ConfigHandler:
         extensions = self.img_extensions
         # Mapa de carpetas que el motor DEBE tener en cuenta
         active_folders_mtime = {}
-        # print(f">>> sync_library: active_folders_mtime keys = {list(active_folders_mtime.keys())}")
+        if active_folders_mtime:
+            log_event(f"active_folders_mtime keys = {list(active_folders_mtime.keys())}", origin="CONFIG", level="DEBUG", reason="LIBRARY")
         # --- 2. MAPEO DE REALIDAD FÍSICA Y PODA LÓGICA ---
         for source in sources_data:
             if source.get("type") != "physical" or not os.path.exists(source.get("path", "")):
@@ -844,30 +897,42 @@ class ConfigHandler:
         for f in active_folders_mtime:
             if f not in cached_folders and f not in folders_to_rescan:
                 folders_to_rescan.append(f)
-        # Carpetas a eliminar de la caché:
-        # - Las que no están en active_folders_mtime (inactivas o eliminadas)
-        # - Y además, las que estén explícitamente con active=False en el índice, aunque
-        #   estén cubiertas por una fuente recursiva.
-        deleted_folders = [
-            f for f in scan_index
-            if f not in active_folders_mtime
-            or (
+
+        # --- Carpetas a eliminar de la caché ---
+        # Separamos las que han sido eliminadas (fuente ya no existe) de las
+        # que simplemente están desactivadas (hijos inactivos).
+        deleted_folders = []
+        inactive_folders = []
+        for f in scan_index:
+            if f not in active_folders_mtime:
+                entry = scan_index.get(f)
+                is_inactive = isinstance(entry, list) and len(entry) > 1 and entry[1] is False
+                if is_inactive:
+                    inactive_folders.append(f)
+                else:
+                    deleted_folders.append(f)
+            elif (
                 isinstance(scan_index.get(f), list)
                 and len(scan_index[f]) > 1
                 and scan_index[f][1] is False
-            )
-        ]
+            ):
+                inactive_folders.append(f)
 
         # Mantenimiento de Favoritos y Metadatos
         self.maintenance_flat_list()
         self.refresh_history_metadata()
 
-        # print(f">>> sync_library: deleted_folders = {deleted_folders}")
-        # print(f">>> sync_library: active_folders_mtime keys = {list(active_folders_mtime.keys())}")
+        # Logs condicionados
+        if deleted_folders:
+            log_event(f"Carpetas eliminadas: {deleted_folders}", origin="CONFIG", level="DEBUG", reason="LIBRARY")
+        if inactive_folders:
+            log_event(f"Carpetas desactivadas: {inactive_folders}", origin="CONFIG", level="DEBUG", reason="LIBRARY")
+        if active_folders_mtime:
+            log_event(f"active_folders_mtime keys = {list(active_folders_mtime.keys())}", origin="CONFIG", level="DEBUG", reason="LIBRARY")
 
         # SALIDA RÁPIDA: Si nada ha cambiado
         if not folders_to_rescan and not deleted_folders:
-            print(" [-] Biblioteca sincronizada. Sin cambios detectados.")
+            log_event("Biblioteca sincronizada. Sin cambios", origin="CONFIG", level="INFO", reason="LIBRARY")
             # Si estábamos en modo asíncrono, avisar al panel para que decremente el semáforo
             if on_progress:
                 on_progress(0, 0)
@@ -905,18 +970,18 @@ class ConfigHandler:
                 stats["removed_h"] += len(full_cache["folders"][f]['h'])
                 stats["removed_v"] += len(full_cache["folders"][f]['v'])
                 # Limpiar miniaturas asociadas antes de eliminar la carpeta de la caché
-                print(f" [CACHE] Eliminando caché de carpeta inactiva: {f}")
+                log_event(f"Eliminando caché de carpeta inactiva: {f}", origin="CONFIG", level="DEBUG", reason="LIBRARY")
                 self._delete_thumbnails_for_folder(full_cache["folders"][f])
                 del full_cache["folders"][f]
 
-            # 2. BISTURÍ EN EL ÍNDICE: Solo borramos si el disco duro confirma que no existe
-            if not os.path.exists(f):
-                del scan_index[f]
-                print(f" >>> [SISTEMA] Ruta eliminada definitivamente del índice: {f}")
+            # 2. BISTURÍ EN EL ÍNDICE: Eliminar la entrada siempre que la carpeta
+            #    no esté activa, independientemente de si existe en disco.
+            del scan_index[f]
+            log_event(f"Entrada de índice eliminada: {f}", origin="CONFIG", level="DEBUG", reason="LIBRARY")
 
         # B. Escaneo de carpetas modificadas
         if folders_to_rescan:
-            print(f" [!] Sincronizando {len(folders_to_rescan)} directorios...")
+            log_event(f"Sincronizando {len(folders_to_rescan)} directorios", origin="CONFIG", level="INFO", reason="LIBRARY")
 
         for folder in folders_to_rescan:
             # Limpiar caché previo de la carpeta para actualizar estadísticas
@@ -935,7 +1000,7 @@ class ConfigHandler:
                             elif orient == "v": new_v.append([f_path, w, h])
                 # Limpiar miniaturas antiguas antes de actualizar (por si se eliminaron imágenes externamente)
                 if folder in full_cache["folders"]:
-                    print(f" [DEBUG] Limpiando miniaturas antes de reescaneo: {folder}")
+                    log_event(f"Limpiando miniaturas antes de reescaneo: {folder}", origin="CONFIG", level="DEBUG", reason="LIBRARY")
                     self._delete_thumbnails_for_folder(full_cache["folders"][folder])
                 # Actualizar caché
                 full_cache["folders"][folder] = {"h": new_h, "v": new_v}
@@ -951,6 +1016,7 @@ class ConfigHandler:
         # --- 5. PERSISTENCIA Y REPORTE ---
         self.save_json("cache", full_cache)
         self.save_json("index", scan_index)
+        log_event(f"Índice guardado: {len(scan_index)} entradas", origin="CONFIG", level="DEBUG", reason="LIBRARY")
 
         detail_msg = self._notify_detailed_changes(stats, full_cache)  # Ahora devuelve el detalle o None
         h, v = self._get_cache_totals(full_cache)
@@ -962,7 +1028,7 @@ class ConfigHandler:
         ))
         return h, v, has_changes, detail_msg
 
-        # print(f">>> sync_library: cache folders keys = {list(full_cache.get('folders', {}).keys())}")
+        log_event(f"cache folders keys = {list(full_cache.get('folders', {}).keys())}", origin="CONFIG", level="DEBUG", reason="LIBRARY")
 
         return self._get_cache_totals(full_cache)
 
@@ -1043,10 +1109,10 @@ class ConfigHandler:
 
                 # Limpiar estado temporal
                 del self._async_state
+                log_event(f"Escaneo asíncrono completado: {len(folders)} carpetas procesadas", origin="CONFIG", level="INFO", reason="LIBRARY")
 
         except Exception as e:
-            print(f" [ERROR] Fallo en escaneo asíncrono: {e}")
-            self.log_error(f"Fallo en escaneo asíncrono: {e}", reason="PROCESS_FOLDER")
+            log_event(f"Fallo en escaneo asíncrono: {e}", origin="CONFIG", level="ERROR", reason="LIBRARY")
             # Forzar el callback final para que el semáforo se destrabe
             if hasattr(self, '_async_state'):
                 total = len(self._async_state.get('folders_to_rescan', []))
@@ -1083,17 +1149,15 @@ class ConfigHandler:
         data["sources"] = sources_list # Actualizamos el diccionario original
         self.save_json("sources", data) # Guardamos el objeto completo
 
-        print(f" >>> [CONFIG] Fuente añadida: {name}")
+        log_event(f"Fuente añadida: {name}", origin="CONFIG", level="INFO", reason="LIBRARY")
         # self.sync_library() # La sincronización ahora se hace asíncronamente desde el panel
         return True
 
     def remove_source(self, path):
-        """Elimina una fuente y limpia la caché de imágenes asociada."""
+        """Elimina una fuente, limpia su índice y sincroniza la biblioteca."""
         data = self.load_json("sources")
         sources_list = data.get("sources", [])
 
-        # Filtramos la lista para quitar la fuente que coincida con la ruta
-        # Verificamos que no sea una fuente 'locked' (como el Vault)
         original_count = len(sources_list)
         sources_list = [
             s for s in sources_list
@@ -1103,13 +1167,20 @@ class ConfigHandler:
         if len(sources_list) < original_count:
             data["sources"] = sources_list
             self.save_json("sources", data)
-            print(f" >>> [CONFIG] Fuente eliminada: {path}")
 
-            # Sincronizamos para que el daemon elimine las fotos de la caché
+            # Limpiar el índice de la carpeta eliminada y sus subcarpetas
+            index = self.load_json("index")
+            prefix = path if path.endswith(os.sep) else path + os.sep
+            keys_to_remove = [key for key in index if key == path or key.startswith(prefix)]
+            for key in keys_to_remove:
+                del index[key]
+            self.save_json("index", index)
+
+            log_event(f"Fuente eliminada: {path}", origin="CONFIG", level="INFO", reason="LIBRARY")
             self.sync_library()
             return True
 
-        print(f" [!] No se pudo eliminar la fuente (no encontrada o protegida): {path}")
+        log_event(f"No se pudo eliminar la fuente: {path}", origin="CONFIG", level="WARN", reason="LIBRARY")
         return False
 
     def purge_folder_cache(self, folder_path):
@@ -1125,7 +1196,7 @@ class ConfigHandler:
             deleted = self._delete_thumbnails_for_folder(cache["folders"][folder_path])
             del cache["folders"][folder_path]
             self.save_json("cache", cache)
-            print(f" [CACHÉ] Carpeta purgada: {folder_path}")
+            log_event(f"Carpeta purgada: {folder_path}", origin="CONFIG", level="INFO", reason="LIBRARY")
             return deleted
         return 0
 
@@ -1177,8 +1248,8 @@ class ConfigHandler:
                         os.remove(thumb_path)
                         deleted_count += 1
                     except OSError as e:
-                        print(f" [AVISO] No se pudo eliminar miniatura {thumb_path}: {e}")
-        print(f" [CACHÉ] {deleted_count} miniaturas eliminadas.")
+                        log_event(f"No se pudo eliminar miniatura {thumb_path}: {e}", origin="CONFIG", level="WARN", reason="LIBRARY")
+        log_event(f"{deleted_count} miniaturas eliminadas", origin="CONFIG", level="INFO", reason="LIBRARY")
         return deleted_count
 
     def _cleanup_blur_thumbnails(self):
@@ -1197,9 +1268,9 @@ class ConfigHandler:
                     os.remove(fpath)
                     deleted += 1
                 except OSError as e:
-                    print(f" [AVISO] No se pudo eliminar miniatura blur {fpath}: {e}")
+                    log_event(f"No se pudo eliminar miniatura blur {fpath}: {e}", origin="CONFIG", level="WARN", reason="LIBRARY")
         if deleted > 0:
-            print(f" [CACHÉ] {deleted} miniaturas blur eliminadas al inicio.")
+            log_event(f"{deleted} miniaturas blur eliminadas al inicio", origin="CONFIG", level="INFO", reason="LIBRARY")
 
     # --- [SIGUIENTE SECCIÓN: HISTORIAL Y LOGS] ---
 
@@ -1281,7 +1352,7 @@ class ConfigHandler:
 
         # 5. Persistencia y actualización de timestamp
         limit = min(parent_total, 100)
-        # print(f"[DEBUG] _update_history: parent_total={parent_total}, limit={limit}, log_len antes={len(log)}")
+        log_event(f"parent_total={parent_total}, limit={limit}, log_len antes={len(log)}", origin="CONFIG", level="DEBUG", reason="LIBRARY")
         hist.update({
             log_key: log[:limit],
             "last_update": time.time()
@@ -1343,7 +1414,7 @@ class ConfigHandler:
 
         # 2. Filtro Anti-Repetición (Historial Global)
         history = self.load_json("history_vault").get("log", [])
-        # print(f"[DEBUG] Vault selection: history_len={len(history)}, vault_total={len(vault_data)}")
+        log_event(f"history_len={len(history)}, vault_total={len(vault_data)}", origin="CONFIG", level="DEBUG")
         fresh_pool = [img for img in pool if img[0] not in history]
 
         selected_path = random.choice(fresh_pool)[0] if fresh_pool else random.choice(pool)[0]
@@ -1358,7 +1429,7 @@ class ConfigHandler:
         # 1. Obtener datos base
         h_list, v_list = self.get_flat_lists()
         history = self.load_json("history").get("history_log", [])
-        # print(f"[DEBUG] Smart selection: history_len={len(history)}, total_h={len(h_list)}, total_v={len(v_list)}")
+        log_event(f"history_len={len(history)}, total_h={len(h_list)}, total_v={len(v_list)}", origin="CONFIG", level="DEBUG", reason="LIBRARY")
         # 2. Intentar selección ideal (Misma orientación - Historial)
         candidates = v_list if orientation == "v" else h_list
         # En modo spanned (lienzo panorámico), usar todas las horizontales
@@ -1366,7 +1437,7 @@ class ConfigHandler:
             pool = [item[0] for item in candidates]  # todas las horizontales, sin filtro de ratio
         else:
             pool = self._filter_by_smart_ratio(candidates, target_w, target_h, orientation)
-        # print(f"[DEBUG] Spanned filter: candidates_total={len(candidates)}, after_filter={len(pool)}, target_ratio={target_w/target_h:.2f}")
+        log_event(f"candidates_total={len(candidates)}, after_filter={len(pool)}, target_ratio={target_w/target_h:.2f}", origin="CONFIG", level="DEBUG", reason="LIBRARY")
         # Quitamos lo que ya ha salido recientemente
         fresh_pool = [p for p in pool if p not in history]
 
@@ -1420,8 +1491,7 @@ class ConfigHandler:
                 return True
             return False
         except Exception as e:
-            print(f" [ERROR] No se pudo abrir: {e}")
-            self.log_error(f"No se pudo abrir: {e}", reason="OPEN_FILE")
+            log_event(f"No se pudo abrir archivo: {e}", origin="CONFIG", level="ERROR", reason="LIBRARY")
             return False
 
     def _notify_detailed_changes(self, stats, cache):
@@ -1490,8 +1560,7 @@ class ConfigHandler:
             platform = PlatformManager()
             platform.send_notification(fixed_title, full_message, selected_icon)
         except Exception as e:
-            print(f" [!] Error en notificación: {e}")
-            self.log_error(f"Error en notificación: {e}", reason="NOTIFY")
+            log_event(f"Error en notificación: {e}", origin="CONFIG", level="ERROR", reason="NOTIFY")
 
 # --- DEBUGGER & DIAGNOSTIC MODE ---
 if __name__ == "__main__":

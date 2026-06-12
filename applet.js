@@ -45,7 +45,7 @@ class WMMApplet extends Applet.IconApplet {
         try {
             this.set_applet_icon_name("video-display");
             this.set_applet_tooltip(
-                _("WMM: Multi-Monitor Management") + "\n" +
+                "WMM: " + _("Wallpaper Multi-Monitor Manager") + "\n" +
                 _("Click action") + ": " + _("Next Background") + "\n" +
                 _("Secondary Click") + ": " + _("Context Menu")
             );
@@ -84,7 +84,7 @@ class WMMApplet extends Applet.IconApplet {
             // --- 2.1 AJUSTES GENERALES ---
             this.settingsMenuItem = new PopupMenu.PopupMenuItem("WMM " + _("Settings"));
             this.settingsMenuItem.connect('activate', () => {
-                this._openSettingsPanel(this._debug_mode);
+                this._openSettingsPanel();
             });
             this._applet_context_menu.addMenuItem(this.settingsMenuItem);
 
@@ -183,13 +183,20 @@ class WMMApplet extends Applet.IconApplet {
                 this._updateTimerSettings();
             });
 
-            // --- 2.5 PIE DE MENÚ ---
+            // --- 2.6 PIE DE MENÚ ---
             this._applet_context_menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
             let itemSync = new PopupMenu.PopupMenuItem(_("Sync Library"));
             itemSync.connect('activate', () => {
                 this._sendActionToEngine({ "action": "sync_library" });
             });
             this._applet_context_menu.addMenuItem(itemSync);
+
+            // --- 2.6 AYUDA ---
+            let itemHelp = new PopupMenu.PopupMenuItem(_("Help"));
+            itemHelp.connect('activate', () => {
+                Util.spawnCommandLine("python3 " + this.appletPath + "/python/help_viewer.py");
+            });
+            this._applet_context_menu.addMenuItem(itemHelp);
 
         } catch (e) {
             global.logError("WMM PopulateMenu Error: " + e.message);
@@ -239,13 +246,6 @@ class WMMApplet extends Applet.IconApplet {
 
                     let isSpanned = config.spanned_enabled || false;
                     this.spannedSwitch.setToggleState(isSpanned);
-                    // Modo Debug
-                    this._debug_mode = config.debug_mode || false;
-                    if (this.settingsMenuItem) {
-                        this.settingsMenuItem.label.set_text(
-                            "WMM " + _("Settings") + (this._debug_mode ? " (Debug)" : "")
-                        );
-                    }
                 }
             }
 
@@ -405,14 +405,34 @@ class WMMApplet extends Applet.IconApplet {
         }
     }
 
-    _openSettingsPanel(debug = false) {
-        this._sendActionToEngine({ "action": "open_panel", "debug": debug });
+    _openSettingsPanel() {
+        this._sendActionToEngine({ "action": "open_panel" });
     }
 
     /**
      * BLOQUE 6: EVENTOS SISTEMA
      */
     on_applet_clicked(event) {
+        let now = Date.now();
+        let cooldown = 1000; // milisegundos
+
+        // Si está en cooldown, mostrar feedback y salir
+        if (this._last_click_time && (now - this._last_click_time) < cooldown) {
+            this.set_applet_icon_symbolic_name("video-display-symbolic");
+
+            // Cancelar la restauración anterior si existe
+            if (this._icon_restore_timeout) {
+                clearTimeout(this._icon_restore_timeout);
+            }
+            // Programar restauración del icono
+            this._icon_restore_timeout = setTimeout(() => {
+                this.set_applet_icon_name("video-display");
+            }, cooldown);
+            return;
+        }
+
+        // Primer clic o fuera de cooldown: ejecutar rotación
+        this._last_click_time = now;
         this._sendActionToEngine({ "action": "force_rotation" });
     }
 

@@ -1,13 +1,39 @@
-import os
-import hashlib
-import io
-import gi
-import math
-import numpy as np
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
+"""
+WMM Applet - Cinnamon Edition
+----------------------------
+image_engine.py – Motor gráfico para la generación del lienzo maestro.
+
+Renderiza el fondo de pantalla componiendo las imágenes seleccionadas
+sobre un lienzo único, aplicando modos de aspecto, efectos visuales
+y fondos de relleno.
+"""
+
+# ==========================================================
+# IMPORTS DE LIBRERÍA ESTÁNDAR
+# ==========================================================
+import os
+import io
+import math
+import hashlib
+
+# ==========================================================
+# IMPORTS DE TERCEROS
+# ==========================================================
+import numpy as np
+from PIL import Image, ImageFilter, ImageDraw, ImageOps
+
+import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GdkPixbuf
-from PIL import Image, ImageFilter, ImageDraw, ImageOps
+
+# ==========================================================
+# IMPORTS DE MÓDULOS DEL PROYECTO
+# ==========================================================
+from debug_logger import log_event
+
 
 class ImageEngine:
     def __init__(self, config_handler, monitor_manager):
@@ -92,14 +118,14 @@ class ImageEngine:
             gradient_v = ["#000000", "#8D9797"]
         geo = self.ch.load_json("geometry")
         if not geo:
-            print(" [!] ERROR: No existe mapa de geometría. Abortando renderizado.")
+            log_event("No existe mapa de geometría. Abortando renderizado.", origin="IMG_ENG", level="ERROR", reason="LIBRARY")
             return None
 
         canvas_size = (geo["canvas"]["w"], geo["canvas"]["h"])
         monitors_map = geo["monitors"]
 
         master_canvas = Image.new('RGB', canvas_size, (0, 0, 0))
-        print(f"Generando lienzo maestro de {canvas_size[0]}x{canvas_size[1]}...")
+        log_event(f"Generando lienzo maestro de {canvas_size[0]}x{canvas_size[1]}", origin="IMG_ENG", level="INFO", reason="LIBRARY")
 
         if full_canvas:
             if not selection:
@@ -197,6 +223,7 @@ class ImageEngine:
 
         output_path = os.path.join(self.ch.cache_dir, "wallpaper_master.jpg")
         master_canvas.save(output_path, "JPEG", quality=95)
+        log_event(f"Lienzo maestro guardado en {output_path}", origin="IMG_ENG", level="DEBUG", reason="LIBRARY")
         return output_path
 
     # --- NUEVOS MÉTODOS ESTÁTICOS DE PROCESAMIENTO DE IMÁGENES ---
@@ -217,7 +244,7 @@ class ImageEngine:
         except Exception as e:
             ext = os.path.splitext(path)[1].lower()
             if ext in ('.jpg', '.jpeg', '.png', '.bmp', '.webp', '.gif'):
-                print(f" [!] Error físico/corrupción en: {os.path.basename(path)} -> {e}")
+                log_event(f"Error físico/corrupción en: {os.path.basename(path)} -> {e}", origin="IMG_ENG", level="ERROR", reason="LIBRARY")
             return None, 0, 0
 
     @staticmethod
@@ -264,7 +291,7 @@ class ImageEngine:
                     img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
                     img.save(thumb_path, "JPEG", quality=85)
             except Exception as e:
-                print(f" [!] Error generando miniatura para {img_path}: {e}")
+                log_event(f"Error generando miniatura para {os.path.basename(img_path)}: {e}", origin="IMG_ENG", level="WARN", reason="LIBRARY")
                 return ""
         return thumb_path
 
@@ -321,7 +348,7 @@ class ImageEngine:
             composite.save(blurred_path, "JPEG", quality=85)
             return blurred_path
         except Exception as e:
-            print(f" [!] Error generando blurred thumbnail: {e}")
+            log_event(f"Error generando blurred thumbnail: {e}", origin="IMG_ENG", level="WARN", reason="LIBRARY")
             return None
 
     @staticmethod
@@ -383,9 +410,6 @@ class ImageEngine:
         # Limitar para que no exceda el contenedor
         new_w = min(new_w, target_w)
         new_h = min(new_h, target_h)
-
-        # print(f"[GAPS] target=({target_w},{target_h}) new=({new_w},{new_h}) ratio=({img_ratio:.5f},{target_ratio:.5f}) gaps={new_w < target_w or new_h < target_h}")
-        has_gaps = (new_w < target_w) or (new_h < target_h)
 
         # Determinar si hay huecos (la imagen no llena completamente)
         has_gaps = (new_w < target_w) or (new_h < target_h)

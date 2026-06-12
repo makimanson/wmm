@@ -1,46 +1,59 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+WMM Applet - Cinnamon Edition
+----------------------------
+main.py – Motor principal de WMM.
+
+"""
+
+# ==========================================================
+# IMPORTS DE LIBRERÍA ESTÁNDAR
+# ==========================================================
 import os
+import sys
 import time
-import subprocess
-import gi
-import signal
-import atexit
 import random
 import json
-import gettext
-# Añadir la raíz del proyecto al path para encontrar wmm_platform
-import sys
+import signal
+import atexit
+import subprocess
+
+# ==========================================================
+# CONFIGURACIÓN DEL PATH DEL PROYECTO
+# ==========================================================
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _PROJECT_ROOT)
 
+# ==========================================================
+# IMPORTS DE TERCEROS (GTK)
+# ==========================================================
+import gi
 gi.require_version('Gdk', '3.0')
 from gi.repository import Gdk, GLib
+
+# ==========================================================
+# IMPORTS DE MÓDULOS DEL PROYECTO
+# ==========================================================
 from wmm_platform.core import PlatformManager
 from config_handler import ConfigHandler
 from image_engine import ImageEngine
-from PIL import Image
+from debug_logger import log_event
+from i18n import _, set_system_domain
 
-# ==========================================================
-# Traducciones
-# ==========================================================
-
-# Captura de traducibles
-_ = gettext.gettext
-# Ruta estándar de traducciones para extensiones de Cinnamon
-locale_dir = os.path.expanduser('~/.local/share/locale')
-# Usar el dominio 'wmm-applet@maki'
-gettext.bindtextdomain('wmm-applet@maki', locale_dir)
-
-# Función de traducción personalizada: busca primero en el sistema, luego en nuestro dominio
-def _(text):
-    translated = gettext.dgettext('cinnamon', text)
-    if translated != text:
-        return translated
-    return gettext.dgettext('wmm-applet@maki', text)
 
 class WMMDaemon:
     def __init__(self):
         self.platform = PlatformManager()
-        self.ch = ConfigHandler()
+        # Configurar el dominio del sistema para traducciones
+        if hasattr(self.platform, 'system_domain'):
+            set_system_domain(self.platform.system_domain)
+        # Obtener la ruta de caché del sistema operativo
+        cache_base = None
+        if hasattr(self.platform, 'get_cache_dir') and self.platform.get_cache_dir:
+            cache_base = self.platform.get_cache_dir()
+        self.ch = ConfigHandler(cache_base_dir=cache_base)
         self.ie = ImageEngine(self.ch, None)  # None temporal hasta migrar MonitorManager
         self.loop = GLib.MainLoop()
         self.timer_id = None
@@ -65,6 +78,7 @@ class WMMDaemon:
         """
         Ejecuta el ciclo de rotación y, al terminar, notifica al panel.
         """
+        log_event(f"Ejecutando ciclo: {reason}", origin="ENGINE", level="DEBUG", reason="SIGNAL")
         self.execute_full_cycle(
             reason=reason,
             target_hashes=target_hashes,
@@ -110,18 +124,16 @@ class WMMDaemon:
         try:
             with open(command_path, "w", encoding="utf-8") as f:
                 json.dump(event_dict, f)
-            print(f" [MOTOR] Evento '{event_dict.get('action')}' enviado al panel (PID {panel_pid}).")
+            log_event(f"Evento '{event_dict.get('action')}' enviado al panel (PID {panel_pid})", origin="ENGINE", level="DEBUG", reason="SIGNAL")
         except Exception as e:
-            print(f" [MOTOR] Error al escribir command_panel.json: {e}")
-            self.ch.log_error(f"Error al escribir command_panel.json: {e}", reason="MOTOR")
+            log_event(f"Error al escribir command_panel.json: {e}", origin="ENGINE", level="ERROR", reason="COMMAND")
             return
 
         # 4. Enviar la señal al panel
         try:
             os.kill(panel_pid, signal.SIGUSR1)
         except Exception as e:
-            print(f" [MOTOR] Error al enviar SIGUSR1 al panel: {e}")
-            self.ch.log_error(f"Error al enviar SIGUSR1 al panel: {e}", reason="MOTOR")
+            log_event(f"Error al enviar SIGUSR1 al panel: {e}", origin="ENGINE", level="ERROR", reason="SIGNAL")
 
     def _cleanup_on_exit(self):
         """Borra el rastro del motor al cerrarse."""
@@ -129,8 +141,9 @@ class WMMDaemon:
         if os.path.exists(pid_path):
             try:
                 os.remove(pid_path)
-                print(" [SISTEMA] Archivo PID eliminado. Cierre limpio.")
-            except: pass
+                log_event("Archivo PID eliminado. Cierre limpio.", origin="ENGINE", level="INFO", reason="NOTIFY")
+            except:
+                pass
 
     def _manage_pid_file(self):
         """Crea el archivo PID y asegura su limpieza al cerrar."""
@@ -162,172 +175,175 @@ class WMMDaemon:
     def _handle_sigusr1(self, signum, frame):
         """
         Manejador de la señal USR1 enviada por el Applet.
-        Sincroniza el estado del motor leyendo comandos.json.
+        Sincroniza el estado del motor leyendo commands.json.
         ---
-        MODIFICACIÓN MÍNIMA:
+        MODIFICACIONES:
         1. Se añade un pequeño sleep para evitar lectura de archivo vacío.
         2. Se añade soporte para 'timer_force_off' solicitado por favoritos.
+        3. Se envuelve todo en try-except para evitar que una excepción
+           silenciosa mate el motor (registrando el error en el log).
+        4. Eliminada la apertura de terminal para CMD_OPEN_PANEL;
+           ahora el panel se lanza siempre con subprocess.Popen.
         """
-        # Espera de seguridad para asegurar que el disco terminó de escribir
-        time.sleep(0.05)
+        try:
+            # Espera de seguridad para asegurar que el disco terminó de escribir
+            time.sleep(0.02)
 
-        action_data = self.ch.load_json("commands")
+            action_data = self.ch.load_json("commands")
 
-        if action_data and "action" in action_data:
-            order = action_data["action"]
+            if action_data and "action" in action_data:
+                order = action_data["action"]
+                log_event(f"Señal recibida: {order}", origin="ENGINE", level="DEBUG", reason="SIGNAL")
 
-            # Limpieza del buzón para evitar ejecuciones duplicadas
-            self.ch.save_json("commands", {})
+                # Limpieza del buzón para evitar ejecuciones duplicadas
+                self.ch.save_json("commands", {})
 
-            # --- 1. ACTUALIZACIÓN DE SETTINGS ---
-            if order == ConfigHandler.CMD_UPDATE_TIMER:
-                settings = self.ch.load_json("settings")
-                g = settings["global"]
-
-                # Sincronización de variables desde el Applet
-                g["slideshow_enabled"] = action_data.get("enabled", g["slideshow_enabled"])
-                g["slideshow_interval"] = int(action_data.get("interval", g["slideshow_interval"]))
-                g["slideshow_mode"] = action_data.get("mode", g["slideshow_mode"])
-                g["slideshow_bookmark"] = action_data.get("slideshow_bookmark", g["slideshow_bookmark"])
-                g["spanned_enabled"] = action_data.get("spanned_enabled", g.get("spanned_enabled", False))
-
-                self.ch.save_json("settings", settings)
-                GLib.idle_add(self._notify_panel, {"action": "settings_updated"})
-                # Gestión del Temporizador
-                GLib.idle_add(self.manage_timer, "start")
-
-                # REPORTES DE TERMINAL RECUPERADOS (Tal cual los tenías)
-                print("\n" + "="*40)
-                print(" [NOTIFICACIÓN] Ajustes de Temporizador")
-                print("-" * 40)
-                print(f"  Estado:      {'ACTIVADO' if g['slideshow_enabled'] else 'DESACTIVADO'}")
-                print(f"  Intervalo:  {g['slideshow_interval']} minutos")
-                print(f"  Modo:        {g['slideshow_mode'].upper()}")
-                print(f"  Imagenes:  {'SOLO FAVORITOS' if g['slideshow_bookmark'] else 'BIBLIOTECA GENERAL'}")
-                print("-" * 40)
-                print(f"  Modo Distribuido:  {'ACTIVADO' if g['spanned_enabled'] else 'DESACTIVADO'}")
-                print("="*40 + "\n")
-
-            # --- 2. CARGA DE FAVORITO ESPECÍFICO ---
-            elif order == ConfigHandler.CMD_LOAD_BOOKMARK:
-                name = action_data.get("name")
-
-                # Soporte para apagar el timer si el favorito es una carga manual
-                if action_data.get("timer_force_off"):
+                # --- 1. ACTUALIZACIÓN DE SETTINGS ---
+                if order == ConfigHandler.CMD_UPDATE_TIMER:
                     settings = self.ch.load_json("settings")
-                    settings["global"]["slideshow_enabled"] = False
+                    g = settings["global"]
+
+                    # Sincronización de variables desde el Applet
+                    g["slideshow_enabled"] = action_data.get("enabled", g["slideshow_enabled"])
+                    g["slideshow_interval"] = int(action_data.get("interval", g["slideshow_interval"]))
+                    g["slideshow_mode"] = action_data.get("mode", g["slideshow_mode"])
+                    g["slideshow_bookmark"] = action_data.get("slideshow_bookmark", g["slideshow_bookmark"])
+                    g["spanned_enabled"] = action_data.get("spanned_enabled", g.get("spanned_enabled", False))
+
                     self.ch.save_json("settings", settings)
-                    GLib.idle_add(self.manage_timer, "stop")
-                    print(f" [INFO] Favorito detectado: Deteniendo Temporizador.")
+                    GLib.idle_add(self._notify_panel, {"action": "settings_updated"})
+                    # Gestión del Temporizador
+                    GLib.idle_add(self.manage_timer, "start")
 
-                print(f" [ACCIÓN] Cargando favorito: {name}")
-                # Llamada original al ciclo: (Reason, target_hashes, target_bookmark)
-                GLib.idle_add(
-                    self._do_cycle_and_notify,
-                    f"Carga de favorito: {name}",
-                    None,
-                    name,
-                    None,
-                    {"action": "wallpaper_changed"}
-                )
-
-            # --- 2.1 ELIMINACION DE FAVORITO ESPECÍFICO ---
-
-            elif order == ConfigHandler.CMD_DELETE_BOOKMARK:
-                name = action_data.get("name")
-                if name:
-                    print(f" [ACCIÓN] Eliminando favorito: {name}")
-                    if self.ch.delete_bookmark(name):
-                        print(f" [OK] Favorito '{name}' eliminado.")
-                        self._notify_panel({"action": "bookmarks_updated"})
-                        # Notificación de confirmación usando el sistema interno
-                        self.ch._send_notification(
-                            reason=_("Favorite deleted"),
-                            detail_msg = _("Preset") + " '" + name + "'\n" + _("deleted successfully."),
-                            level="info"
-                        )
-                    else:
-                        print(f" [ERROR] No se pudo eliminar '{name}'.")
-
-            # --- 3. ACCIONES MANUALES ---
-            elif order == ConfigHandler.CMD_FORCE_ROTATION:
-                print(" [ACCIÓN] Rotación manual solicitada (Click en Applet)")
-                GLib.idle_add(
-                    self._do_cycle_and_notify,
-                    ConfigHandler.REASON_MANUAL,
-                    None,
-                    None,
-                    None,
-                    {"action": "wallpaper_changed"}
-                )
-
-            # --- 4. MANTENIMIENTO ---
-            elif order == ConfigHandler.CMD_SYNC_LIBRARY:
-                print(" [ACCIÓN] Sincronizando biblioteca de imágenes...")
-                result = self.ch.sync_library()  # Devuelve (total_h, total_v, has_changes, detail_msg)
-                if result and len(result) == 4:
-                    total_h, total_v, has_changes, detail_msg = result
-                    if has_changes:
-                        reason = _("Changes detected")
-                    else:
-                        reason = _("No changes")
-                    body = f"{reason}\n{_("Total library") + ": {}H | {}V".format(total_h, total_v)}"
-                    # Si hay detalle adicional (altas/bajas), lo añadimos
-                    if detail_msg:
-                        body = f"{detail_msg}\n{body}"
-                    self.ch._send_notification(
-                        reason="WMM: " + _("Synchronization"),
-                        detail_msg=body,
-                        level="info"
+                    log_event(
+                        f"Settings actualizados: enabled={g['slideshow_enabled']}, "
+                        f"interval={g['slideshow_interval']}, mode={g['slideshow_mode']}, "
+                        f"bookmark={g['slideshow_bookmark']}, spanned={g['spanned_enabled']}",
+                        origin="ENGINE", level="INFO", reason="SETTINGS"
                     )
 
-            # --- 5. ABRIR PANEL DE CONTROL ---
-            elif order == ConfigHandler.CMD_OPEN_PANEL:
-                debug_mode = action_data.get("debug", False)
-                print(f" [ACCIÓN] Abriendo panel de control (debug={debug_mode})...")
-                panel_path = os.path.join(os.path.dirname(__file__), "panel.py")
-                try:
-                    if debug_mode:
-                        self.platform.open_in_terminal(f"WMM_DEBUG=1 python3 {panel_path}; sleep 2")
-                    else:
+                # --- 2. CARGA DE FAVORITO ESPECÍFICO ---
+                elif order == ConfigHandler.CMD_LOAD_BOOKMARK:
+                    name = action_data.get("name")
+
+                    # Soporte para apagar el timer si el favorito es una carga manual
+                    if action_data.get("timer_force_off"):
+                        settings = self.ch.load_json("settings")
+                        settings["global"]["slideshow_enabled"] = False
+                        self.ch.save_json("settings", settings)
+                        GLib.idle_add(self.manage_timer, "stop")
+                        log_event("Temporizador detenido por carga manual de favorito", origin="ENGINE", level="INFO", reason="TIMER")
+
+                    log_event(f"Cargando favorito: {name}", origin="ENGINE", level="INFO", reason="BOOKMARK")
+                    GLib.idle_add(
+                        self._do_cycle_and_notify,
+                        ConfigHandler.REASON_BOOKMARK,
+                        None,
+                        name,
+                        None,
+                        {"action": "wallpaper_changed"}
+                    )
+                # --- 2.1 ELIMINACION DE FAVORITO ESPECÍFICO ---
+                elif order == ConfigHandler.CMD_DELETE_BOOKMARK:
+                    name = action_data.get("name")
+                    if name:
+                        log_event(f"Eliminando favorito: {name}", origin="ENGINE", level="INFO", reason="BOOKMARK")
+                        if self.ch.delete_bookmark(name):
+                            log_event(f"Favorito '{name}' eliminado correctamente", origin="ENGINE", level="INFO", reason="BOOKMARK")
+                            self._notify_panel({"action": "bookmarks_updated"})
+                            self.ch._send_notification(
+                                reason=_("Favorite deleted"),
+                                detail_msg=_("Preset") + " '" + name + "'\n" + _("deleted successfully."),
+                                level="info"
+                            )
+                        else:
+                            log_event(f"No se pudo eliminar el favorito '{name}'", origin="ENGINE", level="ERROR", reason="BOOKMARK")
+
+                # --- 3. ACCIONES MANUALES ---
+                elif order == ConfigHandler.CMD_FORCE_ROTATION:
+                    log_event("Rotación manual solicitada (Click en Applet)", origin="ENGINE", level="INFO", reason="LIBRARY")
+                    GLib.idle_add(
+                        self._do_cycle_and_notify,
+                        ConfigHandler.REASON_MANUAL,
+                        None,
+                        None,
+                        None,
+                        {"action": "wallpaper_changed"}
+                    )
+
+                # --- 4. MANTENIMIENTO ---
+                elif order == ConfigHandler.CMD_SYNC_LIBRARY:
+                    log_event("Sincronizando biblioteca de imágenes...", origin="ENGINE", level="INFO", reason="LIBRARY")
+                    result = self.ch.sync_library()
+                    if result and len(result) == 4:
+                        total_h, total_v, has_changes, detail_msg = result
+                        if has_changes:
+                            reason = _("Changes detected")
+                        else:
+                            reason = _("No changes")
+                        log_event(f"Sincronización completada: {total_h}H / {total_v}V, cambios={has_changes}",
+                                  origin="ENGINE", level="INFO", reason="LIBRARY")
+                        body = f"{reason}\n{_('Total library') + ': {}H | {}V'.format(total_h, total_v)}"
+                        if detail_msg:
+                            body = f"{detail_msg}\n{body}"
+                        self.ch._send_notification(
+                            reason="WMM: " + _("Synchronization"),
+                            detail_msg=body,
+                            level="info"
+                        )
+
+                # --- 5. ABRIR PANEL DE CONTROL ---
+                elif order == ConfigHandler.CMD_OPEN_PANEL:
+                    log_event("Abriendo panel de control", origin="ENGINE", level="INFO", reason="COMMAND")
+                    panel_path = os.path.join(os.path.dirname(__file__), "panel.py")
+                    try:
                         subprocess.Popen(
                             ["python3", panel_path],
                             start_new_session=True
                         )
-                    print(f" [OK] Panel lanzado: {panel_path}")
-                except Exception as e:
-                    print(f" [ERROR] No se pudo abrir el panel: {e}")
-                    self.ch.log_error(f"No se pudo abrir el panel: {e}", reason="PANEL")
+                        log_event("Panel lanzado correctamente", origin="ENGINE", level="DEBUG", reason="COMMAND")
+                    except Exception as e:
+                        log_event(f"No se pudo abrir el panel: {e}", origin="ENGINE", level="ERROR", reason="COMMAND")
 
-            # --- 6. APLICAR SELECCIÓN MANUAL ---
-            elif order == ConfigHandler.CMD_APPLY_SELECTION:
-                print(" [ACCIÓN] Aplicando selección manual desde el panel.")
-                temp_settings = action_data.get("temp_settings", None)
-                GLib.idle_add(
-                    self._do_cycle_and_notify,
-                    ConfigHandler.REASON_SELECTION,
-                    None,
-                    None,
-                    temp_settings,
-                    {"action": "wallpaper_changed"}
-                )
+                # --- 6. APLICAR SELECCIÓN MANUAL ---
+                elif order == ConfigHandler.CMD_APPLY_SELECTION:
+                    log_event("Aplicando selección manual desde el panel", origin="ENGINE", level="INFO", reason="COMMAND")
+                    temp_settings = action_data.get("temp_settings", None)
+                    GLib.idle_add(
+                        self._do_cycle_and_notify,
+                        ConfigHandler.REASON_SELECTION,
+                        None,
+                        None,
+                        temp_settings,
+                        {"action": "wallpaper_changed"}
+                    )
 
-            # --- 7. Añadir PRESET desde add_bookmark.py ---
-            elif order == ConfigHandler.CMD_BOOKMARK_ADDED:
-                print(" [ACCIÓN] Se ha añadido un nuevo PRESET.")
-                item_name = action_data.get("name", _("Unknown"))
-                self.ch._send_notification(
-                    reason=_("Favorite added"),
-                    detail_msg=item_name + "'\n" + _("added successfully."),
-                    level="info"
-                )
+                # --- 7. Añadir PRESET desde add_bookmark.py ---
+                elif order == ConfigHandler.CMD_BOOKMARK_ADDED:
+                    item_name = action_data.get("name", _("Unknown"))
+                    log_event(f"Nuevo preset añadido: {item_name}", origin="ENGINE", level="INFO", reason="BOOKMARK")
+                    self.ch._send_notification(
+                        reason=_("Favorite added"),
+                        detail_msg=item_name + "'\n" + _("added successfully."),
+                        level="info"
+                    )
+                    self._notify_panel({"action": "bookmarks_updated"})
+            else:
+                log_event("Señal recibida pero el archivo de comandos está vacío", origin="ENGINE", level="DEBUG", reason="COMMAND")
 
-                self._notify_panel({"action": "bookmarks_updated"})
-        else:
-            # Mantenemos tu aviso de depuración original
-            print(" [AVISO] Señal recibida pero el archivo de comandos está vacío.")
+        except Exception as e:
+            # Captura de cualquier excepción en el manejador de señales
+            # para evitar que el motor muera silenciosamente.
+            import traceback
+            error_msg = f"Excepción en _handle_sigusr1: {e}\n{traceback.format_exc()}"
+            log_event(error_msg, origin="ENGINE", level="ERROR", reason="SIGNAL")
 
     def _timer_callback(self):
+        """
+        Callback del temporizador. Ejecuta un ciclo de rotación
+        y notifica al panel.
+        """
+        log_event("Temporizador disparado: iniciando rotación", origin="ENGINE", level="DEBUG", reason="TIMER")
         self._do_cycle_and_notify(
             reason=ConfigHandler.REASON_TIMER,
             target_hashes=None,
@@ -338,11 +354,17 @@ class WMMDaemon:
         return True
 
     def manage_timer(self, action="start"):
+        """
+        Gestiona el temporizador de rotación.
+        - 'start': inicia o reinicia el temporizador según la configuración.
+        - 'stop': detiene el temporizador si está activo.
+        """
         if self.timer_id:
             GLib.source_remove(self.timer_id)
             self.timer_id = None
 
         if action == "stop":
+            log_event("Temporizador detenido", origin="ENGINE", level="INFO", reason="TIMER")
             return
 
         # Acceder a la ruta real: global -> slideshow_...
@@ -352,9 +374,9 @@ class WMMDaemon:
 
         if enabled and interval_min > 0:
             self.timer_id = GLib.timeout_add_seconds(interval_min * 60, self._timer_callback)
-            print(f" -> Temporizador activo: {interval_min} min.")
+            log_event(f"Temporizador activo: cada {interval_min} min", origin="ENGINE", level="INFO", reason="TIMER")
         else:
-            print(" -> Temporizador detenido por el usuario.")
+            log_event("Temporizador no iniciado (desactivado o intervalo inválido)", origin="ENGINE", level="INFO", reason="TIMER")
 
     def execute_full_cycle(self, reason=ConfigHandler.REASON_TIMER, target_hashes=None, target_bookmark=None, temp_settings=None):
         """
@@ -363,7 +385,7 @@ class WMMDaemon:
         e integra el soporte para favoritos y bookmarks específicos.
         """
         friendly_reason = ConfigHandler.EXECUTION_REASONS.get(reason, reason)
-        print(f"[{time.strftime('%H:%M:%S')}] INICIANDO: {friendly_reason}")
+        log_event(f"Iniciando ciclo: {friendly_reason}", origin="ENGINE", level="INFO", reason="LIBRARY")
 
         # 1. Estabilización de eventos GDK (Crítico para evitar desajustes)
         context = GLib.MainContext.default()
@@ -377,6 +399,7 @@ class WMMDaemon:
 
         # --- MODO SELECCIÓN MANUAL (aplicar lo que hay en el vault sin rotar) ---
         if reason == ConfigHandler.REASON_SELECTION:
+            log_event("Modo selección manual: aplicando vault sin rotar", origin="ENGINE", level="DEBUG", reason="VAULT")
             self._handle_selection_mode(temp_settings, monitors_map_real, active_hashes)
             return
 
@@ -408,7 +431,6 @@ class WMMDaemon:
         current_f_mode = sl_mode.lower()
         spanned_enabled = settings.get("spanned_enabled", False)
         wallpaper_effect_scope = settings.get("wallpaper_effect_scope", "blur")
-        # Nuevo: leer el efecto de imagen global
         wallpaper_effect = settings.get("wallpaper_effect", "none")
 
         # El centinela: Controla si el motor encuentra material NUEVO o VÁLIDO en este ciclo
@@ -426,7 +448,7 @@ class WMMDaemon:
         # 5. Renderizado y Aplicación final
         # Si todos los monitores están inactivos, pintar el color de fondo global
         if not valid_assets_found and selection:
-            # selection contiene tuplas ("color", ...) para todos los monitores
+            log_event("Sin imágenes válidas. Aplicando color de fondo global.", origin="ENGINE", level="DEBUG", reason="LIBRARY")
             master_path = self.ie.render_master_wallpaper(
                 selection,
                 full_canvas=spanned_enabled,
@@ -441,7 +463,6 @@ class WMMDaemon:
             self.platform.set_wallpaper(master_path, self.ch)
 
         elif valid_assets_found and selection:
-            # NUEVO: full_canvas se decide por spanned_enabled (opción independiente)
             master_path = self.ie.render_master_wallpaper(
                 selection,
                 full_canvas=spanned_enabled,
@@ -454,16 +475,15 @@ class WMMDaemon:
                 image_effect=wallpaper_effect
             )
             self.platform.set_wallpaper(master_path, self.ch)
+            log_event(f"Fondo aplicado: {len(selection)} monitores, spanned={spanned_enabled}", origin="ENGINE", level="INFO", reason="LIBRARY")
 
             # Aseguramos que el temporizador esté corriendo si no lo está
             if self.timer_id is None:
                 self.manage_timer(action="start")
         else:
             # LA RED DE SEGURIDAD FINAL
-            # 1. Se preserva wallpaper_master.jpg intacto en .cache/
-            # 2. Se registra la incidencia en el log.
             msg = _("Cycle aborted: not enough images available to complete selection.")
-            print(f" [{time.strftime('%H:%M:%S')}] [AVISO] {msg}")
+            log_event(msg, origin="ENGINE", level="WARN", reason="LIBRARY")
             self.ch._send_notification(
                 reason=_("No images available"),
                 action=_("Check status of Image Sources in Control Panel."),
@@ -516,18 +536,35 @@ class WMMDaemon:
             return self.ch.get_vault_selection(orientation=t_orient, exclude=exclude_paths)
 
     def on_hardware_change(self, display, monitor):
-        print(f"\n[{time.strftime('%H:%M:%S')}] Cambio físico detectado. Estabilizando geometría...")
+        """
+        Callback cuando se conecta o desconecta un monitor.
+        Reinicia el temporizador de estabilización con cada evento
+        para garantizar que la sincronización se ejecute tras la calma.
+        """
+        log_event("Cambio físico de hardware detectado. Reiniciando temporizador de estabilización...",
+                  origin="ENGINE", level="INFO", reason="HARDWARE")
+        try:
+            log_event(f"Evento hardware: conector={monitor.get_model()}, fabricante={monitor.get_manufacturer()}",
+                      origin="ENGINE", level="DEBUG", reason="HARDWARE")
+        except:
+            pass
 
-        # Cancelamos cualquier ciclo de estabilización previo si existe
+        # Cancelar temporizador anterior si existe
         if hasattr(self, '_reconfig_timer') and self._reconfig_timer:
             GLib.source_remove(self._reconfig_timer)
 
-        # Damos 1.5 - 2 segundos para que Cinnamon reorganice el escritorio
-        self._reconfig_timer = GLib.timeout_add(1000, self._final_hardware_sync)
+        # Programar un nuevo temporizador
+        self._reconfig_timer = GLib.timeout_add(1500, self._final_hardware_sync)
 
     def _final_hardware_sync(self):
+        """
+        Ejecuta la sincronización final tras un cambio de hardware.
+        Se llama tras el retardo programado en on_hardware_change.
+        """
+        # Limpiar el ID del temporizador para permitir futuros eventos
         self._reconfig_timer = None
-        print(" [SISTEMA] Ejecutando sincronización final de geometría.")
+
+        log_event("Ejecutando sincronización final de geometría", origin="ENGINE", level="INFO", reason="HARDWARE")
         self._do_cycle_and_notify(
             reason=ConfigHandler.REASON_HARDWARE,
             target_hashes=None,
@@ -542,6 +579,8 @@ class WMMDaemon:
         Aplica la selección manual sin rotar (REASON_SELECTION).
         Carga las imágenes actuales del vault y las renderiza directamente.
         """
+        log_event("Aplicando selección manual", origin="ENGINE", level="DEBUG", reason="LIBRARY")
+
         # Cargar la sesión activa del vault
         vault = self.ch.load_json("vault")
         active_session = vault.get("active_session", {})
@@ -600,10 +639,11 @@ class WMMDaemon:
                 image_effect=wallpaper_effect
             )
             self.platform.set_wallpaper(master_path, self.ch)
+            log_event(f"Selección manual aplicada: {len(selection)} monitores", origin="ENGINE", level="INFO", reason="LIBRARY")
             if self.timer_id is None:
                 self.manage_timer(action="start")
         else:
-            print(" [AVISO] Selección manual: no hay imágenes que aplicar.")
+            log_event("Selección manual: no hay imágenes que aplicar", origin="ENGINE", level="WARN", reason="LIBRARY")
 
     def _resolve_async_targets(self, reason, active_hashes, active_session, settings):
         """
@@ -633,6 +673,7 @@ class WMMDaemon:
                 if not active_image_hashes:
                     target_hashes = []
                     self.rotation_queue = []
+                    log_event("Modo Async: sin monitores activos con imagen", origin="ENGINE", level="DEBUG", reason="HARDWARE")
                 else:
                     new_queue = list(active_image_hashes)
                     if len(new_queue) > 1:
@@ -645,12 +686,12 @@ class WMMDaemon:
                     self.rotation_queue = new_queue
                     target_hashes = [self.rotation_queue.pop(0)]
                     self.last_rotated_hash = target_hashes[0]
-                    print(f" -> Modo Async: Turno del monitor {target_hashes[0]}.")
+                    log_event(f"Modo Async: cola reconstruida, turno del monitor {target_hashes[0]}", origin="ENGINE", level="DEBUG", reason="HARDWARE")
             else:
                 # La cola es válida y no está vacía: rotar normalmente
                 target_hashes = [self.rotation_queue.pop(0)]
                 self.last_rotated_hash = target_hashes[0]
-                print(f" -> Modo Async: Turno del monitor {target_hashes[0]}.")
+                log_event(f"Modo Async: turno del monitor {target_hashes[0]}", origin="ENGINE", level="DEBUG", reason="HARDWARE")
 
         return target_hashes
 
@@ -722,7 +763,7 @@ class WMMDaemon:
                 bookmarks = self.ch.load_json("bookmarks")
                 if target_bookmark:
                     target_preset = target_bookmark
-                    print(f" [BOOKMARK] Aplicando composición manual: '{target_preset}'")
+                    log_event(f"Aplicando composición manual: '{target_preset}'", origin="ENGINE", level="INFO", reason="BOOKMARK")
                 else:
                     if bookmarks:
                         presets_history = self.ch.load_json("history_presets").get("log", [])
@@ -735,12 +776,12 @@ class WMMDaemon:
                             })
                             available = list(bookmarks.keys())
                         target_preset = random.choice(available)
-                        print(f" [SYNC] Preset global elegido: {target_preset}")
+                        log_event(f"Preset global elegido: {target_preset}", origin="ENGINE", level="DEBUG", reason="BOOKMARK")
 
                 if target_preset:
                     bm_data = bookmarks.get(target_preset, {})
                     if not bm_data:
-                        print(f" [!] Error: El favorito '{target_preset}' no existe en el JSON.")
+                        log_event(f"El favorito '{target_preset}' no existe en el JSON", origin="ENGINE", level="ERROR", reason="BOOKMARK")
                     else:
                         if "__mode__" in bm_data:
                             preset_wp_mode = bm_data.pop("__mode__")
@@ -772,6 +813,15 @@ class WMMDaemon:
 
             if spanned_enabled:
                 # Caso A: Distribución sobre el lienzo completo (Spanned)
+                # Obtener monitors_map_real de forma robusta:
+                # 1. Geometría guardada (si existe y tiene datos)
+                # 2. Hardware real (último recurso)
+                geo_data = self.ch.load_json("geometry")
+                monitors_map_real = geo_data.get("monitors", None) if geo_data else None
+                if not monitors_map_real:
+                    platform = PlatformManager()
+                    monitors_map_real = platform.get_monitors()
+                    log_event("Usando hardware real para monitors_map_real (fallback)", origin="MOTOR", level="DEBUG", reason="HARDWARE")
                 canvas_w, canvas_h = self.platform.get_total_canvas_geometry(monitors_map_real)
                 primary_hash = None
                 for m_hash in active_hashes:
@@ -798,7 +848,7 @@ class WMMDaemon:
                         path = self.ch.get_smart_selection(canvas_w, canvas_h, orientation="h")
 
                 if not path:
-                    print(" [!] Spanned: Imposible encontrar imagen.")
+                    log_event("Spanned: Imposible encontrar imagen", origin="ENGINE", level="WARN", reason="LIBRARY")
                 else:
                     selection = {primary_hash: path}
                     valid_assets_found = True
@@ -875,59 +925,115 @@ class WMMDaemon:
             "canvas": {"w": canvas_w, "h": canvas_h},
             "monitors": monitors_map_real
         }
+        log_event(f"Guardando geometría en JSON: {len(geo_snapshot['monitors'])} monitores, canvas={geo_snapshot['canvas']}", origin="ENGINE", level="DEBUG", reason="HARDWARE")
         self.ch.save_json("geometry", geo_snapshot)
-        print(f" [GEOMETRÍA] ¡Reset por {reason}! Nuevo lienzo: {canvas_w}x{canvas_h}")
+        # Verificación de guardado
+        saved_check = self.ch.load_json("geometry")
+        if saved_check.get("monitors") != geo_snapshot["monitors"]:
+            log_event("¡ALERTA! Discrepancia justo después de guardar geometry.json", origin="ENGINE", level="ERROR", reason="HARDWARE")
+        else:
+            log_event("Verificación de guardado de geometry.json exitosa", origin="ENGINE", level="DEBUG", reason="HARDWARE")
+        log_event(f"Geometría actualizada por {reason}: {canvas_w}x{canvas_h}", origin="ENGINE", level="INFO", reason="HARDWARE")
         return geo_snapshot, canvas_w, canvas_h
-
     def startup_sync(self):
         """
-        Sincronización inicial de geometría y vault, sin cambiar el fondo.
-        Se ejecuta siempre al arrancar el motor.
+        Sincronización inicial de geometría y vault.
+        Garantiza que geometry.json existe y refleja la realidad actual.
+        Devuelve True si el vault o la geometría han cambiado.
         """
-        print("[SISTEMA] Sincronizando geometría inicial...")
+        log_event("Sincronizando geometría inicial...", origin="ENGINE", level="INFO")
+
+        # 1. Obtener la realidad actual del hardware
         platform = PlatformManager()
         monitors_map_real = platform.get_monitors()
-        self._update_geometry(monitors_map_real, "Inicio de Servicio")
 
-        # Sincronizar el vault con los monitores detectados
+        # 2. Guardar la geometría actual (crea el archivo si no existe)
+        self._update_geometry(monitors_map_real, ConfigHandler.REASON_SERVICE)
+
+        # Registrar si el archivo de geometría no existía (primer arranque o archivo borrado)
+        if not self.ch.load_json("geometry"):
+            log_event("Geometría inicial creada (no existía)", origin="ENGINE", level="INFO", reason="HARDWARE")
+
+        # 3. Sincronizar el vault con los monitores detectados
         active_hashes = list(monitors_map_real.keys())
-        has_changed, _ = self.ch.sync_vault(active_hashes)
-        if has_changed:
-            print(" [VAULT] Sincronizado con la geometría actual.")
-        return has_changed
+        vault_changed, _ = self.ch.sync_vault(active_hashes)
+
+        if vault_changed:
+            log_event("Vault sincronizado con la geometría actual", origin="ENGINE", level="INFO")
+            return True
+
+        # 4. Verificar si la geometría guardada difiere de la real
+        saved_monitors = self.ch.load_json("geometry").get("monitors", {})
+        if set(active_hashes) != set(saved_monitors.keys()):
+            log_event("Cambio de geometría detectado", origin="ENGINE", level="INFO", reason="HARDWARE")
+            return True
+
+        log_event("Geometría sin cambios. Se mantiene el fondo actual.", origin="ENGINE", level="DEBUG", reason="SETTINGS")
+        return False
 
     def run(self):
-        # print("--- WMM DAEMON INICIADO ---")
-        # Limpiar miniaturas blur_ acumuladas de sesiones anteriores
+        """
+        Punto de entrada principal del motor.
+        Sincroniza la biblioteca, verifica la geometría y lanza el bucle GLib.
+        """
+        # ----------------------------------------------------------
+        # 1. LIMPIEZA Y SINCRONIZACIÓN INICIAL
+        # ----------------------------------------------------------
         self.ch._cleanup_blur_thumbnails()
+        log_event("ENGINE iniciado", origin="ENGINE", level="INFO", reason="NOTIFY")
+
         try:
             result = self.ch.sync_library()
-            if result and len(result) == 3:
-                h, v, _ = result
-                print(f" -> Biblioteca: {h}H / {v}V")
+            if result and len(result) >= 3:
+                h, v = result[0], result[1]
+                log_event(f"Biblioteca sincronizada: {h}H / {v}V", origin="ENGINE", level="INFO", reason="LIBRARY")
             else:
-                print(" -> Biblioteca: No se pudo obtener el total.")
+                log_event("Biblioteca: No se pudo obtener el total", origin="ENGINE", level="WARN", reason="LIBRARY")
         except Exception as e:
-            print(f" [ERROR] Escaneo inicial: {e}")
-            self.ch.log_error(f"Escaneo inicial: {e}", reason="SYNC_LIB")
+            log_event(f"Error en escaneo inicial: {e}", origin="ENGINE", level="ERROR", reason="LIBRARY")
 
-        # Al iniciar, si el usuario no quiere cambios, nos saltamos el ciclo.
+        # Asegurar que las acciones del shell están instaladas
+        self.platform.ensure_shell_actions(self.ch.applet_root)
+        # Asegurar que las traducciones están compiladas
+        self._ensure_translations()
+
+        # ----------------------------------------------------------
+        # 2. DECISIÓN SOBRE LA PERSISTENCIA DEL FONDO
+        # ----------------------------------------------------------
         settings = self.ch.load_json("settings").get("global", {})
-        if not settings.get("persist_on_reboot", True):
-            self.execute_full_cycle(reason=ConfigHandler.REASON_SERVICE)
-        else:
-            if self.startup_sync():
-                print(" -> Cambio de hardware detectado. Regenerando fondo...")
-                self.execute_full_cycle(reason=ConfigHandler.REASON_HARDWARE)
-            else:
-                print(" -> Persistencia activa. Se mantiene el fondo actual.")
+        persist = settings.get("persist_on_reboot", True)
+        log_event(f"Valor de persist_on_reboot: {persist}", origin="ENGINE", level="DEBUG", reason="SETTINGS")
 
+        # Sincronizar geometría y vault (startup_sync ahora hace todo el trabajo)
+        needs_cycle = self.startup_sync()
+
+        if not persist:
+            # El usuario quiere cambiar el fondo al iniciar
+            log_event("Persistencia desactivada. Generando nuevo fondo.", origin="ENGINE", level="INFO", reason="SETTINGS")
+            self.execute_full_cycle(reason=ConfigHandler.REASON_SERVICE)
+        elif needs_cycle:
+            # El hardware ha cambiado: regenerar
+            log_event("Cambio de hardware detectado. Regenerando fondo...", origin="ENGINE", level="INFO", reason="HARDWARE")
+            self.execute_full_cycle(reason=ConfigHandler.REASON_HARDWARE)
+        # else: ni persistencia desactivada ni cambios de hardware -> mantener fondo
+
+        # ----------------------------------------------------------
+        # 3. BUCLE PRINCIPAL
+        # ----------------------------------------------------------
         try:
             self.loop.run()
         except (KeyboardInterrupt, SystemExit):
-            print("\nCerrando WMM...")
+            log_event("Cerrando motor...", origin="ENGINE", level="INFO", reason="NOTIFY")
             self.manage_timer(action="stop")
             self.loop.quit()
+
+    def _ensure_translations(self):
+        """
+        Asegura que las traducciones estén compiladas.
+        Delega en la capa de plataforma, que sabe cómo hacerlo en cada SO.
+        """
+        if hasattr(self.platform, 'compile_translations'):
+            self.platform.compile_translations(self.ch.applet_root)
 
 if __name__ == "__main__":
     daemon = WMMDaemon()

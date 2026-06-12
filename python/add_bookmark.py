@@ -21,41 +21,26 @@ DEPENDENCIAS:
     - GTK+ 3.0
     - config_handler.py (mismo directorio)
 """
-
+# ==========================================================
+# IMPORTS DE LIBRERÍA ESTÁNDAR
+# ==========================================================
 import os
 import sys
-import gi
 import subprocess
-import gettext
-# import locale
 
+# ==========================================================
+# IMPORTS DE TERCEROS (GTK)
+# ==========================================================
+import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gio
+
+# ==========================================================
+# IMPORTS DE MÓDULOS DEL PROYECTO
+# ==========================================================
 from config_handler import ConfigHandler
-
-# ==========================================================
-# Traducciones
-# ==========================================================
-
-# Captura de traducibles
-_ = gettext.gettext
-# Usa el idioma configurado en el sistema
-#locale.setlocale(locale.LC_ALL, '')
-# Ruta estándar de traducciones para extensiones de Cinnamon
-#locale_dir = os.path.expanduser('~/.local/share/locale')
-# Usar el dominio 'wmm-applet@maki'
-#gettext.bindtextdomain('wmm-applet@maki', locale_dir)
-# También vincular el dominio 'cinnamon' para heredar traducciones del sistema
-#gettext.bindtextdomain('cinnamon', None)
-# Establecer el dominio principal
-#gettext.textdomain('wmm-applet@maki')
-
-# Función de traducción personalizada: busca primero en el sistema, luego en nuestro dominio
-def _(text):
-    translated = gettext.dgettext('cinnamon', text)
-    if translated != text:
-        return translated
-    return gettext.dgettext('wmm-applet@maki', text)
+from debug_logger import log_event
+from i18n import _
 
 # ==========================================================
 # DIÁLOGO PRINCIPAL: AÑADIR FAVORITO
@@ -68,6 +53,7 @@ class AddBookmarkDialog(Gtk.ApplicationWindow):
 
     def __init__(self, app):
         super().__init__(application=app, title=_("Add Favorite Preset"))
+        self.set_icon_name("bookmark-new")  # Icono de añadir favorito
         self.app = app
         self.handler = ConfigHandler()
         try:
@@ -113,7 +99,7 @@ class AddBookmarkDialog(Gtk.ApplicationWindow):
             self.default_text = f"Bookmark {next_id:02d}"
 
         except Exception as e:
-            print(f" [ERROR] Fallo al inicializar AddBookmarkDialog: {e}")
+            log_event(f"Fallo al inicializar diálogo: {e}", origin="ADD_BOOK", level="ERROR", reason="BOOKMARK")
             self.show_warning(_("Error loading data. Please restart panel"))
             self._build_ui = lambda: None  # Anular la construcción de la UI
         self._build_ui()
@@ -149,16 +135,19 @@ class AddBookmarkDialog(Gtk.ApplicationWindow):
         vbox.pack_start(hbox, False, False, 0)
 
         # Botón Cancelar
-        cancel_btn = Gtk.Button.new_from_stock(Gtk.STOCK_CANCEL)
+        cancel_btn = Gtk.Button.new_with_label(_("Cancel"))
+        cancel_btn.set_can_default(True)
         cancel_btn.connect("clicked", self.on_cancel)
         hbox.pack_start(cancel_btn, False, False, 0)
 
-        # Botón Aceptar (estilo sugerido)
-        ok_btn = Gtk.Button.new_from_stock(Gtk.STOCK_OK)
-        ok_btn.get_style_context().add_class("suggested-action")
+        # Botón Aceptar
+        ok_btn = Gtk.Button.new_with_label(_("OK"))
         ok_btn.connect("clicked", self.on_accept)
+        ok_btn.set_can_default(True)
+        ok_btn.grab_default()
         hbox.pack_start(ok_btn, False, False, 0)
 
+        self.set_default(ok_btn)
         self.show_all()
 
     def on_accept(self, widget):
@@ -170,7 +159,7 @@ class AddBookmarkDialog(Gtk.ApplicationWindow):
 
         # Validación: el nombre no puede estar vacío
         if not name:
-            self.show_warning(_("Name cannot be empty"))
+            self.show_warning(_("The name cannot be empty."))
             return
 
         # Añadir preferencias globales al preset
@@ -189,7 +178,8 @@ class AddBookmarkDialog(Gtk.ApplicationWindow):
                 self.handler.save_json("commands", {"action": "bookmark_added", "name": name})
                 subprocess.run(["pkill", "-USR1", "-f", "main.py"])
             except Exception as e:
-                print(f" [AVISO] No se pudo notificar al motor: {e}")
+                log_event(f"No se pudo notificar al motor: {e}", origin="ADD_BOOK", level="WARN", reason="SIGNAL")
+            log_event(f"Preset guardado correctamente: {name}", origin="ADD_BOOK", level="INFO", reason="SIGNAL")
             self.destroy()
         else:
             # Gestionar los errores conocidos

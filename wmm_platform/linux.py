@@ -4,28 +4,35 @@ Contiene funciones comunes a todos los escritorios de Linux.
 """
 import os
 import subprocess
+import fcntl
 
-def get_terminal():
-    """
-    Detecta el terminal por defecto del usuario en Linux.
-    Retorna el comando del terminal (ej: 'gnome-terminal', 'kgx', 'xfce4-terminal').
-    """
-    mime_path = os.path.expanduser("~/.config/mimeapps.list")
-    if os.path.exists(mime_path):
-        with open(mime_path, "r") as f:
-            for line in f:
-                if line.startswith("x-scheme-handler/terminal="):
-                    return line.split("=", 1)[1].strip()
-    # Fallback: terminal genérico del sistema
-    return "x-terminal-emulator"
+# Dominio del sistema para traducciones (se hereda desde cinnamon.py, gnome.py, etc.)
+system_domain = None
 
-def open_in_terminal(command):
+# Ruta de caché estándar en Linux (XDG)
+CACHE_DIR = os.path.expanduser("~/.cache")
+
+def get_cache_dir(app_name="wmm"):
     """
-    Abre una terminal en Linux y ejecuta el comando especificado.
-    Detecta automáticamente el terminal por defecto del usuario.
+    Devuelve la ruta al directorio de caché para una aplicación (Linux).
     """
-    terminal = get_terminal()
-    subprocess.Popen([terminal, "-e", command], start_new_session=True)
+    return os.path.join(CACHE_DIR, app_name)
+
+def lock_file(f):
+    """
+    Bloquea el archivo para escritura exclusiva usando fcntl.flock.
+    Args:
+        f: Objeto de archivo abierto.
+    """
+    fcntl.flock(f, fcntl.LOCK_EX)
+
+def unlock_file(f):
+    """
+    Desbloquea el archivo previamente bloqueado con lock_file.
+    Args:
+        f: Objeto de archivo abierto.
+    """
+    fcntl.flock(f, fcntl.LOCK_UN)
 
 def open_file(path):
     """
@@ -47,10 +54,38 @@ def _(text):
     Busca primero en el sistema, luego en nuestro dominio.
     """
     import gettext
-    translated = gettext.dgettext('cinnamon', text)  # 'cinnamon' como fallback del sistema
+    translated = gettext.dgettext('cinnamon', text)
     if translated != text:
         return translated
     return gettext.dgettext('wmm-applet@maki', text)
+
+def compile_translations(applet_root):
+    """
+    Compila los archivos .po a .mo en la ruta de traducciones de Linux.
+    Se llama desde el motor al iniciar, si la plataforma lo soporta.
+    """
+    po_dir = os.path.join(applet_root, "po")
+    if not os.path.isdir(po_dir):
+        return
+
+    locale_base = os.path.expanduser("~/.local/share/locale")
+    for po_file in os.listdir(po_dir):
+        if not po_file.endswith(".po"):
+            continue
+        lang = os.path.splitext(po_file)[0]
+        mo_dir = os.path.join(locale_base, lang, "LC_MESSAGES")
+        mo_file = os.path.join(mo_dir, "wmm-applet@maki.mo")
+        po_path = os.path.join(po_dir, po_file)
+
+        if not os.path.exists(mo_file) or os.path.getmtime(po_path) > os.path.getmtime(mo_file):
+            try:
+                os.makedirs(mo_dir, exist_ok=True)
+                subprocess.run(
+                    ["msgfmt", po_path, "-o", mo_file],
+                    check=False, capture_output=True
+                )
+            except Exception:
+                pass  # Si falla, el motor usará inglés por defecto
 
 def send_notification(title, message, level="info"):
     """
