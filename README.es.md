@@ -118,14 +118,25 @@ Antes de instalar, asegúrate de tener estas dependencias. Puedes instalarlas ma
     ```bash
     rm -rf ~/.cache/wmm
     ```
+4.  Elimina cualquier acción de WMM Nemo instalada previamente.
 
-## 🛠️ Modo Debug
+    ```bash
+    rm ~/.local/share/nemo/actions/wmm-add_to_bookmarks.nemo_action ~/.local/share/nemo/actions/wmm-send-to.nemo_action
+    ```
 
-Para solucionar problemas o ver qué está pasando entre bambalinas, puedes abrir el panel de control en modo debug. Verás una terminal con todos los mensajes de diagnóstico.
+## 🛠️ Visor de depuración / Registro de eventos
 
-*    Desde el applet: Haz clic derecho en el icono de WMM > Ajustes WMM (Debug).
+WMM incluye un sistema de registro integrado que graba la actividad del motor, el panel y los scripts en tiempo real. Puedes consultar los registros en cualquier momento sin reiniciar la aplicación.
 
-*    Manual: Abre una terminal y ejecuta WMM_DEBUG=1 python3 ~/.local/share/cinnamon/applets/wmm-applet@maki/python/panel.py.
+*   **Abrir el Visor de Registros**: En el Panel de Control, haz clic en el botón **Log** (icono de documento). Se abrirá una ventana independiente que muestra los eventos del motor, el panel y las acciones de Nemo con marca de tiempo.
+*   **Actualización en tiempo real**: El visor se refresca automáticamente según se escriben nuevos eventos. Usa los filtros (origen, nivel, motivo) o la barra de búsqueda para encontrar exactamente lo que necesitas.
+*   **Inspección manual**: El archivo de registro se guarda en `~/.cache/wmm/debug.log`. Puedes abrirlo con cualquier editor de texto, usar el visor del panel, o ejecutar el siguiente comando para mostrarlo directamente en una terminal:
+
+    ```bash
+    python3 ~/.local/share/cinnamon/applets/wmm-applet@maki/python/debug_logger.py
+    ```
+
+El antiguo "Modo Debug" que requería una terminal ha sido eliminado. Toda la información de diagnóstico está ahora disponible a través de este sistema de registro integrado y fácil de usar.
 
 ## 🌍 Traducción
 

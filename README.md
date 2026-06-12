@@ -113,18 +113,28 @@ Before installing, make sure you have these dependencies. You can install them m
 
 1.  Right-click the applet on the panel and select **Remove**.
 2.  Open **Applets**, find WMM Manager and click **Uninstall**.
-3.  Delete the cache folder:
+3.  Delete cache folder:
     ```bash
     rm -rf ~/.cache/wmm
     ```
+4.  Remove any previously installed WMM Nemo actions
 
-## 🛠️ Debug Mode
+    ```bash
+    rm ~/.local/share/nemo/actions/wmm-add_to_bookmarks.nemo_action ~/.local/share/nemo/actions/wmm-send-to.nemo_action
+    ```
 
-To troubleshoot or see what is happening behind scenes, you can open control panel in debug mode. You will see a terminal with all diagnostic messages.
+## 🛠️ Debug / Log Viewer
 
-*    From applet: Right-click on WMM icon > WMM Settings (Debug).
+WMM includes a built‑in log system that records engine, panel and script activity in real time. You can inspect the logs at any moment without restarting the application.
 
-*    Manual: Open a terminal and run WMM_DEBUG=1 python3 ~/.local/share/cinnamon/applets/wmm-applet@maki/python/panel.py.
+*   **Open the Log Viewer**: In the Control Panel, click the **Log** button (text‑x‑generic icon). A separate window will open showing timestamped events from the engine, panel and Nemo actions.
+*   **Real‑time updates**: The viewer refreshes automatically as new events are written. Use the filters (origin, level, reason) or the search bar to find exactly what you need.
+*   **Manual inspection**: The log file is stored at `~/.cache/wmm/debug.log`. You can open it with any text editor, use the viewer inside the panel, or run the following command to display it directly in a terminal:
+
+    ```bash
+    python3 ~/.local/share/cinnamon/applets/wmm-applet@maki/python/debug_logger.py
+    ```
+The old “Debug mode” that required a terminal has been removed. All diagnostic information is now available through this integrated, user‑friendly log system.
 
 ## 🌍 Translation
 
