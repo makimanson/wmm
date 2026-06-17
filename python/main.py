@@ -40,20 +40,36 @@ from wmm_platform.core import PlatformManager
 from config_handler import ConfigHandler
 from image_engine import ImageEngine
 from debug_logger import log_event
-from i18n import _, set_system_domain
+from i18n import _, set_app_domain, set_locale_dir
 
 
 class WMMDaemon:
     def __init__(self):
+        # ----------------------------------------------------------
+        # 1. INICIALIZAR LA PLATAFORMA
+        # ----------------------------------------------------------
         self.platform = PlatformManager()
-        # Configurar el dominio del sistema para traducciones
-        if hasattr(self.platform, 'system_domain'):
-            set_system_domain(self.platform.system_domain)
-        # Obtener la ruta de caché del sistema operativo
-        cache_base = None
-        if hasattr(self.platform, 'get_cache_dir') and self.platform.get_cache_dir:
-            cache_base = self.platform.get_cache_dir()
-        self.ch = ConfigHandler(cache_base_dir=cache_base)
+
+        # ----------------------------------------------------------
+        # 1b. COMPLETAR EL .INI SI ES NECESARIO (antes de ConfigHandler)
+        # ----------------------------------------------------------
+        self._complete_ini_if_needed()
+
+        # ----------------------------------------------------------
+        # 2. CONFIGURAR EL SISTEMA DE TRADUCCIONES
+        # ----------------------------------------------------------
+        set_app_domain(self.platform.app_domain)
+        set_locale_dir(self.platform.locale_dir)
+
+        # ----------------------------------------------------------
+        # 3. INICIALIZAR EL GESTOR DE CONFIGURACIÓN
+        # ----------------------------------------------------------
+        # ConfigHandler recibe la ruta de caché directamente desde PlatformManager
+        self.ch = ConfigHandler(cache_base_dir=self.platform.cache_dir)
+
+        # ----------------------------------------------------------
+        # 4. INICIALIZAR EL RESTO DE COMPONENTES
+        # ----------------------------------------------------------
         self.ie = ImageEngine(self.ch, None)  # None temporal hasta migrar MonitorManager
         self.loop = GLib.MainLoop()
         self.timer_id = None
@@ -328,6 +344,18 @@ class WMMDaemon:
                         level="info"
                     )
                     self._notify_panel({"action": "bookmarks_updated"})
+
+                # --- 7b. Añadir IMAGEN SUELTA desde nemo_add_bookmark.py ---
+                elif order == ConfigHandler.CMD_SINGLE_FAVORITE_ADDED:
+                    item_name = action_data.get("name", _("Unknown"))
+                    log_event(f"Nueva imagen favorita añadida: {item_name}", origin="ENGINE", level="INFO", reason="BOOKMARK")
+                    self.ch._send_notification(
+                        reason=_("Favorite added"),
+                        detail_msg=item_name + "'\n" + _("added successfully."),
+                        level="info"
+                    )
+                    self._notify_panel({"action": "bookmarks_updated"})
+
             else:
                 log_event("Señal recibida pero el archivo de comandos está vacío", origin="ENGINE", level="DEBUG", reason="COMMAND")
 
@@ -416,7 +444,7 @@ class WMMDaemon:
         monitors_map = geo_snapshot.get("monitors", {})
 
         # 3. Sincronización con el Vault (Estado persistente)
-        _, vault = self.ch.sync_vault(active_hashes)
+        _discard, vault = self.ch.sync_vault(active_hashes)
         active_session = vault.get("active_session", {})
 
         # 4. Carga de parámetros de usuario
@@ -981,6 +1009,15 @@ class WMMDaemon:
         # ----------------------------------------------------------
         self.ch._cleanup_blur_thumbnails()
         log_event("ENGINE iniciado", origin="ENGINE", level="INFO", reason="NOTIFY")
+        log_event(f"[DIAG] Engine: platform.cache_dir={self.platform.cache_dir!r}, platform.locale_dir={self.platform.locale_dir!r}", origin="ENGINE", level="DEBUG", reason="SETTINGS")
+        # Configuración post-instalación si el .ini está incompleto
+        required_keys = ['platform', 'desktop', 'app_domain', 'data_base', 'cache_base', 'cache_dir', 'locale_dir', 'applet_dir']
+        config = self.platform._ensure_platform_config()
+
+        if not all(config.get(key) for key in required_keys):
+            log_event("Archivo settings_core.ini incompleto. Iniciando post-instalación para completarlo.",
+                      origin="ENGINE", level="INFO", reason="SETTINGS")
+            self._post_install_setup()
 
         try:
             result = self.ch.sync_library()
@@ -993,7 +1030,7 @@ class WMMDaemon:
             log_event(f"Error en escaneo inicial: {e}", origin="ENGINE", level="ERROR", reason="LIBRARY")
 
         # Asegurar que las acciones del shell están instaladas
-        self.platform.ensure_shell_actions(self.ch.applet_root)
+        self.platform.ensure_shell_actions(self.ch.applet_root, self.platform.data_base)
         # Asegurar que las traducciones están compiladas
         self._ensure_translations()
 
@@ -1033,7 +1070,56 @@ class WMMDaemon:
         Delega en la capa de plataforma, que sabe cómo hacerlo en cada SO.
         """
         if hasattr(self.platform, 'compile_translations'):
-            self.platform.compile_translations(self.ch.applet_root)
+            log_event(f"[DIAG] _ensure_translations: locale_dir={self.platform.locale_dir!r}", origin="ENGINE", level="DEBUG", reason="SETTINGS")
+            self.platform.compile_translations(
+                self.ch.applet_root,
+                self.platform.locale_dir,
+                self.platform.app_domain
+            )
+
+    def _complete_ini_if_needed(self):
+        """
+        Completa el .ini con las claves derivadas si está incompleto.
+        Se ejecuta antes de crear ConfigHandler para que las rutas sean correctas.
+        """
+        required_keys = ['platform', 'desktop', 'app_domain', 'data_base', 'cache_base', 'cache_dir', 'locale_dir', 'applet_dir']
+        config = self.platform._ensure_platform_config()
+        if not all(config.get(key) for key in required_keys):
+            updated = False
+            if not config.get('cache_dir'):
+                config['cache_dir'] = os.path.join(config['cache_base'], 'wmm')
+                updated = True
+            if not config.get('locale_dir'):
+                config['locale_dir'] = os.path.join(config['data_base'], 'locale')
+                updated = True
+            if not config.get('applet_dir'):
+                applet_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                config['applet_dir'] = applet_root
+                updated = True
+            if updated:
+                self.platform.save_ini(config)
+                log_event("Archivo settings_core.ini completado con claves derivadas", origin="ENGINE", level="INFO", reason="SETTINGS")
+                # Actualizar los atributos de la plataforma con los nuevos valores
+                self.platform.cache_dir = config['cache_dir']
+                self.platform.locale_dir = config['locale_dir']
+                self.platform.applet_dir = config['applet_dir']
+
+    def _post_install_setup(self):
+        """
+        Ejecuta tareas de configuración inicial tras completar el .ini por primera vez.
+        Se encarga de instalar las acciones de shell (Nemo, Nautilus, etc.)
+        y de compilar las traducciones.
+        """
+        log_event("Primer arranque detectado. Ejecutando configuración post-instalación...", origin="ENGINE", level="INFO", reason="SETTINGS")
+
+        # 1. Instalar scripts de shell (Nemo, Nautilus, etc.)
+        if hasattr(self.platform, 'ensure_shell_actions'):
+            self.platform.ensure_shell_actions(self.ch.applet_root, self.platform.data_base)
+            log_event("Scripts de shell instalados correctamente", origin="ENGINE", level="INFO", reason="SETTINGS")
+
+        # 2. Compilar traducciones
+        self._ensure_translations()
+        log_event("Configuración post-instalación completada", origin="ENGINE", level="INFO", reason="SETTINGS")
 
 if __name__ == "__main__":
     daemon = WMMDaemon()

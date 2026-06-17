@@ -36,7 +36,7 @@ from config_handler import ConfigHandler
 from backend import WMMBackend
 from image_engine import ImageEngine
 from debug_logger import log_event
-from i18n import _, set_system_domain
+from i18n import _, set_app_domain, set_locale_dir
 
 # Secciones del panel
 from panel.options_section import OptionsSection
@@ -65,13 +65,14 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         cache_base = None
         if hasattr(platform, 'get_cache_dir') and platform.get_cache_dir:
             cache_base = platform.get_cache_dir()
-        self.handler = ConfigHandler(cache_base_dir=cache_base)
+        log_event(f"Cache dir desde PlatformManager: {platform.cache_dir}", origin="PANEL", level="DEBUG", reason="SETTINGS")
+        self.handler = ConfigHandler(cache_base_dir=platform.cache_dir)
         self.backend = WMMBackend(self.handler)
         self.ie = ImageEngine(self.handler, None)
 
         # Configurar el sistema de traducciones
-        if hasattr(platform, 'system_domain'):
-            set_system_domain(platform.system_domain)
+        set_app_domain(platform.app_domain)
+        set_locale_dir(platform.locale_dir)
 
         # ----------------------------------------------------------
         # VARIABLES DE ESTADO DEL PANEL
@@ -195,10 +196,14 @@ class WMMControlPanel(Gtk.ApplicationWindow):
 
         # 6. Fuentes (independiente)
         self.sources_section = SourcesSection(
-            self.handler, self.backend, self.ie, self.left_col
+            self.handler, self.backend, self.ie, self.left_col,
+            scan_progress=self.scan_progress, btn_spacer=self.btn_spacer
         )
-        self.sources_section.scan_progress = self.scan_progress
-        self.sources_section.btn_spacer = self.btn_spacer
+        self.sources_section.set_callbacks({
+            'increment_busy': self._increment_busy,
+            'decrement_busy': self._decrement_busy,
+            'set_progress_active': self._set_progress_active,
+        })
 
         # 7. Thumbnails (sin callbacks aún)
         self.thumbnails_section = ThumbnailsSection(
@@ -208,6 +213,9 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         )
         # Ahora que existe, le asignamos sus callbacks
         self.thumbnails_section.set_callbacks(self._build_thumbnails_callbacks())
+
+        # Conectar SourcesSection con ThumbnailsSection para refrescar miniaturas
+        self.sources_section._callbacks['load_thumbnails'] = self.thumbnails_section._load_thumbnails
 
         # ----------------------------------------------------------
         # CARGA INICIAL DE DATOS
@@ -281,6 +289,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
     # ==========================================================
     def _build_thumbnails_callbacks(self):
         """Construye el diccionario de callbacks para ThumbnailsSection."""
+        log_event(f"Decrement busy: contador={self._busy_counter}", origin="PANEL", level="DEBUG", reason="LIBRARY"),
         return {
             'increment_busy': self._increment_busy,
             'decrement_busy': self._decrement_busy,
@@ -326,6 +335,9 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         if self._busy_counter <= 0:
             self._busy_counter = 0
             self._set_sources_sensitive(True)
+            # Forzar la aparición de las flechas de expansión tras completar el proceso
+            if hasattr(self, 'sources_section'):
+                GLib.idle_add(self.sources_section.load_sources_into_treeview)
 
     def _set_sources_sensitive(self, sensitive):
         """Activa/desactiva la sección de fuentes durante operaciones largas."""
@@ -334,6 +346,12 @@ class WMMControlPanel(Gtk.ApplicationWindow):
 
     def _set_progress_active(self, active, text=None):
         """Muestra/oculta la barra de progreso."""
+        if active:
+            log_event(f"Barra de progreso activada: {text or ''}",
+                      origin="PANEL", level="INFO", reason="LIBRARY")
+        else:
+            log_event("Barra de progreso desactivada",
+                      origin="PANEL", level="INFO", reason="LIBRARY")
         if active:
             self.btn_spacer.hide()
             self.scan_progress.show()

@@ -27,6 +27,7 @@ sys.path.insert(0, _PROJECT_ROOT)
 # IMPORTS DE MÓDULOS DEL PROYECTO
 # ==========================================================
 from config_handler import ConfigHandler
+from wmm_platform.core import PlatformManager
 from PIL import Image
 from debug_logger import log_event, set_cache_dir
 from i18n import _
@@ -45,8 +46,8 @@ def main():
         sys.exit(1)
 
     # Crear ConfigHandler temprano y configurar el logger
-    ch = ConfigHandler()
-    set_cache_dir(ch.cache_dir)
+    platform = PlatformManager()
+    ch = ConfigHandler(cache_base_dir=platform.cache_dir)
 
     # Ahora los log_event de diagnóstico funcionarán correctamente
     log_event(f"sys.argv = {sys.argv}", origin="NEMO_ADD", level="DEBUG", reason="BOOKMARK")
@@ -83,7 +84,7 @@ def main():
     ch.refresh_history_metadata()
 
     try:
-        ch.save_json("commands", {"action": "bookmark_added", "name": os.path.basename(image_path)})
+        ch.save_json("commands", {"action": "single_favorite_added", "name": os.path.basename(image_path)})
         subprocess.run(["pkill", "-USR1", "-f", "main.py"])
     except Exception as e:
         log_event(f"No se pudo notificar al motor: {e}", origin="NEMO_ADD", level="WARN", reason="SIGNAL")

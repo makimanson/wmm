@@ -44,6 +44,7 @@ from gi.repository import Gtk
 # IMPORTS DE MÓDULOS DEL PROYECTO
 # ==========================================================
 from config_handler import ConfigHandler
+from wmm_platform.core import PlatformManager
 from debug_logger import log_event, set_cache_dir
 from i18n import _
 
@@ -131,8 +132,8 @@ def main():
         sys.exit(1)
 
     # Crear ConfigHandler temprano y configurar el logger
-    ch = ConfigHandler()
-    set_cache_dir(ch.cache_dir)
+    platform = PlatformManager()
+    ch = ConfigHandler(cache_base_dir=platform.cache_dir)
 
     log_event(f"sys.argv = {sys.argv}", origin="NEMO_SEND", level="DEBUG", reason="BOOKMARK")
     log_event(f"CWD = {os.getcwd()}", origin="NEMO_SEND", level="DEBUG", reason="BOOKMARK")
