@@ -5,8 +5,8 @@ Olvídate de fondos deformados, recortados o repetidos.
 Con WMM, tú tienes el control total.
 
 <p align="center">
-  <a href="screenshot.png">
-    <img src="screenshot.png" alt="WMM Screenshot" width="100%"/>
+  <a href="screenshots/screenshot.png">
+    <img src="screenshots/screenshot.png" alt="WMM Screenshot" width="100%"/>
   </a>
 </p>
 
