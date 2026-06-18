@@ -1,8 +1,24 @@
 Changelog
 
-v1.2.0 — 2026-06-18
+## v1.2.1 - 2026-06-18
 
-Added
+**Added**
+- "Next Wallpaper" menu item as the first option in the GNOME context menu, providing a reliable way to force wallpaper rotation without depending on left-click behavior that varies across GNOME versions.
+- Keyboard shortcut support via bundled `wmm-next.sh` scripts for both Cinnamon and GNOME, documented in the README with step-by-step instructions in English and Spanish.
+- Dark mode wallpaper support for GNOME 46+: `set_wallpaper` now also sets `picture-uri-dark` so wallpapers display correctly in both light and dark modes.
+
+**Changed**
+- The GNOME extension no longer attempts to intercept left-click for wallpaper rotation. Left-click now behaves as GNOME expects (opens the menu), making the extension fully compatible with GNOME 46 and avoiding fragile reliance on internal Shell APIs.
+- `gettext` moved from system dependencies to installable dependencies in `install.sh`, as it is not always preinstalled on minimal GNOME setups.
+
+**Fixed**
+- Wallpaper not applying in dark mode on GNOME 46 due to the new `picture-uri-dark` key being ignored. The fix is version-safe and silently skips the key if it does not exist.
+- Removed left-click interception and anti-spam code from the GNOME extension. The underlying Shell APIs (such as `_clickGesture`) proved highly incompatible across versions, making the behavior fragile and impossible to maintain reliably.
+- Improved object cleanup in `disable()` with a dedicated `_destroyUI()` method, addressing multiple review warnings from `shexli`.
+
+## v1.2.0 - 2026-06-18
+
+**Added**
 
     Full GNOME Shell compatibility: new extension.js with panel indicator, context menu, slideshow controls, favorites management, and one-click wallpaper rotation with anti-spam protection.
 
@@ -14,7 +30,7 @@ Added
 
     Nautilus scripts integration: "Send to Monitor" and "Add to Favorites" actions are now available in the GNOME file manager.
 
-Changed
+**Changed**
 
     All translatable strings are now centralized within WMM's own translation domain, completely independent of desktop environment system translations. This ensures full compatibility across Cinnamon, GNOME, and future platforms.
 
@@ -24,7 +40,7 @@ Changed
 
     metadata.json is no longer hardcoded; two templates are provided and the installer picks the right one at install time.
 
-Fixed
+**Fixed**
 
     Cache path inconsistencies that could spawn two engine instances have been resolved; settings_core.ini is now completed before ConfigHandler is created.
 
@@ -38,9 +54,9 @@ Fixed
 
     Stale debug messages have been removed from the log viewer.
 
-v1.1.0 — 2026-06-16
+## v1.1.0 - 2026-06-16
 
-Added
+**Added**
 
     Thumbnail generation now runs automatically after adding a new image source; the gallery refreshes without any extra click.
 
@@ -52,13 +68,13 @@ Added
 
     A dedicated internal command (single_favorite_added) distinguishes single images added to favorites from full presets, keeping logs and notifications more precise.
 
-Changed
+**Changed**
 
     Source tree now automatically shows expansion arrows for parent nodes right after a new source is added, eliminating the need for a manual refresh.
 
     Translation support: All translatable strings are now centralized within WMM's own translation domain, completely independent of Cinnamon's system translations. This ensures full compatibility with other desktop environments and operating systems, while preserving English, Spanish and Catalan support.
 
-Fixed
+**Fixed**
 
     Control panel no longer creates its cache inside the applet folder; settings_core.ini is now completed with all derived keys in every installation scenario, so the cache reliably lives under ~/.cache/wmm.
 
@@ -70,7 +86,7 @@ Fixed
 
     Leftover debug messages that cluttered the log viewer have been removed.
 
-v1.0.0 — 2026-06-10 (Initial release)
+## v1.0.0 - 2026-06-10 (Initial release)
 
 WMM is a Cinnamon applet that gives you full control over your wallpapers across multiple monitors.
 

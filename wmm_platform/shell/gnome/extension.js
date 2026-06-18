@@ -16,7 +16,7 @@ const Gettext = imports.gettext;
 Gettext.bindtextdomain('wmm@maki', GLib.get_user_data_dir() + '/locale');
 Gettext.bindtextdomain('gnome-shell', '/usr/share/locale');
 
-function __(text) {
+function _(text) {
     let translated = Gettext.dgettext('wmm@maki', text);
     if (translated !== text) return translated;
     return Gettext.dgettext('gnome-shell', text);
@@ -35,8 +35,6 @@ export default class WMMExtension {
         this.favItems = [];
         this._button = null;
         this._menu = null;
-        this._last_click_time = 0;
-        this._icon_restore_timeout = 0;        
 
         // Start the engine
         GLib.spawn_command_line_async('python3 ' + this.enginePath);
@@ -50,59 +48,15 @@ export default class WMMExtension {
             style_class: 'system-status-icon'
         });
         this._button.add_child(icon);
-        
+
         // Tooltip en el botón (volvemos a lo que originalmente funcionó sin error)
-        this._button.container.tooltip_text = 'WMM: ' + __('Wallpaper Multi-Monitor Manager') + '\n' +
-            __('Click action') + ': ' + __('Next Background') + '\n' +
-            __('Secondary Click') + ': ' + __('Context Menu');
-        
+        this._button.container.tooltip_text = 'WMM: ' + _('Wallpaper Multi-Monitor Manager') + '\n' +
+            _('Click action') + ': ' + _('Next Background') + '\n' +
+            _('Secondary Click') + ': ' + _('Context Menu');
+
         // Construir el menú (usando el menú del botón)
         this._menu = this._button.menu;
         this._populateMenu();
-
-        // Desactivar el gestor de clic interno para evitar que el menú se abra con clic izquierdo
-        this._button._clickGesture.set_enabled(false);
-        this._button.connect('button-press-event', (actor, event) => {
-            if (event.get_button() === 1) { // Botón izquierdo
-                let now = Date.now();
-                let cooldown = 1000; // milisegundos
-
-                // Si está en cooldown, mostrar feedback y salir
-                if (this._last_click_time && (now - this._last_click_time) < cooldown) {
-                    this._button.get_children().forEach(child => {
-                        if (child instanceof St.Icon) {
-                            child.icon_name = 'video-display-symbolic';
-                        }
-                    });
-
-                    // Cancelar la restauración anterior si existe
-                    if (this._icon_restore_timeout) {
-                        GLib.source_remove(this._icon_restore_timeout);
-                        this._icon_restore_timeout = 0;
-                    }
-                    // Programar restauración del icono
-                    this._icon_restore_timeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, cooldown, () => {
-                        this._button.get_children().forEach(child => {
-                            if (child instanceof St.Icon) {
-                                child.icon_name = 'video-display';
-                            }
-                        });
-                        this._icon_restore_timeout = 0;
-                        return false; // GLib.SOURCE_REMOVE
-                    });
-                    return true;
-                }
-
-                // Primer clic o fuera de cooldown: ejecutar rotación
-                this._last_click_time = now;
-                this._sendActionToEngine({ action: 'force_rotation' });
-                return true;
-            } else if (event.get_button() === 3) { // Botón derecho
-                this._button.menu.toggle();
-                return true;
-            }
-            return false;
-        });
 
         Main.panel.addToStatusArea('wmm-indicator', this._button);
     }
@@ -119,10 +73,8 @@ export default class WMMExtension {
             }
         } catch (e) { log('WMM cleanup: ' + e.message); }
 
-        if (this._menu) {
-            this._menu.destroy();
-            this._menu = null;
-        }
+        // Clean up the UI
+        this._destroyUI();
 
         if (this._button) {
             this._button.destroy();
@@ -134,26 +86,33 @@ export default class WMMExtension {
     _populateMenu() {
         // this._menu ya está creado en enable()
 
+        // Next Wallpaper — primera opción del menú
+        let rotateItem = new PopupMenu.PopupMenuItem(_('Next Background'));
+        rotateItem.connect('activate', () => this._sendActionToEngine({ action: 'force_rotation' }));
+        this._menu.addMenuItem(rotateItem);
+        this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+
         // Settings
-        let settingsItem = new PopupMenu.PopupMenuItem('WMM ' + __('Settings'));
+        let settingsItem = new PopupMenu.PopupMenuItem('WMM ' + _('Settings'));
         settingsItem.connect('activate', () => this._openSettingsPanel());
         this._menu.addMenuItem(settingsItem);
         this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         // Bookmarks
-        this.menuBookmarks = new PopupMenu.PopupSubMenuMenuItem(__('Favorites'));
+        this.menuBookmarks = new PopupMenu.PopupSubMenuMenuItem(_('Favorites'));
         this._menu.addMenuItem(this.menuBookmarks);
 
-        this.favRotationSwitch = new PopupMenu.PopupSwitchMenuItem(__('Favorites Only'), false);
+        this.favRotationSwitch = new PopupMenu.PopupSwitchMenuItem(_('Favorites Only'), false);
         this.favRotationSwitch.connect('toggled', (item, state) => {
             if (state && !this.masterItem.state) this._syncTimerUI(true);
             this._updateTimerSettings();
         });
         this.menuBookmarks.menu.addMenuItem(this.favRotationSwitch);
-        
+
         this.menuBookmarks.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-        let addBookmarkItem = new PopupMenu.PopupMenuItem(__('Add Preset Favorite'));
+        let addBookmarkItem = new PopupMenu.PopupMenuItem(_('Add Preset Favorite'));
         addBookmarkItem.connect('activate', () => {
             GLib.spawn_command_line_async('python3 ' + this.appletPath + '/python/add_bookmark.py');
         });
@@ -161,13 +120,13 @@ export default class WMMExtension {
         this.menuBookmarks.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         // Timer
-        this.menuTimer = new PopupMenu.PopupSubMenuMenuItem(__('Slideshow'));
+        this.menuTimer = new PopupMenu.PopupSubMenuMenuItem(_('Slideshow'));
         this._menu.addMenuItem(this.menuTimer);
 
         // Switch maestro
-        this.masterItem = new PopupMenu.PopupSwitchMenuItem(__('Disabled'), false);
+        this.masterItem = new PopupMenu.PopupSwitchMenuItem(_('Disabled'), false);
         this.masterItem.connect('toggled', (item, state) => {
-            item.label.set_text(state ? __('Enabled') : __('Disabled'));
+            item.label.set_text(state ? _('Enabled') : _('Disabled'));
             this._syncTimerUI(state);
             this._updateTimerSettings();
         });
@@ -184,7 +143,7 @@ export default class WMMExtension {
         let intervalItem = new PopupMenu.PopupBaseMenuItem({ activate: false });
         let intervalBox = new St.BoxLayout({ style: 'spacing: 8px;' });
         let minusBtn = new St.Button({ label: '−', style_class: 'button' });
-        this.intervalLabel = new St.Label({ text: '15 ' + __('minutes') });
+        this.intervalLabel = new St.Label({ text: '15 ' + _('minutes') });
         let plusBtn = new St.Button({ label: '+', style_class: 'button' });
 
         this._currentInterval = 15; // valor por defecto
@@ -192,14 +151,14 @@ export default class WMMExtension {
         minusBtn.connect('clicked', () => {
             if (this._currentInterval > 1) {
                 this._currentInterval--;
-                this.intervalLabel.set_text(this._currentInterval + ' ' + __('minutes'));
+                this.intervalLabel.set_text(this._currentInterval + ' ' + _('minutes'));
                 if (this.masterItem && this.masterItem.state) this._updateTimerSettings();
             }
         });
         plusBtn.connect('clicked', () => {
             if (this._currentInterval < 60) {
                 this._currentInterval++;
-                this.intervalLabel.set_text(this._currentInterval + ' ' + __('minutes'));
+                this.intervalLabel.set_text(this._currentInterval + ' ' + _('minutes'));
                 if (this.masterItem && this.masterItem.state) this._updateTimerSettings();
             }
         });
@@ -211,32 +170,32 @@ export default class WMMExtension {
         this.menuTimer.menu.addMenuItem(intervalItem);
 
         // Switch modo sync/async
-        this.modeSwitch = new PopupMenu.PopupSwitchMenuItem(__('Displays') + ': ' + __('ASYNC (One)'), false);
+        this.modeSwitch = new PopupMenu.PopupSwitchMenuItem(_('Displays') + ': ' + _('ASYNC (One)'), false);
         this.modeSwitch.connect('toggled', (item, state) => {
-            item.label.set_text(state ? __('Displays') + ': ' + __('SYNC (All)') : __('Displays') + ': ' + __('ASYNC (One)'));
+            item.label.set_text(state ? _('Displays') + ': ' + _('SYNC (All)') : _('Displays') + ': ' + _('ASYNC (One)'));
             this._updateTimerSettings();
         });
         this._menu.addMenuItem(this.modeSwitch);
 
         // Switch spanned
-        this.spannedSwitch = new PopupMenu.PopupSwitchMenuItem(__('Spanned Mode'), false);
+        this.spannedSwitch = new PopupMenu.PopupSwitchMenuItem(_('Spanned Mode'), false);
         this.spannedSwitch.connect('toggled', () => this._updateTimerSettings());
         this._menu.addMenuItem(this.spannedSwitch);
 
         // Footer
         this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-        let syncItem = new PopupMenu.PopupMenuItem(__('Sync Library'));
+        let syncItem = new PopupMenu.PopupMenuItem(_('Sync Library'));
         syncItem.connect('activate', () => this._sendActionToEngine({ action: 'sync_library' }));
         this._menu.addMenuItem(syncItem);
 
-        let helpItem = new PopupMenu.PopupMenuItem(__('Help'));
+        let helpItem = new PopupMenu.PopupMenuItem(_('Help'));
         helpItem.connect('activate', () => {
             GLib.spawn_command_line_async('python3 ' + this.appletPath + '/python/help_viewer.py');
         });
         this._menu.addMenuItem(helpItem);
 
-        this._menu.connect('open-state-changed', (menu, open) => {
+        this._menuOpenSignalId = this._menu.connect('open-state-changed', (menu, open) => {
             if (open) this._refreshSettingsFromDisk();
         });
     }
@@ -244,7 +203,7 @@ export default class WMMExtension {
     _syncTimerUI(enabled) {
         if (!this.masterItem) return;
         this.masterItem.setToggleState(enabled);
-        this.masterItem.label.set_text(enabled ? __('Enabled') : __('Disabled'));
+        this.masterItem.label.set_text(enabled ? _('Enabled') : _('Disabled'));
     }
 
     _refreshSettingsFromDisk() {
@@ -258,10 +217,10 @@ export default class WMMExtension {
             let isFavSlideshow = config.slideshow_bookmark || false;
             this._syncTimerUI(isEnabled);
             this.modeSwitch.setToggleState(isSync);
-            this.modeSwitch.label.set_text(isSync ? __('Displays') + ': ' + __('SYNC (All)') : __('Displays') + ': ' + __('ASYNC (One)'));
+            this.modeSwitch.label.set_text(isSync ? _('Displays') + ': ' + _('SYNC (All)') : _('Displays') + ': ' + _('ASYNC (One)'));
             this.favRotationSwitch.setToggleState(isFavSlideshow);
             this._currentInterval = config.slideshow_interval || 15;
-            this.intervalLabel.set_text(this._currentInterval + ' ' + __('minutes'));
+            this.intervalLabel.set_text(this._currentInterval + ' ' + _('minutes'));
             let isSpanned = config.spanned_enabled || false;
             this.spannedSwitch.setToggleState(isSpanned);
             this._refreshBookmarks();
@@ -280,7 +239,7 @@ export default class WMMExtension {
             let keys = Object.keys(bookmarks);
             log('WMM bookmarks: ' + keys.length + ' presets found');
             if (keys.length === 0) {
-                let info = new PopupMenu.PopupMenuItem(__('No saved favorites'), { reactive: false });
+                let info = new PopupMenu.PopupMenuItem(_('No saved favorites'), { reactive: false });
                 this.menuBookmarks.menu.addMenuItem(info);
                 this.favItems.push(info);
                 return;
@@ -342,7 +301,7 @@ export default class WMMExtension {
     }
 
     _confirmDeleteBookmark(name) {
-        let args = ['--question', '--title=' + __('Delete favorite'), '--text=' + __('Delete') + ' "' + name + '"?', '--width=200'];
+        let args = ['--question', '--title=' + _('Delete favorite'), '--text=' + _('Delete') + ' "' + name + '"?', '--width=200'];
         try {
             let proc = new Gio.Subprocess({ argv: ['zenity'].concat(args), flags: Gio.SubprocessFlags.NONE });
             proc.init(null);
@@ -382,5 +341,70 @@ export default class WMMExtension {
 
     _openSettingsPanel() {
         GLib.spawn_command_line_async('python3 ' + this.appletPath + '/python/panel.py');
+    }
+
+    _destroyUI() {
+
+        // Desconectar señal del menú
+        if (this._menu && this._menuOpenSignalId) {
+            this._menu.disconnect(this._menuOpenSignalId);
+            this._menuOpenSignalId = null;
+        }
+
+        // Destruir los switches y liberar referencias
+        if (this.masterItem) {
+            this.masterItem.destroy();
+            this.masterItem = null;
+        }
+        if (this.favRotationSwitch) {
+            this.favRotationSwitch.destroy();
+            this.favRotationSwitch = null;
+        }
+        if (this.modeSwitch) {
+            this.modeSwitch.destroy();
+            this.modeSwitch = null;
+        }
+        if (this.spannedSwitch) {
+            this.spannedSwitch.destroy();
+            this.spannedSwitch = null;
+        }
+
+        // Destruir submenús
+        if (this.menuBookmarks) {
+            this.menuBookmarks.destroy();
+            this.menuBookmarks = null;
+        }
+        if (this.menuTimer) {
+            this.menuTimer.destroy();
+            this.menuTimer = null;
+        }
+
+        // Destruir etiquetas y otros widgets
+        if (this.intervalLabel) {
+            this.intervalLabel.destroy();
+            this.intervalLabel = null;
+        }
+        if (this.labelMin) {
+            this.labelMin.destroy();
+            this.labelMin = null;
+        }
+        if (this._masterLabel) {
+            this._masterLabel.destroy();
+            this._masterLabel = null;
+        }
+        if (this._modeLabel) {
+            this._modeLabel.destroy();
+            this._modeLabel = null;
+        }
+
+        // Destruir elementos de favoritos
+        this.favItems.forEach(item => item.destroy());
+        this.favItems = [];
+
+        // Destruir menú si no se hizo ya
+        if (this._menu) {
+            this._menu.destroy();
+            this._menu = null;
+        }
     }
 }

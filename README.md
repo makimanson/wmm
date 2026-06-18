@@ -5,8 +5,8 @@ Forget distorted, cropped or repeated backgrounds.
 With WMM, you are in full control.
 
 <p align="center">
-  <a href="screenshot.png">
-    <img src="screenshot.png" alt="WMM Screenshot" width="100%"/>
+  <a href=screenshots/"screenshot.png">
+    <img src="screenshots/screenshot.png" alt="WMM Screenshot" width="100%"/>
   </a>
 </p>
 
@@ -67,29 +67,36 @@ If you prefer not to use script:
 
 1.  **Create the applet folder**:
 
-*       For Cinnamon:
-        ```bash
-           mkdir -p ~/.local/share/cinnamon/applets/wmm-applet@maki
-           ```
-*       For GNOME:
-        ```bash
-        mkdir -p ~/.local/share/gnome-shell/extensions/wmm@maki
-        ```
-*   2. Copy project files into that folder (content of zip, not parent folder).
+       For Cinnamon:
 
-*   3. Copy the correct JavaScript and metadata files according to your desktop:
+       ```bash
+       mkdir -p ~/.local/share/cinnamon/applets/wmm-applet@maki
+       ```
 
-        For Cinnamon:
-            ```bash
-            cp wmm_platform/shell/cinnamon/metadata.cinnamon.json ~/.local/share/cinnamon/applets/wmm-applet@maki/metadata.json
-            cp wmm_platform/shell/cinnamon/applet.js ~/.local/share/cinnamon/applets/wmm-applet@maki/applet.js
-            ```
-*   4.  **Compile the translations**
-        ```bash
-        for po in po/*.po; do lang=$(basename "$po" .po); msgfmt "$po" -o ~/.local/share/locale/$lang/LC_MESSAGES/wmm-applet@maki.mo; done
-        ```
-*   4.  **Install dependencies** listed in the table below:
-*   5.  **Restart your user session** and Enable the applet: Go to the Cinnamon Applets configuration or the GNOME Extensions Manager, look for WMM - Wallpaper Multi-Monitor Manager and enable it.
+       For GNOME:
+
+       ```bash
+       mkdir -p ~/.local/share/gnome-shell/extensions/wmm@maki
+       ```
+
+2. Copy project files into that folder (content of zip, not parent folder).
+3. Copy the correct JavaScript and metadata files according to your desktop:
+
+       For Cinnamon:
+
+       ```bash
+       cp wmm_platform/shell/cinnamon/metadata.cinnamon.json ~/.local/share/cinnamon/applets/wmm-applet@maki/metadata.json
+       cp wmm_platform/shell/cinnamon/applet.js ~/.local/share/cinnamon/applets/wmm-applet@maki/applet.js
+       ```
+
+4.  **Compile the translations**
+
+       ```bash
+       for po in po/*.po; do lang=$(basename "$po" .po); msgfmt "$po" -o ~/.local/share/locale/$lang/LC_MESSAGES/wmm-applet@maki.mo; done
+       ```
+
+5.  **Install dependencies** listed in the table below:
+6.  **Restart your user session** and Enable the applet: Go to the Cinnamon Applets configuration or the GNOME Extensions Manager, look for WMM - Wallpaper Multi-Monitor Manager and enable it.
 
 ### 📋 Dependencies
 
@@ -118,17 +125,18 @@ Before installing, make sure you have these dependencies. You can install them m
 ### Quick dependency install (if not using `install.sh`)
 
 *   **Linux Mint / Ubuntu / Debian**:
-        ```bash
-        sudo apt install -y python3 python3-pillow python3-numpy libnotify-bin gettext zenity
-        ```
+    ```bash
+    sudo apt install -y python3 python3-pillow python3-numpy libnotify-bin gettext zenity
+    ```
 *   **Fedora**:
-        ```bash
-        sudo dnf install -y python3 python3-pillow python3-numpy libnotify gettext zenity
-        ```
+    ```bash
+    sudo dnf install -y python3 python3-pillow python3-numpy libnotify gettext zenity
+    ```
 *   **Arch Linux / Manjaro**:
-        ```bash
-        sudo pacman -Sy --noconfirm python python-pillow python-numpy libnotify gettext zenity
-        ```
+    ```bash
+    sudo pacman -Sy --noconfirm python python-pillow python-numpy libnotify gettext zenity
+    ```
+
 ### 🗑️ Uninstallation
 
 1.  On Cinnamon: right-click on the panel applet and select Remove. Open Applets, look for WMM Manager and click Uninstall.
@@ -136,19 +144,58 @@ Before installing, make sure you have these dependencies. You can install them m
 2.  On GNOME: open the Extensions application, look for WMM Manager and disable it. Then use the Remove option.
 
 3.  Delete the cache folder:
-        ```bash
-          rm -rf ~/.cache/wmm
-        ```
+    ```bash
+    rm -rf ~/.cache/wmm
+    ```
 4.  Remove any previously installed WMM Nemo actions (Cinnamon) or Nautilus scripts (GNOME):
 
-        Nemo actions (Cinnamon):
-        ```bash
-        rm ~/.local/share/nemo/actions/wmm-add_to_bookmarks.nemo_action ~/.local/share/nemo/actions/wmm-send-to.nemo_action
-        ```
-        Nautilus scripts (GNOME
-        ```bash
-        rm ~/.local/share/nautilus/scripts/wmm-*
-        ```
+    Nemo actions (Cinnamon)
+    ```bash
+    rm ~/.local/share/nemo/actions/wmm-*
+    ```
+
+    Nautilus scripts (GNOME)
+    ```bash
+    rm ~/.local/share/nautilus/scripts/wmm-*
+    ```
+## ⌨️ Keyboard shortcuts
+
+If you want to force wallpaper rotation without using the mouse, you can set up a custom keyboard shortcut on your desktop. WMM includes a small script ready for this purpose.
+
+### 🖥️ On Cinnamon
+
+1.  Open **System Settings → Keyboard → Keyboard shortcuts**.
+2.  Click **Add custom shortcut**.
+3.  Name it **"WMM - Change Wallpaper"**.
+4.  In the **Command** field, enter:
+
+    ```bash
+    bash -c "bash $HOME/.local/share/cinnamon/applets/wmm-applet@maki/wmm_platform/shell/cinnamon/wmm-next.sh"
+    ```
+
+5.  Assign your preferred key combination (for example, `Ctrl+Alt+N`).
+6.  Click **Accept** and test the shortcut.
+
+### 🖥️ On GNOME
+
+1.  Open **Settings → Keyboard → Custom shortcuts**.
+2.  Click **"+"** to add a new one.
+3.  Name it **"WMM - Change Wallpaper"**.
+4.  In the **Command** field, enter:
+
+    ```bash
+    bash -c "bash $HOME/.local/share/gnome-shell/extensions/wmm@maki/wmm_platform/shell/gnome/wmm-next.sh"
+    ```
+
+5.  Assign your preferred key combination (for example, `Ctrl+Alt+N`).
+6.  Close the window and test the shortcut.
+
+**Note:** The `wmm-next.sh` script is installed automatically with WMM and should have the correct execution permissions. If the shortcut does not work, make sure the script is executable:
+
+    ```bash
+    chmod +x ~/.local/share/gnome-shell/extensions/wmm@maki/wmm_platform/shell/gnome/wmm-next.sh   # for GNOME
+    chmod +x ~/.local/share/cinnamon/applets/wmm-applet@maki/wmm_platform/shell/cinnamon/wmm-next.sh # for Cinnamon
+    ```
 
 ## 🛠️ Debug / Log Viewer
 
@@ -157,9 +204,10 @@ WMM includes a built‑in log system that records engine, panel and script activ
 *   **Open the Log Viewer**: In the Control Panel, click the **Log** button (text‑x‑generic icon). A separate window will open showing timestamped events from the engine, panel and Nemo actions.
 *   **Real‑time updates**: The viewer refreshes automatically as new events are written. Use the filters (origin, level, reason) or the search bar to find exactly what you need.
 *   **Manual inspection**: The log file is stored at `~/.cache/wmm/debug.log`. You can open it with any text editor, use the viewer inside the panel, or run the following command to display it directly in a terminal:
-        ```bash
-        python3 ~/.local/share/cinnamon/applets/wmm-applet@maki/python/debug_logger.py
-        ```
+    ```bash
+    python3 ~/.local/share/cinnamon/applets/wmm-applet@maki/python/debug_logger.py
+    ```
+
 ## 🌍 Translation
 
 WMM supports multiple languages. Translations are installed automatically when running install.sh.

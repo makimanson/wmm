@@ -254,6 +254,10 @@ install_files() {
     }
     echo "Files copied successfully."
 
+    # Asegurar permisos de ejecución en los scripts de atajo
+    find "$APPLET_DIR/wmm_platform/shell/" -name "*.sh" -exec chmod +x {} \;
+    echo "Execution permissions set for shell scripts."
+
     # Copiar el metadata.json y el JS correspondiente al escritorio
     case "$DESKTOP" in
         cinnamon)

@@ -112,7 +112,7 @@ class SourcesSection:
         self.add_btn.set_tooltip_text(_("Add Image Source"))
         self.add_btn.connect("clicked", self.on_add_source_clicked)
         self.del_btn = Gtk.Button.new_from_icon_name("user-trash", Gtk.IconSize.BUTTON)
-        self.del_btn.set_tooltip_text(_("Delete Image Source"))
+        self.del_btn.set_tooltip_text(_("Delete image source"))
         self.del_btn.connect("clicked", self._on_delete_button_clicked)
 
         btn_box.pack_end(self.del_btn, False, False, 0)

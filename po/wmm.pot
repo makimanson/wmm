@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-16 01:34+0200\n"
+"POT-Creation-Date: 2026-06-18 18:25+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -16,50 +16,6 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
-
-#: python/config_handler.py:53
-msgid "Scaled"
-msgstr ""
-
-#: python/config_handler.py:54
-msgid "Zoom"
-msgstr ""
-
-#: python/config_handler.py:55
-msgid "Stretched"
-msgstr ""
-
-#: python/config_handler.py:58
-msgid "Solid color"
-msgstr ""
-
-#: python/config_handler.py:59
-msgid "Gradient H"
-msgstr ""
-
-#: python/config_handler.py:60
-msgid "Gradient V"
-msgstr ""
-
-#: python/config_handler.py:63
-msgid "None"
-msgstr ""
-
-#: python/config_handler.py:64
-msgid "Sepia"
-msgstr ""
-
-#: python/config_handler.py:65
-msgid "Black and White"
-msgstr ""
-
-#: python/config_handler.py:68
-msgid "Blur effect"
-msgstr ""
-
-#: python/config_handler.py:69
-msgid "Color"
-msgstr ""
 
 #: python/config_handler.py:1510
 msgid "New"
@@ -77,7 +33,8 @@ msgstr ""
 msgid "Action"
 msgstr ""
 
-#: python/help_viewer.py:33 applet.js:195
+#: python/help_viewer.py:33 wmm_platform/shell/cinnamon/applet.js:195
+#: wmm_platform/shell/gnome/extension.js:192
 msgid "Help"
 msgstr ""
 
@@ -149,64 +106,64 @@ msgstr ""
 msgid "Image is already in favorites."
 msgstr ""
 
-#: python/main.py:266
+#: python/main.py:271
 msgid "Favorite deleted"
 msgstr ""
 
-#: python/main.py:267
+#: python/main.py:272
 msgid "Preset"
 msgstr ""
 
-#: python/main.py:267
+#: python/main.py:272
 msgid "deleted successfully."
 msgstr ""
 
-#: python/main.py:292
+#: python/main.py:297
 msgid "Changes detected"
 msgstr ""
 
-#: python/main.py:294
+#: python/main.py:299
 msgid "No changes"
 msgstr ""
 
-#: python/main.py:301
+#: python/main.py:306
 msgid "Synchronization"
 msgstr ""
 
-#: python/main.py:334 python/main.py:345
+#: python/main.py:339 python/main.py:350
 msgid "Unknown"
 msgstr ""
 
-#: python/main.py:337 python/main.py:348
+#: python/main.py:342 python/main.py:353
 msgid "Favorite added"
 msgstr ""
 
-#: python/main.py:338 python/main.py:349
+#: python/main.py:343 python/main.py:354
 msgid "added successfully."
 msgstr ""
 
-#: python/main.py:508
+#: python/main.py:513
 msgid "Cycle aborted: not enough images available to complete selection."
 msgstr ""
 
-#: python/main.py:511
+#: python/main.py:516
 msgid "No images available"
 msgstr ""
 
-#: python/main.py:512
+#: python/main.py:517
 msgid "Check status of Image Sources in Control Panel."
 msgstr ""
 
-#: python/main.py:543
+#: python/main.py:548
 #, python-brace-format
 msgid "Image: '{image}' from preset: '{preset}' not found."
 msgstr ""
 
-#: python/main.py:546
+#: python/main.py:551
 msgid "PRESET image not found"
 msgstr ""
 
-#: python/main.py:547
+#: python/main.py:552
 msgid "Assigning a random one"
 msgstr ""
 
@@ -227,7 +184,8 @@ msgid "Delete selected preset/image"
 msgstr ""
 
 #: python/panel/favorites_section.py:136 python/panel/options_section.py:464
-#: applet.js:95
+#: wmm_platform/shell/cinnamon/applet.js:95
+#: wmm_platform/shell/gnome/extension.js:103
 msgid "Favorites"
 msgstr ""
 
@@ -236,7 +194,7 @@ msgid "Delete selected image from favorites"
 msgstr ""
 
 #: python/panel/favorites_section.py:212 python/panel/favorites_section.py:327
-msgid "Empty"
+msgid "empty"
 msgstr ""
 
 #: python/panel/favorites_section.py:254 python/add_bookmark.py:189
@@ -256,7 +214,8 @@ msgid "Delete image"
 msgstr ""
 
 #: python/panel/favorites_section.py:396 python/panel/favorites_section.py:398
-#: applet.js:373
+#: wmm_platform/shell/cinnamon/applet.js:373
+#: wmm_platform/shell/gnome/extension.js:304
 msgid "Delete"
 msgstr ""
 
@@ -264,8 +223,13 @@ msgstr ""
 msgid "images"
 msgstr ""
 
-#: python/panel/monitors_section.py:146 applet.js:142 applet.js:181
-#: applet.js:243
+#: python/panel/monitors_section.py:146
+#: wmm_platform/shell/cinnamon/applet.js:142
+#: wmm_platform/shell/cinnamon/applet.js:181
+#: wmm_platform/shell/cinnamon/applet.js:243
+#: wmm_platform/shell/gnome/extension.js:173
+#: wmm_platform/shell/gnome/extension.js:175
+#: wmm_platform/shell/gnome/extension.js:220
 msgid "Displays"
 msgstr ""
 
@@ -293,7 +257,11 @@ msgstr ""
 msgid "Editing Mode"
 msgstr ""
 
-#: python/panel/monitors_section.py:238 applet.js:173 applet.js:213
+#: python/panel/monitors_section.py:238
+#: wmm_platform/shell/cinnamon/applet.js:173
+#: wmm_platform/shell/cinnamon/applet.js:213
+#: wmm_platform/shell/gnome/extension.js:129
+#: wmm_platform/shell/gnome/extension.js:206
 msgid "Enabled"
 msgstr ""
 
@@ -404,7 +372,9 @@ msgstr ""
 msgid "Enable/Disable Timer"
 msgstr ""
 
-#: python/panel/options_section.py:257 applet.js:120
+#: python/panel/options_section.py:257
+#: wmm_platform/shell/cinnamon/applet.js:120
+#: wmm_platform/shell/gnome/extension.js:123
 msgid "Slideshow"
 msgstr ""
 
@@ -413,7 +383,12 @@ msgid "Max. Frequency"
 msgstr ""
 
 #: python/panel/options_section.py:264 python/panel/options_section.py:277
-#: applet.js:163 applet.js:248
+#: wmm_platform/shell/cinnamon/applet.js:163
+#: wmm_platform/shell/cinnamon/applet.js:248
+#: wmm_platform/shell/gnome/extension.js:146
+#: wmm_platform/shell/gnome/extension.js:154
+#: wmm_platform/shell/gnome/extension.js:161
+#: wmm_platform/shell/gnome/extension.js:223
 msgid "minutes"
 msgstr ""
 
@@ -465,11 +440,7 @@ msgstr ""
 msgid "Add Image Source"
 msgstr ""
 
-#: python/panel/sources_section.py:115
-msgid "Delete Image Source"
-msgstr ""
-
-#: python/panel/sources_section.py:327
+#: python/panel/sources_section.py:115 python/panel/sources_section.py:327
 msgid "Delete image source"
 msgstr ""
 
@@ -657,66 +628,93 @@ msgstr ""
 msgid "Image '{name}' assigned to monitor {monitor}."
 msgstr ""
 
-#: applet.js:48
+#: wmm_platform/shell/cinnamon/applet.js:48
+#: wmm_platform/shell/gnome/extension.js:53
 msgid "Wallpaper Multi-Monitor Manager"
 msgstr ""
 
-#: applet.js:49
+#: wmm_platform/shell/cinnamon/applet.js:49
+#: wmm_platform/shell/gnome/extension.js:54
 msgid "Click action"
 msgstr ""
 
-#: applet.js:49
+#: wmm_platform/shell/cinnamon/applet.js:49
+#: wmm_platform/shell/gnome/extension.js:54
+#: wmm_platform/shell/gnome/extension.js:90
 msgid "Next Background"
 msgstr ""
 
-#: applet.js:50
+#: wmm_platform/shell/cinnamon/applet.js:50
+#: wmm_platform/shell/gnome/extension.js:55
 msgid "Secondary Click"
 msgstr ""
 
-#: applet.js:50
+#: wmm_platform/shell/cinnamon/applet.js:50
+#: wmm_platform/shell/gnome/extension.js:55
 msgid "Context Menu"
 msgstr ""
 
-#: applet.js:85 applet.js:256
+#: wmm_platform/shell/cinnamon/applet.js:85
+#: wmm_platform/shell/cinnamon/applet.js:256
+#: wmm_platform/shell/gnome/extension.js:97
 msgid "Settings"
 msgstr ""
 
-#: applet.js:99
+#: wmm_platform/shell/cinnamon/applet.js:99
+#: wmm_platform/shell/gnome/extension.js:106
 msgid "Favorites Only"
 msgstr ""
 
-#: applet.js:111
+#: wmm_platform/shell/cinnamon/applet.js:111
+#: wmm_platform/shell/gnome/extension.js:115
 msgid "Add Preset Favorite"
 msgstr ""
 
-#: applet.js:125 applet.js:173 applet.js:213
+#: wmm_platform/shell/cinnamon/applet.js:125
+#: wmm_platform/shell/cinnamon/applet.js:173
+#: wmm_platform/shell/cinnamon/applet.js:213
+#: wmm_platform/shell/gnome/extension.js:127
+#: wmm_platform/shell/gnome/extension.js:129
+#: wmm_platform/shell/gnome/extension.js:206
 msgid "Disabled"
 msgstr ""
 
-#: applet.js:142 applet.js:181 applet.js:243
+#: wmm_platform/shell/cinnamon/applet.js:142
+#: wmm_platform/shell/cinnamon/applet.js:181
+#: wmm_platform/shell/cinnamon/applet.js:243
+#: wmm_platform/shell/gnome/extension.js:173
+#: wmm_platform/shell/gnome/extension.js:175
+#: wmm_platform/shell/gnome/extension.js:220
 msgid "ASYNC (One)"
 msgstr ""
 
-#: applet.js:146
+#: wmm_platform/shell/cinnamon/applet.js:146
+#: wmm_platform/shell/gnome/extension.js:181
 msgid "Spanned Mode"
 msgstr ""
 
-#: applet.js:181 applet.js:243
+#: wmm_platform/shell/cinnamon/applet.js:181
+#: wmm_platform/shell/cinnamon/applet.js:243
+#: wmm_platform/shell/gnome/extension.js:175
+#: wmm_platform/shell/gnome/extension.js:220
 msgid "SYNC (All)"
 msgstr ""
 
-#: applet.js:188
+#: wmm_platform/shell/cinnamon/applet.js:188
+#: wmm_platform/shell/gnome/extension.js:188
 msgid "Sync Library"
 msgstr ""
 
-#: applet.js:289
+#: wmm_platform/shell/cinnamon/applet.js:289
 msgid "Error loading favorites"
 msgstr ""
 
-#: applet.js:297
+#: wmm_platform/shell/cinnamon/applet.js:297
+#: wmm_platform/shell/gnome/extension.js:242
 msgid "No saved favorites"
 msgstr ""
 
-#: applet.js:372
+#: wmm_platform/shell/cinnamon/applet.js:372
+#: wmm_platform/shell/gnome/extension.js:304
 msgid "Delete favorite"
 msgstr ""

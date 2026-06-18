@@ -123,6 +123,19 @@ def set_wallpaper(path, config_handler=None):
         ["gsettings", "set", "org.gnome.desktop.background", "picture-uri", f"file://{path}"],
         check=False
     )
+    # Aplicar también el fondo oscuro si la clave existe (GNOME 42+)
+    try:
+        result = subprocess.run(
+            ["gsettings", "list-keys", "org.gnome.desktop.background"],
+            capture_output=True, text=True, check=False
+        )
+        if "picture-uri-dark" in result.stdout:
+            subprocess.run(
+                ["gsettings", "set", "org.gnome.desktop.background", "picture-uri-dark", f"file://{path}"],
+                check=False
+            )
+    except Exception:
+        pass  # Si falla la verificación, simplemente no se aplica el fondo oscuro
     log_event("Fondo aplicado en GNOME", origin="GNOME", level="INFO", reason="LIBRARY")
 
 def ensure_shell_actions(applet_root, data_base):
