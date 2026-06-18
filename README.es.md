@@ -126,13 +126,13 @@ Antes de instalar, asegúrate de tener estas dependencias. Puedes instalarlas ma
         sudo apt install -y gnome-shell-extension-prefs
         ```
 *   **Fedora**:
-        ```bash
-        sudo dnf install -y python3 python3-pillow python3-numpy libnotify
-        ```
+       ```bash
+       sudo dnf install -y python3 python3-pillow python3-numpy libnotify
+       ```
 *   **Arch Linux / Manjaro**:
-        ```bash
-        sudo pacman -Sy --noconfirm python python-pillow python-numpy libnotify
-        ```
+       ```bash
+       sudo pacman -Sy --noconfirm python python-pillow python-numpy libnotify
+       ```
 *    Solo en GNOME:
         ```bash
         sudo pacman -Sy --noconfirm gnome-shell-extensions
