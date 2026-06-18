@@ -1,5 +1,43 @@
 Changelog
 
+v1.2.0 — 2026-06-18
+
+Added
+
+    Full GNOME Shell compatibility: new extension.js with panel indicator, context menu, slideshow controls, favorites management, and one-click wallpaper rotation with anti-spam protection.
+
+    Desktop-specific metadata and JavaScript files are now stored under wmm_platform/shell/cinnamon/ and wmm_platform/shell/gnome/, keeping the project root clean.
+
+    install.sh now detects the desktop environment and automatically copies the correct metadata.json and JS file (applet.js or extension.js) to the installation path.
+
+    GNOME Shell Extension Manager (gnome-shell-extension-prefs) is now offered as an installable dependency when running under GNOME.
+
+    Nautilus scripts integration: "Send to Monitor" and "Add to Favorites" actions are now available in the GNOME file manager.
+
+Changed
+
+    All translatable strings are now centralized within WMM's own translation domain, completely independent of desktop environment system translations. This ensures full compatibility across Cinnamon, GNOME, and future platforms.
+
+    The interval selector in GNOME now uses plus/minus buttons instead of a slider, matching the Control Panel design and avoiding compatibility issues with GNOME 50.1.
+
+    Switches in the GNOME menu now use a custom implementation to prevent the menu from closing unexpectedly on activation.
+
+    metadata.json is no longer hardcoded; two templates are provided and the installer picks the right one at install time.
+
+Fixed
+
+    Cache path inconsistencies that could spawn two engine instances have been resolved; settings_core.ini is now completed before ConfigHandler is created.
+
+    Progress bar visibility restored during source scanning and thumbnail generation, which had been broken after the panel refactoring.
+
+    Deleting an image source now correctly cleans its entries from image_cache.json and removes the associated thumbnails, including previously deactivated subfolders.
+
+    Auxiliary scripts (nemo_add_bookmark.py, nemo_send_to_monitor.py, add_bookmark.py) now use the correct cache path instead of a local fallback.
+
+    Source tree now shows expansion arrows immediately after adding a new source, without requiring a manual refresh.
+
+    Stale debug messages have been removed from the log viewer.
+
 v1.1.0 — 2026-06-16
 
 Added

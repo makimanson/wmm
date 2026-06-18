@@ -43,12 +43,6 @@ case "$DESKTOP" in
         ;;
     gnome)
         command -v gnome-shell >/dev/null 2>&1 || DESKTOP="unknown"
-        # Verificar el gestor de extensiones (necesario para habilitar la extensión)
-        if ! command -v gnome-extensions >/dev/null 2>&1; then
-            echo -e "${RED}WARNING: gnome-extensions not found.${NC}"
-            echo "The GNOME Shell extension manager is required to enable WMM."
-            echo "Please install it with: sudo apt install gnome-shell-extension-manager"
-        fi
         ;;
     *)
         DESKTOP="unknown"
@@ -93,6 +87,20 @@ echo "App domain: $APP_DOMAIN"
 echo "Installation path: $APPLET_DIR"
 echo "Cache path: $CACHE_DIR"
 
+# Copiar el metadata.json y el JS correspondiente al escritorio
+case "$DESKTOP" in
+    cinnamon)
+        cp -f "$SCRIPT_DIR/wmm_platform/shell/cinnamon/metadata.cinnamon.json" "$APPLET_DIR/metadata.json"
+        cp -f "$SCRIPT_DIR/wmm_platform/shell/cinnamon/applet.js" "$APPLET_DIR/applet.js"
+        echo "Archivos de Cinnamon copiados a $APPLET_DIR."
+        ;;
+    gnome)
+        cp -f "$SCRIPT_DIR/wmm_platform/shell/gnome/metadata.gnome.json" "$APPLET_DIR/metadata.json"
+        cp -f "$SCRIPT_DIR/wmm_platform/shell/gnome/extension.js" "$APPLET_DIR/extension.js"
+        echo "Archivos de GNOME copiados a $APPLET_DIR."
+        ;;
+esac
+
 # ----------------------------------------------------------
 # 5. GENERAR settings_core.ini
 # ----------------------------------------------------------
@@ -112,10 +120,10 @@ EOF
 echo -e "${GREEN}Configuration saved to $INI_FILE${NC}"
 
 # ----------------------------------------------------------
-# 6. DEPENDENCIAS INSTALABLES
+# 6. DEPENDENCIAS DE WMM (INSTALABLES)
 # ----------------------------------------------------------
-declare -A DEPENDENCIES
-DEPENDENCIES=(
+declare -A WMM_DEPENDENCIES
+WMM_DEPENDENCIES=(
     ["Python 3"]="python3 --version|python3"
     ["Pillow (Python Imaging)"]="python3 -c 'from PIL import Image'|python3-pillow"
     ["NumPy (Python scientific computing)"]="python3 -c 'import numpy'|python3-numpy"
@@ -125,7 +133,18 @@ DEPENDENCIES=(
 )
 
 # ----------------------------------------------------------
-# 7. DEPENDENCIAS DEL SISTEMA (SOLO VERIFICACIÓN)
+# 7. DEPENDENCIAS DE GNOME (SOLO SI EL ESCRITORIO ES GNOME)
+# ----------------------------------------------------------
+declare -A GNOME_DEPENDENCIES
+if [ "$DESKTOP" = "gnome" ]; then
+    GNOME_DEPENDENCIES=(
+        ["GNOME Shell Extensions"]="command -v gnome-extensions|gnome-shell-extension-prefs"
+        ["GNOME Shell Extension Manager"]="command -v gnome-extensions-app|gnome-shell-extension-prefs"
+    )
+fi
+
+# ----------------------------------------------------------
+# 8. DEPENDENCIAS DEL SISTEMA (SOLO VERIFICACIÓN)
 # ----------------------------------------------------------
 declare -A SYSTEM_DEPENDENCIES
 SYSTEM_DEPENDENCIES=(
@@ -134,7 +153,6 @@ SYSTEM_DEPENDENCIES=(
     ["GLib 2.0 Introspection"]="python3 -c 'import gi; gi.require_version(\"GLib\", \"2.0\")'"
     ["pkill (signals)"]="command -v pkill"
 )
-
 # ----------------------------------------------------------
 # 8. FUNCIONES DE VERIFICACIÓN Y CHECKLIST
 # ----------------------------------------------------------
@@ -150,7 +168,6 @@ check_dep() {
         echo 0 # No instalada
     fi
 }
-
 # ----------------------------------------------------------
 # FUNCIÓN PARA MOSTRAR EL CHECKLIST
 # ----------------------------------------------------------
@@ -159,9 +176,40 @@ print_checklist() {
     local missing_count=0
     echo -e "\nDependency status:"
 
-    # Dependencias instalables
-    for dep_name in "${!DEPENDENCIES[@]}"; do
-        test_cmd="${DEPENDENCIES[$dep_name]%%|*}"
+    # --- Bloque 1: Dependencias del Sistema (solo verificación) ---
+    echo -e "\n${GREEN}[System dependencies]${NC}"
+    for dep_name in "${!SYSTEM_DEPENDENCIES[@]}"; do
+        test_cmd="${SYSTEM_DEPENDENCIES[$dep_name]}"
+        status=$(check_dep "$test_cmd")
+        if [ "$status" -eq 1 ]; then
+            echo -e "  ${GREEN}[✔]${NC} $dep_name"
+            ((installed_count++))
+        else
+            echo -e "  ${RED}[✘]${NC} $dep_name (required for $DESKTOP)"
+            ((missing_count++))
+        fi
+    done
+
+    # --- Bloque 2: Dependencias de GNOME (solo si estamos en GNOME) ---
+    if [ "$DESKTOP" = "gnome" ]; then
+        echo -e "\n${GREEN}[GNOME dependencies]${NC}"
+        for dep_name in "${!GNOME_DEPENDENCIES[@]}"; do
+            test_cmd="${GNOME_DEPENDENCIES[$dep_name]%%|*}"
+            status=$(check_dep "$test_cmd")
+            if [ "$status" -eq 1 ]; then
+                echo -e "  ${GREEN}[✔]${NC} $dep_name"
+                ((installed_count++))
+            else
+                echo -e "  ${RED}[✘]${NC} $dep_name"
+                ((missing_count++))
+            fi
+        done
+    fi
+
+    # --- Bloque 3: Dependencias de WMM (instalables) ---
+    echo -e "\n${GREEN}[WMM dependencies]${NC}"
+    for dep_name in "${!WMM_DEPENDENCIES[@]}"; do
+        test_cmd="${WMM_DEPENDENCIES[$dep_name]%%|*}"
         status=$(check_dep "$test_cmd")
         if [ "$status" -eq 1 ]; then
             echo -e "  ${GREEN}[✔]${NC} $dep_name"
@@ -172,23 +220,9 @@ print_checklist() {
         fi
     done
 
-    # Dependencias del sistema (solo verificación)
-    for dep_name in "${!SYSTEM_DEPENDENCIES[@]}"; do
-        test_cmd="${SYSTEM_DEPENDENCIES[$dep_name]}"
-        status=$(check_dep "$test_cmd")
-        if [ "$status" -eq 1 ]; then
-            echo -e "  ${GREEN}[✔]${NC} $dep_name (system)"
-            ((installed_count++))
-        else
-            echo -e "  ${RED}[✘]${NC} $dep_name (system - required for $DESKTOP)"
-            ((missing_count++))
-        fi
-    done
-
     echo -e "\n${GREEN}$installed_count installed${NC}, ${RED}$missing_count missing${NC}"
     return $missing_count
 }
-
 # ----------------------------------------------------------
 # FUNCIÓN PARA INSTALAR LOS ARCHIVOS DE WMM
 # ----------------------------------------------------------
@@ -196,9 +230,16 @@ install_files() {
     echo -e "\nCreating directory structure and copying files..."
 
     # Verificar que estamos en la raíz del proyecto
-    if [ ! -f "$SCRIPT_DIR/metadata.json" ] || [ ! -d "$SCRIPT_DIR/python" ]; then
-        echo "ERROR: Project structure not found (missing metadata.json or python/)."
-        echo "Make sure you run the script from the project root folder."
+    if [ ! -f "$SCRIPT_DIR/wmm_platform/shell/cinnamon/metadata.cinnamon.json" ] \
+       && [ ! -f "$SCRIPT_DIR/wmm_platform/shell/gnome/metadata.gnome.json" ] \
+       || [ ! -d "$SCRIPT_DIR/python" ] \
+       || [ ! -d "$SCRIPT_DIR/wmm_platform" ] \
+       || [ ! -d "$SCRIPT_DIR/data" ] \
+       || [ ! -d "$SCRIPT_DIR/help" ] \
+       || [ ! -d "$SCRIPT_DIR/po" ]; then
+        echo "ERROR: Project structure not found."
+        echo "Make sure you run the script from the project root folder"
+        echo "with all required files (metadata.*.json in wmm_platform/shell/, python/, data/, help/, po/)."
         exit 1
     fi
 
@@ -213,7 +254,21 @@ install_files() {
     }
     echo "Files copied successfully."
 
-    # Limpiar archivos de desarrollo
+    # Copiar el metadata.json y el JS correspondiente al escritorio
+    case "$DESKTOP" in
+        cinnamon)
+            cp -f "$SCRIPT_DIR/wmm_platform/shell/cinnamon/metadata.cinnamon.json" "$APPLET_DIR/metadata.json"
+            cp -f "$SCRIPT_DIR/wmm_platform/shell/cinnamon/applet.js" "$APPLET_DIR/applet.js"
+            echo "Archivos de Cinnamon copiados a $APPLET_DIR."
+            ;;
+        gnome)
+            cp -f "$SCRIPT_DIR/wmm_platform/shell/gnome/metadata.gnome.json" "$APPLET_DIR/metadata.json"
+            cp -f "$SCRIPT_DIR/wmm_platform/shell/gnome/extension.js" "$APPLET_DIR/extension.js"
+            echo "Archivos de GNOME copiados a $APPLET_DIR."
+            ;;
+    esac
+
+    # Limpiar archivos de desarrollo...
     find "$APPLET_DIR" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null
     find "$APPLET_DIR" -type f -name "*.pyc" -delete 2>/dev/null
     echo "Development files cleaned."
@@ -252,8 +307,8 @@ if [ $missing -eq 0 ]; then
             echo "and activate 'WMM Manager'."
             ;;
         gnome)
-            echo -e "\nTo enable the extension, restart your session"
-            echo "or open GNOME Extensions and enable 'WMM Manager'."
+            echo -e "\nTo enable the extension, restart your session,"
+            echo "open GNOME Extensions and enable 'WMM Manager'."
             ;;
         *)
             echo -e "\nRestart your session to load the applet/extension."
@@ -294,6 +349,7 @@ elif command -v pacman &> /dev/null; then
         ["python3-pillow"]="python-pillow"
         ["python3-numpy"]="python-numpy"
         ["libnotify-bin"]="libnotify"
+        ["gnome-shell-extension-prefs"]="gnome-shell-extensions"
     )
 else
     echo "Could not detect package manager."
@@ -301,11 +357,17 @@ else
     exit 1
 fi
 
-# Build list of missing packages (from DEPENDENCIES only)
+# Build list of missing packages (from WMM_DEPENDENCIES and GNOME_DEPENDENCIES)
 MISSING_PKGS=""
-for dep_name in "${!DEPENDENCIES[@]}"; do
-    test_cmd="${DEPENDENCIES[$dep_name]%%|*}"
-    packages="${DEPENDENCIES[$dep_name]##*|}"
+for dep_name in "${!WMM_DEPENDENCIES[@]}" "${!GNOME_DEPENDENCIES[@]}"; do
+    # Obtener el comando de verificación y el nombre del paquete
+    if [ -n "${WMM_DEPENDENCIES[$dep_name]}" ]; then
+        test_cmd="${WMM_DEPENDENCIES[$dep_name]%%|*}"
+        packages="${WMM_DEPENDENCIES[$dep_name]##*|}"
+    else
+        test_cmd="${GNOME_DEPENDENCIES[$dep_name]%%|*}"
+        packages="${GNOME_DEPENDENCIES[$dep_name]##*|}"
+    fi
     status=$(check_dep "$test_cmd")
     if [ "$status" -eq 0 ]; then
         if [ "$PKG_MANAGER" = "pacman" ]; then
@@ -344,8 +406,8 @@ if [ $missing -eq 0 ]; then
             echo "and activate 'WMM Manager'."
             ;;
         gnome)
-            echo -e "\nTo enable the extension, restart your session"
-            echo "or open GNOME Extensions and enable 'WMM Manager'."
+            echo -e "\nTo enable the extension, restart your session,"
+            echo "open GNOME Extensions and enable 'WMM Manager'."
             ;;
         *)
             echo -e "\nRestart your session to load the applet/extension."
