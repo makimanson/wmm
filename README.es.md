@@ -64,24 +64,23 @@ Para que WMM funcione correctamente y las transiciones de fondos sean limpias, n
 
 Si prefieres no usar el script:
 
-*   1.  **Crea la carpeta del applet**:
-
-*      Para Cinnamon:
-        ```bash
-        mkdir -p ~/.local/share/cinnamon/applets/wmm-applet@maki
-        ```
-*       Para GNOME:
-        ```bash
-        mkdir -p ~/.local/share/gnome-shell/extensions/wmm@maki
-        ```
-*   2. Copia los archivos del proyecto en esa carpeta (el contenido del zip, no la carpeta padre)
-*   3. Copia el archivo JavaScript y metadata correctos según tu escritorio:
-*       Para Cinnamon:
+*    **Crea la carpeta del applet**:
+   Para Cinnamon:
+    ``bash
+    mkdir -p ~/.local/share/cinnamon/applets/wmm-applet@maki
+    ```
+   Para GNOME:
+   ```bash
+   mkdir -p ~/.local/share/gnome-shell/extensions/wmm@maki
+   ```
+*   Copia los archivos del proyecto en esa carpeta (el contenido del zip, no la carpeta padre)
+*   Copia el archivo JavaScript y metadata correctos según tu escritorio:
+     Para Cinnamon:
             ```bash
             cp wmm_platform/shell/cinnamon/metadata.cinnamon.json ~/.local/share/cinnamon/applets/wmm-applet@maki/metadata.json
             cp wmm_platform/shell/cinnamon/applet.js ~/.local/share/cinnamon/applets/wmm-applet@maki/applet.js
             ```
-*       Para GNOME:
+*    Para GNOME:
             ```bash
             cp wmm_platform/shell/gnome/metadata.gnome.json ~/.local/share/gnome-shell/extensions/wmm@maki/metadata.json
             cp wmm_platform/shell/gnome/extension.js ~/.local/share/gnome-shell/extensions/wmm@maki/extension.js
@@ -122,7 +121,7 @@ Antes de instalar, asegúrate de tener estas dependencias. Puedes instalarlas ma
         ```bash
         sudo apt install -y python3 python3-pillow python3-numpy libnotify-bin
         ```
-*       Solo en GNOME:
+*    Solo en GNOME:
         ```bash
         sudo apt install -y gnome-shell-extension-prefs
         ```
@@ -134,7 +133,7 @@ Antes de instalar, asegúrate de tener estas dependencias. Puedes instalarlas ma
         ```bash
         sudo pacman -Sy --noconfirm python python-pillow python-numpy libnotify
         ```
-*       Solo en GNOME:
+*    Solo en GNOME:
         ```bash
         sudo pacman -Sy --noconfirm gnome-shell-extensions
         ```
@@ -167,7 +166,7 @@ WMM incluye un sistema de registro integrado que graba la actividad del motor, e
 
     ```bash
     python3 ~/.local/share/cinnamon/applets/wmm-applet@maki/python/debug_logger.py
-
+    ```
 ## 🌍 Traducción
 
 WMM soporta múltiples idiomas. Las traducciones se instalan automáticamente al ejecutar install.sh.
