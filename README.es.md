@@ -64,33 +64,33 @@ Para que WMM funcione correctamente y las transiciones de fondos sean limpias, n
 
 Si prefieres no usar el script:
 
-*    **Crea la carpeta del applet**:
+1.    **Crea la carpeta del applet**:
    Para Cinnamon:
-    ``bash
-    mkdir -p ~/.local/share/cinnamon/applets/wmm-applet@maki
-    ```
+      ```bash
+      mkdir -p ~/.local/share/cinnamon/applets/wmm-applet@maki
+      ```
    Para GNOME:
-   ```bash
-   mkdir -p ~/.local/share/gnome-shell/extensions/wmm@maki
-   ```
-*   Copia los archivos del proyecto en esa carpeta (el contenido del zip, no la carpeta padre)
-*   Copia el archivo JavaScript y metadata correctos según tu escritorio:
+      ```bash
+      mkdir -p ~/.local/share/gnome-shell/extensions/wmm@maki
+      ```
+2.   Copia los archivos del proyecto en esa carpeta (el contenido del zip, no la carpeta padre)
+3.   Copia el archivo JavaScript y metadata correctos según tu escritorio:
      Para Cinnamon:
             ```bash
             cp wmm_platform/shell/cinnamon/metadata.cinnamon.json ~/.local/share/cinnamon/applets/wmm-applet@maki/metadata.json
             cp wmm_platform/shell/cinnamon/applet.js ~/.local/share/cinnamon/applets/wmm-applet@maki/applet.js
             ```
-*    Para GNOME:
+    Para GNOME:
             ```bash
             cp wmm_platform/shell/gnome/metadata.gnome.json ~/.local/share/gnome-shell/extensions/wmm@maki/metadata.json
             cp wmm_platform/shell/gnome/extension.js ~/.local/share/gnome-shell/extensions/wmm@maki/extension.js
             ```
-*   4.  **Compila las traducciones**
+4.  **Compila las traducciones**
         ```bash
         for po in po/*.po; do lang=$(basename "$po" .po); msgfmt "$po" -o ~/.local/share/locale/$lang/LC_MESSAGES/wmm-applet@maki.mo; done
         ```
-*   5.  **Instalar dependencias** listadas a continuacion:
-*   6.  Reinicia la sesion de usuario y **Activa el applet:** Ve a la configuración de Applets de Cinnamon o el Gestro de Extensiones en Gnome, busca **WMM - Wallpaper Multi-Monitor Manager** y actívalo.
+5.  **Instalar dependencias** listadas a continuacion:
+6.  Reinicia la sesion de usuario y **Activa el applet:** Ve a la configuración de Applets de Cinnamon o el Gestro de Extensiones en Gnome, busca **WMM - Wallpaper Multi-Monitor Manager** y actívalo.
 
 ### 📋 Dependencias
 
@@ -121,19 +121,19 @@ Antes de instalar, asegúrate de tener estas dependencias. Puedes instalarlas ma
         ```bash
         sudo apt install -y python3 python3-pillow python3-numpy libnotify-bin
         ```
-*    Solo en GNOME:
+      Solo en GNOME:
         ```bash
         sudo apt install -y gnome-shell-extension-prefs
         ```
 *   **Fedora**:
-       ```bash
-       sudo dnf install -y python3 python3-pillow python3-numpy libnotify
-       ```
+        ```bash
+         sudo dnf install -y python3 python3-pillow python3-numpy libnotify
+         ```
 *   **Arch Linux / Manjaro**:
-       ```bash
-       sudo pacman -Sy --noconfirm python python-pillow python-numpy libnotify
-       ```
-*    Solo en GNOME:
+         ```bash
+         sudo pacman -Sy --noconfirm python python-pillow python-numpy libnotify
+         ```
+      Solo en GNOME:
         ```bash
         sudo pacman -Sy --noconfirm gnome-shell-extensions
         ```
