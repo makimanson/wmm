@@ -5,8 +5,8 @@ Olvídate de fondos deformados, recortados o repetidos.
 Con WMM, tú tienes el control total.
 
 <p align="center">
-  <a href="screenshot.png">
-    <img src="screenshot.png" alt="WMM Screenshot" width="100%"/>
+  <a href="screenshots/screenshot.png">
+    <img src="screenshots/screenshot.png" alt="WMM Screenshot" width="100%"/>
   </a>
 </p>
 
@@ -50,10 +50,10 @@ Para que WMM funcione correctamente y las transiciones de fondos sean limpias, n
 *   Descarga o clona este repositorio en tu ordenador.
 *   Abre una terminal en la carpeta raíz del proyecto.
 *   Ejecuta el script de instalación:
-        ```bash
-        chmod +x install.sh
-        ./install.sh
-        ```
+    ```bash
+    chmod +x install.sh
+    ./install.sh
+     ```
 *   El script detectará tu escritorio (Cinnamon o GNOME), comprobará las dependencias y te preguntará si quieres instalarlas automáticamente.
 
 *   En Cinnamon: Ve a la configuración de Applets, busca "WMM Manager" y actívalo.
@@ -64,34 +64,34 @@ Para que WMM funcione correctamente y las transiciones de fondos sean limpias, n
 
 Si prefieres no usar el script:
 
-*   1.  **Crea la carpeta del applet**:
+1.  **Crea la carpeta del applet**:
 
-*      Para Cinnamon:
-        ```bash
-        mkdir -p ~/.local/share/cinnamon/applets/wmm-applet@maki
-        ```
-*       Para GNOME:
-        ```bash
-        mkdir -p ~/.local/share/gnome-shell/extensions/wmm@maki
-        ```
-*   2. Copia los archivos del proyecto en esa carpeta (el contenido del zip, no la carpeta padre)
-*   3. Copia el archivo JavaScript y metadata correctos según tu escritorio:
-*       Para Cinnamon:
-            ```bash
-            cp wmm_platform/shell/cinnamon/metadata.cinnamon.json ~/.local/share/cinnamon/applets/wmm-applet@maki/metadata.json
-            cp wmm_platform/shell/cinnamon/applet.js ~/.local/share/cinnamon/applets/wmm-applet@maki/applet.js
-            ```
-*       Para GNOME:
-            ```bash
-            cp wmm_platform/shell/gnome/metadata.gnome.json ~/.local/share/gnome-shell/extensions/wmm@maki/metadata.json
-            cp wmm_platform/shell/gnome/extension.js ~/.local/share/gnome-shell/extensions/wmm@maki/extension.js
-            ```
-*   4.  **Compila las traducciones**
+      Para Cinnamon:
+      ```bash
+      mkdir -p ~/.local/share/cinnamon/applets/wmm-applet@maki
+      ```
+      Para GNOME:
+      ```bash
+      mkdir -p ~/.local/share/gnome-shell/extensions/wmm@maki
+      ```
+2.  Copia los archivos del proyecto en esa carpeta (el contenido del zip, no la carpeta padre)
+3.  Copia el archivo JavaScript y metadata correctos según tu escritorio:
+       Para Cinnamon:
+       ```bash
+       cp wmm_platform/shell/cinnamon/metadata.cinnamon.json ~/.local/share/cinnamon/applets/wmm-applet@maki/metadata.json
+       cp wmm_platform/shell/cinnamon/applet.js ~/.local/share/cinnamon/applets/wmm-applet@maki/applet.js
+       ```
+       Para GNOME:
+       ```bash
+       cp wmm_platform/shell/gnome/metadata.gnome.json ~/.local/share/gnome-shell/extensions/wmm@maki/metadata.json
+       cp wmm_platform/shell/gnome/extension.js ~/.local/share/gnome-shell/extensions/wmm@maki/extension.js
+       ```
+4.  **Compila las traducciones**
         ```bash
         for po in po/*.po; do lang=$(basename "$po" .po); msgfmt "$po" -o ~/.local/share/locale/$lang/LC_MESSAGES/wmm-applet@maki.mo; done
         ```
-*   5.  **Instalar dependencias** listadas a continuacion:
-*   6.  Reinicia la sesion de usuario y **Activa el applet:** Ve a la configuración de Applets de Cinnamon o el Gestro de Extensiones en Gnome, busca **WMM - Wallpaper Multi-Monitor Manager** y actívalo.
+5.  **Instalar dependencias** listadas a continuacion:
+6.  Reinicia la sesion de usuario y **Activa el applet:** Ve a la configuración de Applets de Cinnamon o el Gestro de Extensiones en Gnome, busca **WMM - Wallpaper Multi-Monitor Manager** y actívalo.
 
 ### 📋 Dependencias
 
@@ -119,44 +119,44 @@ Antes de instalar, asegúrate de tener estas dependencias. Puedes instalarlas ma
 ### Instalación rápida de dependencias (si no usas `install.sh`)
 
 *   **Linux Mint / Ubuntu / Debian**:
-        ```bash
-        sudo apt install -y python3 python3-pillow python3-numpy libnotify-bin
-        ```
-*       Solo en GNOME:
-        ```bash
-        sudo apt install -y gnome-shell-extension-prefs
-        ```
+       ```bash
+       sudo apt install -y python3 python3-pillow python3-numpy libnotify-bin
+       ```
+       Solo en GNOME:
+       ```bash
+       sudo apt install -y gnome-shell-extension-prefs
+       ```
 *   **Fedora**:
-        ```bash
-        sudo dnf install -y python3 python3-pillow python3-numpy libnotify
-        ```
+       ```bash
+       sudo dnf install -y python3 python3-pillow python3-numpy libnotify
+       ```
 *   **Arch Linux / Manjaro**:
-        ```bash
-        sudo pacman -Sy --noconfirm python python-pillow python-numpy libnotify
-        ```
-*       Solo en GNOME:
-        ```bash
-        sudo pacman -Sy --noconfirm gnome-shell-extensions
-        ```
+       ```bash
+       sudo pacman -Sy --noconfirm python python-pillow python-numpy libnotify
+       ```
+       Solo en GNOME:
+       ```bash
+       sudo pacman -Sy --noconfirm gnome-shell-extensions
+       ```
 
 ### 🗑️ Desinstalación
 
 1.  En Cinnamon: haz clic derecho en el applet del panel y selecciona **Eliminar**. Abre **Miniaplicaciones**, busca **WMM Manager** y pulsa **Desinstalar**.
 2.  En GNOME: abre la aplicación **Extensiones**, busca **WMM Manager** y desactívala. Luego usa la opcion **Quitar**
 3.  Borra la carpeta de caché:
-        ```bash
-        rm -rf ~/.cache/wmm
-        ```
+       ```bash
+       rm -rf ~/.cache/wmm
+       ```
 4.  Elimina las acciones de Nemo (Cinnamon) o los scripts de Nautilus (GNOME) instalados previamente:
 
 *   Acciones de Nemo (Cinnamon)
-        ```bash
-        rm ~/.local/share/nemo/actions/wmm-*
-        ```
+       ```bash
+       rm ~/.local/share/nemo/actions/wmm-*
+       ```
 *   Scripts de Nautilus (GNOME)
-        ```bash
-        rm ~/.local/share/nautilus/scripts/wmm-*
-        ``
+       ```bash
+       rm ~/.local/share/nautilus/scripts/wmm-*
+       ```
 ## 🛠️ Visor de depuración / Registro de eventos
 
 WMM incluye un sistema de registro integrado que graba la actividad del motor, el panel y los scripts en tiempo real. Puedes consultar los registros en cualquier momento sin reiniciar la aplicación.
@@ -167,7 +167,7 @@ WMM incluye un sistema de registro integrado que graba la actividad del motor, e
 
     ```bash
     python3 ~/.local/share/cinnamon/applets/wmm-applet@maki/python/debug_logger.py
-
+    ```
 ## 🌍 Traducción
 
 WMM soporta múltiples idiomas. Las traducciones se instalan automáticamente al ejecutar install.sh.
