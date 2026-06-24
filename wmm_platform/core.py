@@ -92,17 +92,21 @@ class PlatformManager:
         if hasattr(so_module, 'unlock_file'):
             self.unlock_file = so_module.unlock_file
 
+        # Instalar acciones de shell (Nemo, Nautilus, Dolphin) a nivel de SO
+        if hasattr(so_module, 'ensure_shell_actions'):
+            self.ensure_shell_actions = so_module.ensure_shell_actions
+
         # ----------------------------------------------------------
         # 3. FUNCIONES CON VALOR POR DEFECTO
         # ----------------------------------------------------------
-        # Algunas funciones solo tienen sentido en ciertos escritorios.
+        # Algunas funciones solo tienen sentido en ciertos escritorios/SO.
         # Se define un valor por defecto (normalmente no hacer nada)
-        # que será sobrescrito si el escritorio lo implementa.
+        # que será sobrescrito si el SO o el escritorio lo implementan.
 
-        # Instalar acciones de shell (menús contextuales de Nemo, Nautilus, etc.)
-        # Por defecto, no hace nada. Solo Cinnamon lo implementa por ahora.
-        self.ensure_shell_actions = lambda applet_root, data_base: None
-
+        # Instalar acciones de shell (menús contextuales de Nemo, Nautilus, Dolphin, etc.)
+        # Por defecto, no hace nada. Solo Linux lo implementa por ahora.
+        if not hasattr(so_module, 'ensure_shell_actions'):
+            self.ensure_shell_actions = lambda applet_root, data_base: None
         # ----------------------------------------------------------
         # 4. CARGA DEL MÓDULO DEL ESCRITORIO (si existe)
         # ----------------------------------------------------------

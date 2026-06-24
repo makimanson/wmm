@@ -26,7 +26,6 @@ DEPENDENCIAS:
 # ==========================================================
 import os
 import sys
-import subprocess
 
 # ==========================================================
 # IMPORTS DE TERCEROS (GTK)
@@ -176,12 +175,12 @@ class AddBookmarkDialog(Gtk.ApplicationWindow):
 
         if success:
             # Notificar al motor para que el panel refresque la lista de presets
+            # El motor detecta el cambio en commands.json vía Gio.FileMonitor
             try:
                 self.handler.save_json("commands", {"action": "bookmark_added", "name": name})
-                subprocess.run(["pkill", "-USR1", "-f", "main.py"])
             except Exception as e:
-                log_event(f"No se pudo notificar al motor: {e}", origin="ADD_BOOK", level="WARN", reason="SIGNAL")
-            log_event(f"Preset guardado correctamente: {name}", origin="ADD_BOOK", level="INFO", reason="SIGNAL")
+                log_event(f"No se pudo notificar al motor: {e}", origin="ADD_BOOK", level="WARN", reason="COMMAND")
+            log_event(f"Preset guardado correctamente: {name}", origin="ADD_BOOK", level="INFO", reason="COMMAND")
             self.destroy()
         else:
             # Gestionar los errores conocidos

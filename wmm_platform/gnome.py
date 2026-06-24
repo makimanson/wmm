@@ -137,24 +137,3 @@ def set_wallpaper(path, config_handler=None):
     except Exception:
         pass  # Si falla la verificación, simplemente no se aplica el fondo oscuro
     log_event("Fondo aplicado en GNOME", origin="GNOME", level="INFO", reason="LIBRARY")
-
-def ensure_shell_actions(applet_root, data_base):
-    """
-    Copia los scripts de Nautilus al directorio del usuario si Nautilus está instalado.
-    """
-    nautilus_scripts_dir = os.path.join(data_base, "nautilus", "scripts")
-    if not os.path.isdir(nautilus_scripts_dir):
-        os.makedirs(nautilus_scripts_dir, exist_ok=True)
-    source_dir = os.path.join(applet_root, "wmm_platform", "shell", "nautilus")
-    if not os.path.isdir(source_dir):
-        return
-    for script_file in os.listdir(source_dir):
-        src = os.path.join(source_dir, script_file)
-        dst = os.path.join(nautilus_scripts_dir, script_file)
-        if not os.path.exists(dst):
-            try:
-                import shutil
-                shutil.copy2(src, dst)
-                os.chmod(dst, 0o755)
-            except Exception:
-                pass

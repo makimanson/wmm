@@ -67,6 +67,14 @@ class WMMApplet extends Applet.IconApplet {
 
             Util.spawn(["python3", this.enginePath]);
 
+            this._motorBusy = false;
+            this._ignoreNextBusy = false;
+            let statusPath = GLib.get_user_cache_dir() + "/wmm/engine_status.json";
+            let statusFile = Gio.File.new_for_path(statusPath);
+            this._statusMonitor = statusFile.monitor_file(Gio.FileMonitorFlags.NONE, null);
+            this._statusMonitor.connect("changed", () => this._updateIconFromStatus());
+            this._updateIconFromStatus();
+
         } catch (e) {
             global.logError("WMM Constructor Error: " + e.message);
         }
@@ -229,7 +237,8 @@ class WMMApplet extends Applet.IconApplet {
 
             // 1. Cargar Settings Globales
             try {
-                [s, content] = GLib.file_get_contents(this.settingsPath);
+                let settingsFile = Gio.File.new_for_path(this.settingsPath);
+                let [s, content] = settingsFile.load_contents(null);
                 if (s) {
                     let config = JSON.parse(content.toString()).global;
                     this._currentMaxInterval = config.slideshow_max_interval || 60;
@@ -275,7 +284,8 @@ class WMMApplet extends Applet.IconApplet {
 
         let s, content;
         try {
-            [s, content] = GLib.file_get_contents(this.bookmarksPath);
+            let bookmarksFile = Gio.File.new_for_path(this.bookmarksPath);
+            [s, content] = bookmarksFile.load_contents(null);  // sin let, usa las variables externas
         } catch (e) {
             return;
         }
@@ -284,6 +294,7 @@ class WMMApplet extends Applet.IconApplet {
             let bookmarks;
             try {
                 bookmarks = JSON.parse(content.toString());
+                global.log("WMM bookmarks loaded: " + Object.keys(bookmarks).length + " presets");
             } catch (e) {
                 global.logError("WMM Bookmarks Error: " + e.message);
                 let info = new PopupMenu.PopupMenuItem(_("Error loading favorites"), { reactive: false });
@@ -415,8 +426,20 @@ class WMMApplet extends Applet.IconApplet {
         try {
             let file = Gio.File.new_for_path(this.commandsPath);
             let rawContent = JSON.stringify(command, null, 4);
-            file.replace_contents(rawContent, null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null);
-            Util.spawn(["pkill", "-USR1", "-f", "main.py"]);
+            file.replace_contents_async(
+                new GLib.Bytes(rawContent),
+                null,
+                false,
+                Gio.FileCreateFlags.REPLACE_DESTINATION,
+                null,
+                (obj, result) => {
+                    try {
+                        obj.replace_contents_finish(result);
+                    } catch (e) {
+                        global.logError("WMM Write Error: " + e.message);
+                    }
+                }
+            );
         } catch (e) {
             global.logError("WMM Send Error: " + e.message);
         }
@@ -430,26 +453,11 @@ class WMMApplet extends Applet.IconApplet {
      * BLOQUE 6: EVENTOS SISTEMA
      */
     on_applet_clicked(event) {
-        let now = Date.now();
-        let cooldown = 1000; // milisegundos
-
-        // Si está en cooldown, mostrar feedback y salir
-        if (this._last_click_time && (now - this._last_click_time) < cooldown) {
-            this.set_applet_icon_symbolic_name("video-display-symbolic");
-
-            // Cancelar la restauración anterior si existe
-            if (this._icon_restore_timeout) {
-                clearTimeout(this._icon_restore_timeout);
-            }
-            // Programar restauración del icono
-            this._icon_restore_timeout = setTimeout(() => {
-                this.set_applet_icon_name("video-display");
-            }, cooldown);
+        if (this._motorBusy) {
+            this.set_applet_icon_name("view-refresh");
             return;
         }
-
-        // Primer clic o fuera de cooldown: ejecutar rotación
-        this._last_click_time = now;
+        this._ignoreNextBusy = true;
         this._sendActionToEngine({ "action": "force_rotation" });
     }
 
@@ -479,6 +487,28 @@ class WMMApplet extends Applet.IconApplet {
             global.logError("WMM Removal Error: " + e.message);
         }
     }
+
+    _updateIconFromStatus() {
+        try {
+            let file = Gio.File.new_for_path(GLib.get_user_cache_dir() + "/wmm/engine_status.json");
+            let [success, contents] = file.load_contents(null);
+            if (success) {
+                let status = JSON.parse(contents);
+                this._motorBusy = status.busy;
+                if (status.busy) {
+                    if (!this._ignoreNextBusy) {
+                        this.set_applet_icon_name("view-refresh");
+                    }
+                } else {
+                    this._ignoreNextBusy = false;
+                    this.set_applet_icon_name("video-display");
+                }
+            }
+        } catch (e) {
+            // archivo no existe aún
+        }
+    }
+
 }
 
 function main(metadata, orientation, panel_height, instance_id) {

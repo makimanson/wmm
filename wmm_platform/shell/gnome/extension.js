@@ -332,8 +332,20 @@ export default class WMMExtension {
         try {
             let file = Gio.File.new_for_path(this.commandsPath);
             let raw = JSON.stringify(command, null, 4);
-            file.replace_contents(raw, null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null);
-            GLib.spawn_command_line_async('pkill -USR1 -f main.py');
+            file.replace_contents_async(
+                new GLib.Bytes(raw),
+                null,
+                false,
+                Gio.FileCreateFlags.REPLACE_DESTINATION,
+                null,
+                (obj, result) => {
+                    try {
+                        obj.replace_contents_finish(result);
+                    } catch (e) {
+                        log('WMM write: ' + e.message);
+                    }
+                }
+            );
         } catch (e) {
             log('WMM send: ' + e.message);
         }

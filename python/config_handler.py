@@ -37,8 +37,8 @@ from gi.repository import GLib
 # ==========================================================
 from image_engine import ImageEngine
 from wmm_platform.core import PlatformManager
-from debug_logger import log_event
-from i18n import _, N_
+from debug_logger import log_event, set_cache_dir
+from i18n import _, N_, set_app_domain, set_locale_dir
 
 class ConfigHandler:
     ...
@@ -144,7 +144,6 @@ class ConfigHandler:
         # El debug_logger usa la misma ruta de caché que ConfigHandler.
         # Así, los logs se guardan siempre en el directorio correcto
         # independientemente del SO.
-        from debug_logger import set_cache_dir
         set_cache_dir(self.cache_dir)
 
         # ==========================================================
@@ -181,6 +180,13 @@ class ConfigHandler:
         # Garantiza que todos los directorios y archivos JSON existan.
         # Si es la primera ejecución, los crea con valores por defecto.
         self.ensure_structure()
+        # Configurar el dominio de traducción para que todos los componentes lo usen
+        try:
+            platform = PlatformManager()
+            set_app_domain(platform.app_domain)
+            set_locale_dir(platform.locale_dir)
+        except Exception:
+            pass
 
     def ensure_structure(self):
         """
@@ -394,6 +400,44 @@ class ConfigHandler:
         geo = self.load_json("geometry")
         monitors = geo.get("monitors", {})
         return monitors.get(m_hash, {})
+
+
+    def get_monitor_display_name(self, m_hash):
+        """
+        Devuelve una etiqueta legible para el monitor con el hash dado,
+        combinando fabricante, modelo y pulgadas según la calidad de los datos.
+        """
+        geo = self.load_json("geometry")
+        monitors = geo.get("monitors", {})
+        info = monitors.get(m_hash, {})
+        if not info:
+            return _("Generic Monitor")
+
+        connector = info.get("connector", "")
+        mfg_code = info.get("manufacturer", "")
+        inches = info.get("inches", 0)
+
+        # Mapear código de fabricante a nombre legible
+        mfg_map = self.get_mfg_map()
+        mfg_name = mfg_map.get(mfg_code, mfg_code) if mfg_code else ""
+
+        # Construir la etiqueta según la riqueza de los datos
+        if mfg_name and mfg_name.lower() in connector.lower():
+            # El modelo ya contiene el fabricante (ej. "MSI MAG271CQR")
+            label = f"{connector}"
+        elif mfg_name and connector:
+            # Fabricante y modelo por separado (ej. "SAM" y "LC49G95T")
+            label = f"{mfg_name} {connector}"
+        elif connector:
+            # Solo tenemos conector/modelo
+            label = f"{connector}"
+        else:
+            label = _("Generic Monitor")
+
+        if inches > 0:
+            label += f' ({inches}")'
+
+        return label
 
     def refresh_history_metadata(self):
         """

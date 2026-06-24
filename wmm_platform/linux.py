@@ -5,6 +5,65 @@ Contiene funciones comunes a todos los escritorios de Linux.
 import os
 import subprocess
 import fcntl
+import shutil
+
+from debug_logger import log_event
+
+def ensure_shell_actions(applet_root, data_base):
+    """
+    Detecta qué gestores de archivos (Nemo, Nautilus, Dolphin) están realmente
+    instalados en el SO y copia sus scripts de integración correspondientes.
+    Opera de forma agnóstica al escritorio activo.
+    """
+    source_dir = os.path.join(applet_root, "wmm_platform", "shell", "file_manager")
+    if not os.path.isdir(source_dir):
+        return
+
+    # --- 1. LIMPIEZA DE DIRECTORIOS ANTIGUOS EN EL APPLET ---
+    legacy_dirs = [
+        os.path.join(applet_root, "wmm_platform", "shell", "nemo"),
+        os.path.join(applet_root, "wmm_platform", "shell", "nautilus")
+    ]
+    for old_dir in legacy_dirs:
+        if os.path.isdir(old_dir):
+            try:
+                shutil.rmtree(old_dir)
+                log_event(f"Directorio legacy eliminado: {old_dir}", origin="LINUX", level="INFO", reason="SETTINGS")
+            except Exception as e:
+                log_event(f"No se pudo eliminar {old_dir}: {e}", origin="LINUX", level="WARN", reason="SETTINGS")
+
+    # --- 2. DEFINICIÓN DE GESTORES Y SUS RUTAS ---
+    # Mapeo: binario -> (directorio_destino, extensiones_a_copiar)
+    managers = {
+        "nemo": (os.path.join(data_base, "nemo", "actions"), (".nemo_action", ".sh")),
+        "nautilus": (os.path.join(data_base, "nautilus", "scripts"), (".sh",)),
+        "dolphin": (os.path.join(data_base, "kio", "servicemenus"), (".desktop", ".sh"))
+    }
+
+    # --- 3. DETECCIÓN Y COPIA ---
+    for binary, (target_dir, extensions) in managers.items():
+        # Comprobación real: ¿El gestor está instalado en el SO?
+        if not shutil.which(binary):
+            continue
+
+        # Si el gestor está instalado pero la carpeta de scripts del usuario no existe,
+        # la creamos para asegurarnos de que la integración funciona.
+        os.makedirs(target_dir, exist_ok=True)
+
+        # Copiar solo los archivos que corresponden a este gestor
+        for action_file in os.listdir(source_dir):
+            if action_file.endswith(extensions):
+                src = os.path.join(source_dir, action_file)
+                dst = os.path.join(target_dir, action_file)
+                try:
+                    shutil.copy2(src, dst)
+                    # Dar permisos de ejecución si es un script .sh
+                    if action_file.endswith(".sh"):
+                        os.chmod(dst, 0o755)
+                except Exception as e:
+                    log_event(f"Error copiando {action_file} a {target_dir}: {e}", origin="LINUX", level="WARN", reason="SETTINGS")
+
+        log_event(f"Integración con {binary.capitalize()} verificada/instalada en {target_dir}", origin="LINUX", level="INFO", reason="SETTINGS")
 
 def normalize_platform(raw_platform):
     """

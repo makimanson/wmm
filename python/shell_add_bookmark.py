@@ -2,11 +2,11 @@
 # -*- coding: utf-8 -*-
 
 """
-WMM Applet - Cinnamon Edition
+WMM
 ----------------------------
-nemo_add_bookmark.py – Añade una imagen a favoritos desde Nemo.
+shell_add_bookmark.py – Añade una imagen a favoritos desde file_manager.
 
-Recibe la ruta de una imagen desde el menú contextual de Nemo,
+Recibe la ruta de una imagen desde el menú contextual de file_manager,
 la procesa y la añade a la lista plana de favoritos de WMM.
 """
 
@@ -15,7 +15,6 @@ la procesa y la añade a la lista plana de favoritos de WMM.
 # ==========================================================
 import sys
 import os
-import subprocess
 
 # ==========================================================
 # CONFIGURACIÓN DEL PATH DEL PROYECTO
@@ -34,14 +33,14 @@ from i18n import _
 
 def main():
     if len(sys.argv) < 2:
-        print("Uso: nemo_add_bookmark.py <ruta_imagen>")
+        print("Uso: shell_add_bookmark.py <ruta_imagen>")
         sys.exit(1)
 
-    # Reconstruir la ruta si Nemo la ha fragmentado por espacios
+    # Reconstruir la ruta si el file_manager la ha fragmentado por espacios
     if len(sys.argv) > 2:
         sys.argv = [sys.argv[0], ' '.join(sys.argv[1:])]
 
-    image_path = sys.argv[1]
+    image_path = os.path.abspath(sys.argv[1])
     if not os.path.isfile(image_path):
         sys.exit(1)
 
@@ -50,8 +49,8 @@ def main():
     ch = ConfigHandler(cache_base_dir=platform.cache_dir)
 
     # Ahora los log_event de diagnóstico funcionarán correctamente
-    log_event(f"sys.argv = {sys.argv}", origin="NEMO_ADD", level="DEBUG", reason="BOOKMARK")
-    log_event(f"CWD = {os.getcwd()}", origin="NEMO_ADD", level="DEBUG", reason="BOOKMARK")
+    log_event(f"sys.argv = {sys.argv}", origin="SHELL_ADD", level="DEBUG", reason="BOOKMARK")
+    log_event(f"CWD = {os.getcwd()}", origin="SHELL_ADD", level="DEBUG", reason="BOOKMARK")
 
     # Obtener dimensiones y orientación
     try:
@@ -59,7 +58,7 @@ def main():
             w, h = img.size
             orient = "h" if w >= h else "v"
     except Exception as e:
-        log_event(f"Error al procesar imagen: {e}", origin="NEMO_ADD", level="ERROR", reason="BOOKMARK")
+        log_event(f"Error al procesar imagen: {e}", origin="SHELL_ADD", level="ERROR", reason="BOOKMARK")
         ch._send_notification(_("Error adding to favorites"),
                               _("Could not process image:") + "\n" + str(e),
                               level="error")
@@ -71,7 +70,7 @@ def main():
     current_list = ch.load_json("bookmarks_single")
     existing_paths = [item[0] for item in current_list]
     if image_path in existing_paths:
-        log_event(f"Imagen ya en favoritos: {os.path.basename(image_path)}", origin="NEMO_ADD", level="INFO", reason="BOOKMARK")
+        log_event(f"Imagen ya en favoritos: {os.path.basename(image_path)}", origin="SHELL_ADD", level="INFO", reason="BOOKMARK")
         ch._send_notification(_("Add to favorites"),
                               _("Image is already in favorites."),
                               level="info")
@@ -79,15 +78,15 @@ def main():
 
     # Añadir y guardar
     current_list.append(entry)
-    log_event(f"Imagen añadida a favoritos: {os.path.basename(image_path)}", origin="NEMO_ADD", level="INFO", reason="BOOKMARK")
+    log_event(f"Imagen añadida a favoritos: {os.path.basename(image_path)}", origin="SHELL_ADD", level="INFO", reason="BOOKMARK")
     ch.save_json("bookmarks_single", current_list)
     ch.refresh_history_metadata()
 
+    # El motor detecta el cambio en commands.json vía Gio.FileMonitor
     try:
         ch.save_json("commands", {"action": "single_favorite_added", "name": os.path.basename(image_path)})
-        subprocess.run(["pkill", "-USR1", "-f", "main.py"])
     except Exception as e:
-        log_event(f"No se pudo notificar al motor: {e}", origin="NEMO_ADD", level="WARN", reason="SIGNAL")
+        log_event(f"No se pudo notificar al motor: {e}", origin="SHELL_ADD", level="WARN", reason="COMMAND")
 
 if __name__ == "__main__":
     main()

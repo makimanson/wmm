@@ -102,19 +102,19 @@ def _force_desktop_settings(config_handler):
             ["gsettings", "set", "org.cinnamon.desktop.background", "picture-options", "spanned"],
             check=False
         )
-        log_event("Forzando picture-options a 'spanned'", origin="CINNAMON", level="DEBUG", reason="HARDWARE")
+        log_event("Forzando picture-options a 'spanned'", origin="DESKTOP", level="DEBUG", reason="HARDWARE")
 
         subprocess.run(
             ["gsettings", "set", "org.cinnamon.desktop.background.slideshow", "slideshow-enabled", "false"],
             check=False
         )
-        log_event("Forzando slideshow a 'false'", origin="CINNAMON", level="DEBUG", reason="HARDWARE")
+        log_event("Forzando slideshow a 'false'", origin="DESKTOP", level="DEBUG", reason="HARDWARE")
 
         subprocess.run(
             ["gsettings", "set", "org.cinnamon.desktop.background", "color-shading-type", "solid"],
             check=False
         )
-        log_event("Forzando color-shading-type a 'solid'", origin="CINNAMON", level="DEBUG", reason="HARDWARE")
+        log_event("Forzando color-shading-type a 'solid'", origin="DESKTOP", level="DEBUG", reason="HARDWARE")
 
         issues = []
 
@@ -142,7 +142,7 @@ def _force_desktop_settings(config_handler):
         if issues:
             log_event(
                 f"No se pudieron forzar algunos ajustes: {', '.join(issues)}. Notificando al usuario.",
-                origin="CINNAMON", level="WARN", reason="HARDWARE"
+                origin="DESKTOP", level="WARN", reason="HARDWARE"
             )
             config_handler._send_notification(
                 reason="WMM: " + _("Configuration issue"),
@@ -151,10 +151,10 @@ def _force_desktop_settings(config_handler):
                 level="warn"
             )
         else:
-            log_event("Todos los ajustes del sistema forzados correctamente", origin="CINNAMON", level="DEBUG", reason="HARDWARE")
+            log_event("Todos los ajustes del sistema forzados correctamente", origin="DESKTOP", level="DEBUG", reason="HARDWARE")
 
     except Exception as e:
-        log_event(f"Error al forzar ajustes de Cinnamon: {e}", origin="CINNAMON", level="ERROR", reason="NOTIFY")
+        log_event(f"Error al forzar ajustes de Cinnamon: {e}", origin="DESKTOP", level="ERROR", reason="NOTIFY")
 
 def set_wallpaper(final_path, config_handler):
     """
@@ -189,36 +189,13 @@ def set_wallpaper(final_path, config_handler):
             os.system(f"gsettings set org.cinnamon.desktop.background picture-uri 'file://{fade_color_path}'")
             time.sleep(1.5)
             os.system(f"gsettings set org.cinnamon.desktop.background picture-uri 'file://{final_path}'")
-            log_event("Transición Cine aplicada (sync)", origin="CINNAMON", level="INFO", reason="LIBRARY")
+            log_event("Transición Cine aplicada (sync)", origin="DESKTOP", level="INFO", reason="LIBRARY")
         else:
             os.system(f"gsettings set org.cinnamon.desktop.background picture-uri 'file://{final_path}'")
-            log_event("Transicion Crossfade aplicada (async)", origin="CINNAMON", level="INFO", reason="LIBRARY")
+            log_event("Transicion Crossfade aplicada (async)", origin="DESKTOP", level="INFO", reason="LIBRARY")
 
     except Exception as e:
-        log_event(f"Cinnamon no respondió: {e}", origin="CINNAMON", level="ERROR", reason="NOTIFY")
-
-def ensure_shell_actions(applet_root, data_base):
-    """
-    Copia las acciones de Nemo al directorio del usuario si Nemo está instalado
-    y las acciones aún no existen. Pensado para instalaciones desde Spices
-    donde install.sh no se ejecuta.
-    """
-    nemo_actions_dir = os.path.join(data_base, "nemo", "actions")
-    if not os.path.isdir(nemo_actions_dir):
-        return
-    source_dir = os.path.join(applet_root, "wmm_platform", "shell", "nemo")
-    if not os.path.isdir(source_dir):
-        return
-    for action_file in os.listdir(source_dir):
-        if action_file.endswith(".nemo_action"):
-            src = os.path.join(source_dir, action_file)
-            dst = os.path.join(nemo_actions_dir, action_file)
-            if not os.path.exists(dst):
-                try:
-                    import shutil
-                    shutil.copy2(src, dst)
-                except Exception:
-                    pass
+        log_event(f"Cinnamon no respondió: {e}", origin="DESKTOP", level="ERROR", reason="NOTIFY")
 
 # --- BLOQUE DE AUTODIAGNÓSTICO ---
 if __name__ == "__main__":

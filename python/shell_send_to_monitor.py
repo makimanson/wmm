@@ -2,15 +2,15 @@
 # -*- coding: utf-8 -*-
 
 """
-WMM Applet - Cinnamon Edition
+WMM
 ----------------------------
-nemo_send_to_monitor.py – Acción "Enviar a monitor" desde Nemo.
+shell_send_to_monitor.py – Acción "Enviar a monitor" desde file_manager.
 
 Recibe la ruta de una imagen, muestra un diálogo nativo con los monitores activos
 y asigna la imagen al monitor seleccionado.
 
 FLUJO DE CONTROL:
-    1. Se invoca desde el menú contextual de Nemo.
+    1. Se invoca desde el menú contextual de file_manager.
     2. Verifica la ruta de la imagen y controla la instancia única.
     3. Lee los monitores activos desde geometry.json y monitor_vault.json.
     4. Muestra un diálogo GTK con los monitores disponibles.
@@ -25,7 +25,6 @@ import sys
 import os
 import subprocess
 import time
-import signal
 
 # ==========================================================
 # CONFIGURACIÓN DEL PATH DEL PROYECTO
@@ -112,7 +111,6 @@ class MonitorSelectorDialog(Gtk.Dialog):
                 self.selected_label = selected_label
                 self.selected_hash = self._label_to_hash.get(selected_label)
         self.destroy()
-        return super().do_response(response)
 
 # ----------------------------------------------------------------------
 # PUNTO DE ENTRADA
@@ -120,14 +118,14 @@ class MonitorSelectorDialog(Gtk.Dialog):
 
 def main():
     if len(sys.argv) < 2:
-        print("Uso: nemo_send_to_monitor.py <ruta_imagen>")
+        print("Uso: shell_send_to_monitor.py <ruta_imagen>")
         sys.exit(1)
 
-    # Reconstruir la ruta si Nemo la ha fragmentado por espacios
+    # Reconstruir la ruta si file_manager la ha fragmentado por espacios
     if len(sys.argv) > 2:
         sys.argv = [sys.argv[0], ' '.join(sys.argv[1:])]
 
-    image_path = sys.argv[1]
+    image_path = os.path.abspath(sys.argv[1])
     if not os.path.isfile(image_path):
         sys.exit(1)
 
@@ -135,10 +133,10 @@ def main():
     platform = PlatformManager()
     ch = ConfigHandler(cache_base_dir=platform.cache_dir)
 
-    log_event(f"sys.argv = {sys.argv}", origin="NEMO_SEND", level="DEBUG", reason="BOOKMARK")
-    log_event(f"CWD = {os.getcwd()}", origin="NEMO_SEND", level="DEBUG", reason="BOOKMARK")
+    log_event(f"sys.argv = {sys.argv}", origin="SHELL_SEND", level="DEBUG", reason="BOOKMARK")
+    log_event(f"CWD = {os.getcwd()}", origin="SHELL_SEND", level="DEBUG", reason="BOOKMARK")
     log_event(f"Iniciando envío a monitor: {os.path.basename(image_path)}",
-              origin="NEMO_SEND", level="INFO", reason="BOOKMARK")
+              origin="SHELL_SEND", level="INFO", reason="BOOKMARK")
 
     # --- Control de instancia única ---
     pid_path = os.path.join(ch.cache_dir, "pid_send_to_monitor.pid")
@@ -176,17 +174,7 @@ def main():
             if isinstance(entry, dict) and not entry.get("active", True):
                 continue
             info = monitors.get(m_hash, {})
-            conn = info.get("connector", "?")
-            mfg_code = info.get("manufacturer", "")
-            mfg_name = mfg_map.get(mfg_code, mfg_code)
-
-            inches = info.get("inches", 0)
-            size_str = f" ({inches}\")" if inches > 0 else ""
-
-            if mfg_name and mfg_name != conn:
-                label = f"{conn}:{mfg_name}{size_str}"
-            else:
-                label = f"{conn}{size_str}"
+            label = ch.get_monitor_display_name(m_hash)
 
             if info.get("primary", False):
                 label += " (Primary)"
@@ -195,7 +183,7 @@ def main():
             label_to_hash[label] = m_hash
 
         if not monitors_list:
-            log_event("No hay monitores activos", origin="NEMO_SEND", level="ERROR", reason="NOTIFY")
+            log_event("No hay monitores activos", origin="SHELL_SEND", level="ERROR", reason="NOTIFY")
             ch._send_notification(
                 "WMM: " + _("No monitors"),
                 _("No active monitors found"),
@@ -209,11 +197,11 @@ def main():
         dialog.destroy()
 
         if response != Gtk.ResponseType.OK or not dialog.selected_hash:
-            log_event("Envío cancelado por el usuario", origin="NEMO_SEND", level="INFO", reason="NOTIFY")
+            log_event("Envío cancelado por el usuario", origin="SHELL_SEND", level="INFO", reason="NOTIFY")
             sys.exit(0)
 
         m_hash = dialog.selected_hash
-        log_event(f"Monitor seleccionado: {m_hash[:8]}...", origin="NEMO_SEND", level="INFO", reason="NOTIFY")
+        log_event(f"Monitor seleccionado: {m_hash[:8]}...", origin="SHELL_SEND", level="INFO", reason="NOTIFY")
 
         # --- Actualizar el vault ---
         entry = active.get(m_hash, {})
@@ -222,30 +210,28 @@ def main():
         entry["path"] = image_path
         vault["active_session"][m_hash] = entry
         log_event(f"Vault actualizado: {m_hash[:8]} -> {os.path.basename(image_path)}",
-                  origin="NEMO_SEND", level="DEBUG", reason="HARDWARE")
+                  origin="SHELL_SEND", level="DEBUG", reason="HARDWARE")
         ch.save_json("vault", vault)
 
         # --- Notificar al motor ---
-        log_event("Notificando al motor (apply_manual_selection)", origin="NEMO_SEND", level="DEBUG", reason="SIGNAL")
+        log_event("Notificando al motor (apply_manual_selection)", origin="SHELL_SEND", level="DEBUG", reason="COMMAND")
+        # El motor detecta el cambio en commands.json vía Gio.FileMonitor
         try:
             ch.save_json("commands", {"action": "apply_manual_selection"})
-            subprocess.run(["pkill", "-USR1", "-f", "main.py"])
         except Exception as e:
-            log_event(f"No se pudo notificar al motor: {e}", origin="NEMO_SEND", level="WARN", reason="SIGNAL")
+            log_event(f"No se pudo notificar al motor: {e}", origin="SHELL_SEND", level="WARN", reason="COMMAND")
 
         # Notificación de confirmación
         name = os.path.basename(image_path)
         monitor_label = dialog.selected_label or m_hash[:8]
         ch._send_notification(
             reason="WMM: " + _("Image sent to monitor"),
-            detail_msg=_("Image '{name}' assigned to monitor {monitor}.").format(
-                name=name, monitor=monitor_label
-            ),
+            detail_msg=_("Image '{name}' assigned to monitor {monitor}.").format(name=name, monitor=monitor_label),
             level="info"
         )
 
     finally:
-        log_event("Finalizando envío a monitor", origin="NEMO_SEND", level="DEBUG", reason="NOTIFY")
+        log_event("Finalizando envío a monitor", origin="SHELL_SEND", level="DEBUG", reason="NOTIFY")
         if os.path.exists(pid_path):
             try:
                 os.remove(pid_path)

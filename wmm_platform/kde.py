@@ -4,6 +4,7 @@ Contiene solo las implementaciones específicas de este entorno.
 """
 import os
 import subprocess
+import re
 
 def get_install_path(data_base, app_domain):
     """Devuelve la ruta de instalación (esqueleto)."""
@@ -52,31 +53,7 @@ def get_monitors():
 
     return monitors_data
 
-def _force_desktop_settings(config_handler):
-    """
-    Fuerza los ajustes del sistema necesarios para que WMM funcione
-    correctamente en KDE Plasma:
-      - Modo de aspecto  = 'spanned'  (no deformar el lienzo)
-      - Slideshow        = desactivado (evitar interferencias)
-      - Tipo de fondo    = 'solid'    (evitar mezclas de color)
-
-    En KDE Plasma, estos ajustes se controlan mediante comandos
-    'plasma-apply-wallpaperimage' para aplicar fondos y 'kwriteconfig5'
-    para ajustes de configuración. Se debe verificar cada ajuste y
-    notificar al usuario si alguno no se aplicó.
-
-    TODO: Implementar usando subprocess.run con kwriteconfig5.
-    """
-    pass
-
 def set_wallpaper(path, config_handler=None):
-    """Aplica el fondo de pantalla en KDE Plasma."""
+    """Aplica el fondo de pantalla en KDE Plasma usando el complemento nativo."""
+    import subprocess
     subprocess.run(["plasma-apply-wallpaperimage", path], check=False)
-
-def ensure_shell_actions(applet_root, data_base):
-    """
-    Instala las acciones de shell necesarias para KDE Plasma
-    (p. ej., service menus de Dolphin).
-    TODO: Implementar cuando se añada soporte para KDE.
-    """
-    pass

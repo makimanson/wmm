@@ -2,7 +2,7 @@
   "uuid": "wmm-applet@maki",
   "name": "WMM Manager",
   "description": "Wallpaper Multi-Monitor Manager",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "url": "https://github.com/makimanson/wmm",
   "cinnamon-version": [
     "5.0"

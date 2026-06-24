@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-WMM Applet - Cinnamon Edition
+WMM
 ----------------------------
 panel.py – Panel de control de WMM (Ajustes). ORQUESTADOR.
 
@@ -14,13 +14,13 @@ Gestiona la comunicación entre secciones mediante callbacks.
 import os
 import sys
 import json
-import signal
 import subprocess
 import time
 import gi
 gi.require_version('Gdk', '3.0')
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk, GLib
+gi.require_version('Gio', '2.0')  # <--- Añadido para Gio.FileMonitor
+from gi.repository import Gtk, Gdk, GLib, Gio
 
 # ==========================================================
 # CONFIGURACIÓN DEL PATH DEL PROYECTO
@@ -230,7 +230,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         # ----------------------------------------------------------
         # SEÑALES DEL SISTEMA
         # ----------------------------------------------------------
-        self._register_pid_and_signal()
+        self._setup_panel_communications()
         log_event("Registro de PID completado.", origin="PANEL", level="DEBUG", reason="NOTIFY")
         self.connect("delete-event", self._on_delete_event)
         self.show_all()
@@ -529,8 +529,8 @@ class WMMControlPanel(Gtk.ApplicationWindow):
     # ==========================================================
     # GESTIÓN DE PID Y SEÑALES DEL MOTOR
     # ==========================================================
-    def _register_pid_and_signal(self):
-        """Registra el PID del panel e instala el manejador de señales."""
+    def _setup_panel_communications(self):
+        """Registra el PID del panel e instala el monitor de archivos."""
         pid_path = os.path.join(self.handler.cache_dir, "pid_panel.pid")
         os.makedirs(os.path.dirname(pid_path), exist_ok=True)
 
@@ -547,38 +547,69 @@ class WMMControlPanel(Gtk.ApplicationWindow):
             f.write(str(os.getpid()))
         log_event(f"PID {os.getpid()} registrado en {pid_path}", origin="PANEL", level="INFO", reason="NOTIFY")
 
-        signal.signal(signal.SIGUSR1, self._handle_panel_signal)
-        log_event("Manejador SIGUSR1 instalado", origin="PANEL", level="INFO", reason="SIGNAL")
+        # Monitor de archivos para recibir eventos del motor
+        self._setup_panel_monitor()
 
-    def _handle_panel_signal(self, signum, frame):
-        """Manejador de la señal SIGUSR1 enviada por el motor."""
-        log_event("Señal SIGUSR1 recibida del motor", origin="PANEL", level="DEBUG", reason="SIGNAL")
+    def _setup_panel_monitor(self):
+        """Configura el Gio.FileMonitor para escuchar command_panel.json."""
         command_path = os.path.join(self.handler.data_dir, "command_panel.json")
+        # Asegurar que el archivo existe para evitar warnings iniciales
+        if not os.path.exists(command_path):
+            with open(command_path, 'w') as f:
+                json.dump({}, f)
+
+        command_file = Gio.File.new_for_path(command_path)
+        self._panel_monitor = command_file.monitor_file(Gio.FileMonitorFlags.NONE, None)
+        self._panel_monitor.connect("changed", self._on_panel_file_changed)
+        log_event("Monitor de command_panel.json iniciado. Esperando eventos del motor...", origin="PANEL", level="INFO", reason="COMMAND")
+
+    def _on_panel_file_changed(self, monitor, file, other_file, event_type):
+        """Callback asíncrono cuando el motor escribe en command_panel.json."""
         try:
-            if os.path.exists(command_path):
-                with open(command_path, "r", encoding="utf-8") as f:
-                    event = json.load(f)
-                action = event.get("action", "")
-                log_event(f"Evento recibido del motor: {action}", origin="PANEL", level="DEBUG", reason="COMMAND")
+            # Micro-pausa para asegurar que el flush del disco terminó
+            time.sleep(0.02)
 
-                if action == "wallpaper_changed":
-                    GLib.idle_add(self.monitors_section._load_monitors_normal)
-                elif action == "settings_updated":
-                    GLib.idle_add(self._load_settings)
-                elif action == "bookmarks_updated":
-                    GLib.idle_add(self.favorites_section._load_presets)
-                    GLib.idle_add(self.favorites_section._load_bookmarks_single)
-                elif action == "hardware_changed":
-                    GLib.idle_add(self.monitors_section._load_monitors_normal)
-                else:
-                    log_event(f"Acción desconocida recibida del motor: {action}", origin="PANEL", level="WARN", reason="COMMAND")
+            command_path = file.get_path()
+            with open(command_path, "r", encoding="utf-8") as f:
+                event = json.load(f)
 
-                os.remove(command_path)
+            action = event.get("action", "")
+
+            # Refuerzo anti-eco: si no hay acción, no hacemos nada
+            if not action:
+                return
+
+            log_event(f"Evento recibido del motor: {action}", origin="PANEL", level="DEBUG", reason="COMMAND")
+
+            # Limpiamos el buzón (esto disparará otro evento, pero la condición de arriba lo parará)
+            with open(command_path, "w", encoding="utf-8") as f:
+                json.dump({}, f)
+
+            # --- DISPATCH DE LA ACCIÓN ---
+            if action == "wallpaper_changed":
+                GLib.idle_add(self.monitors_section._load_monitors_normal)
+            elif action == "settings_updated":
+                GLib.idle_add(self._load_settings)
+            elif action == "bookmarks_updated":
+                GLib.idle_add(self.favorites_section._load_presets)
+                GLib.idle_add(self.favorites_section._load_bookmarks_single)
+            elif action == "hardware_changed":
+                GLib.idle_add(self.monitors_section._load_monitors_normal)
+            else:
+                log_event(f"Acción desconocida recibida del motor: {action}", origin="PANEL", level="WARN", reason="COMMAND")
+
+        except json.JSONDecodeError:
+            # El archivo estaba a medias, lo ignoramos
+            pass
         except Exception as e:
-            log_event(f"Error al procesar señal del motor: {e}", origin="PANEL", level="ERROR", reason="SIGNAL")
+            log_event(f"Error al procesar evento del motor: {e}", origin="PANEL", level="ERROR", reason="COMMAND")
 
     def _on_delete_event(self, widget, event):
-        """Limpia el PID del panel al cerrar."""
+        """Limpia el PID y el monitor al cerrar."""
+        # Cancelar el monitor de archivos
+        if hasattr(self, '_panel_monitor') and self._panel_monitor:
+            self._panel_monitor.cancel()
+
         pid_path = os.path.join(self.handler.cache_dir, "pid_panel.pid")
         if os.path.exists(pid_path):
             try:

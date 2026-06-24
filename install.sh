@@ -33,6 +33,7 @@ DESKTOP=$(echo "$DESKTOP" | tr '[:upper:]' '[:lower:]')
 case "$DESKTOP" in
     x-cinnamon|cinnamon2d) DESKTOP="cinnamon" ;;
     ubuntu*|gnome*)        DESKTOP="gnome" ;;
+    kde*)                  DESKTOP="kde" ;;
     plasma*)               DESKTOP="kde" ;;
 esac
 
@@ -43,6 +44,9 @@ case "$DESKTOP" in
         ;;
     gnome)
         command -v gnome-shell >/dev/null 2>&1 || DESKTOP="unknown"
+        ;;
+    kde)
+        command -v kwriteconfig6 >/dev/null 2>&1 || DESKTOP="unknown"
         ;;
     *)
         DESKTOP="unknown"
@@ -75,6 +79,10 @@ case "$DESKTOP" in
         APP_DOMAIN="wmm@maki"
         APPLET_DIR="$DATA_BASE/gnome-shell/extensions/$APP_DOMAIN"
         ;;
+    kde)
+        APP_DOMAIN="org.maki.wmm"
+        APPLET_DIR="$DATA_BASE/plasma/wallpapers/$APP_DOMAIN"
+        ;;
     *)
         echo -e "${RED}ERROR: Unsupported desktop: $DESKTOP${NC}"
         exit 1
@@ -86,20 +94,6 @@ CACHE_DIR="$CACHE_BASE/wmm"
 echo "App domain: $APP_DOMAIN"
 echo "Installation path: $APPLET_DIR"
 echo "Cache path: $CACHE_DIR"
-
-# Copiar el metadata.json y el JS correspondiente al escritorio
-case "$DESKTOP" in
-    cinnamon)
-        cp -f "$SCRIPT_DIR/wmm_platform/shell/cinnamon/metadata.cinnamon.json" "$APPLET_DIR/metadata.json"
-        cp -f "$SCRIPT_DIR/wmm_platform/shell/cinnamon/applet.js" "$APPLET_DIR/applet.js"
-        echo "Archivos de Cinnamon copiados a $APPLET_DIR."
-        ;;
-    gnome)
-        cp -f "$SCRIPT_DIR/wmm_platform/shell/gnome/metadata.gnome.json" "$APPLET_DIR/metadata.json"
-        cp -f "$SCRIPT_DIR/wmm_platform/shell/gnome/extension.js" "$APPLET_DIR/extension.js"
-        echo "Archivos de GNOME copiados a $APPLET_DIR."
-        ;;
-esac
 
 # ----------------------------------------------------------
 # 5. GENERAR settings_core.ini
@@ -143,6 +137,14 @@ if [ "$DESKTOP" = "gnome" ]; then
     )
 fi
 
+# Dependencias específicas de KDE
+if [ "$DESKTOP" = "kde" ]; then
+    declare -A KDE_DEPENDENCIES
+    KDE_DEPENDENCIES=(
+        ["KDialog"]="command -v kdialog|kdialog"
+    )
+fi
+
 # ----------------------------------------------------------
 # 8. DEPENDENCIAS DEL SISTEMA (SOLO VERIFICACIÓN)
 # ----------------------------------------------------------
@@ -153,8 +155,9 @@ SYSTEM_DEPENDENCIES=(
     ["GLib 2.0 Introspection"]="python3 -c 'import gi; gi.require_version(\"GLib\", \"2.0\")'"
     ["pkill (signals)"]="command -v pkill"
 )
+
 # ----------------------------------------------------------
-# 8. FUNCIONES DE VERIFICACIÓN Y CHECKLIST
+# 9. FUNCIONES DE VERIFICACIÓN Y CHECKLIST
 # ----------------------------------------------------------
 
 # ----------------------------------------------------------
@@ -168,6 +171,7 @@ check_dep() {
         echo 0 # No instalada
     fi
 }
+
 # ----------------------------------------------------------
 # FUNCIÓN PARA MOSTRAR EL CHECKLIST
 # ----------------------------------------------------------
@@ -206,6 +210,22 @@ print_checklist() {
         done
     fi
 
+    # --- Bloque 2b: Dependencias de KDE (solo si estamos en KDE) ---
+    if [ "$DESKTOP" = "kde" ]; then
+        echo -e "\n${GREEN}[KDE dependencies]${NC}"
+        for dep_name in "${!KDE_DEPENDENCIES[@]}"; do
+            test_cmd="${KDE_DEPENDENCIES[$dep_name]%%|*}"
+            status=$(check_dep "$test_cmd")
+            if [ "$status" -eq 1 ]; then
+                echo -e "  ${GREEN}[✔]${NC} $dep_name"
+                ((installed_count++))
+            else
+                echo -e "  ${RED}[✘]${NC} $dep_name"
+                ((missing_count++))
+            fi
+        done
+    fi
+
     # --- Bloque 3: Dependencias de WMM (instalables) ---
     echo -e "\n${GREEN}[WMM dependencies]${NC}"
     for dep_name in "${!WMM_DEPENDENCIES[@]}"; do
@@ -223,6 +243,7 @@ print_checklist() {
     echo -e "\n${GREEN}$installed_count installed${NC}, ${RED}$missing_count missing${NC}"
     return $missing_count
 }
+
 # ----------------------------------------------------------
 # FUNCIÓN PARA INSTALAR LOS ARCHIVOS DE WMM
 # ----------------------------------------------------------
@@ -258,7 +279,7 @@ install_files() {
     find "$APPLET_DIR/wmm_platform/shell/" -name "*.sh" -exec chmod +x {} \;
     echo "Execution permissions set for shell scripts."
 
-    # Copiar el metadata.json y el JS correspondiente al escritorio
+    # Copiar el metadata.json y los archivos específicos del escritorio
     case "$DESKTOP" in
         cinnamon)
             cp -f "$SCRIPT_DIR/wmm_platform/shell/cinnamon/metadata.cinnamon.json" "$APPLET_DIR/metadata.json"
@@ -269,6 +290,11 @@ install_files() {
             cp -f "$SCRIPT_DIR/wmm_platform/shell/gnome/metadata.gnome.json" "$APPLET_DIR/metadata.json"
             cp -f "$SCRIPT_DIR/wmm_platform/shell/gnome/extension.js" "$APPLET_DIR/extension.js"
             echo "Archivos de GNOME copiados a $APPLET_DIR."
+            ;;
+        kde)
+            cp -f "$SCRIPT_DIR/wmm_platform/shell/kde/metadata.kde.json" "$APPLET_DIR/metadata.json"
+            cp -r "$SCRIPT_DIR/wmm_platform/shell/kde/contents" "$APPLET_DIR/"
+            echo "Archivos de KDE copiados a $APPLET_DIR."
             ;;
     esac
 
@@ -313,6 +339,13 @@ if [ $missing -eq 0 ]; then
         gnome)
             echo -e "\nTo enable the extension, restart your session,"
             echo "open GNOME Extensions and enable 'WMM Manager'."
+            ;;
+        kde)
+            echo -e "\nTo start WMM, launch the engine manually:"
+            echo "  python3 $APPLET_DIR/python/main.py &"
+            echo "Then open the Control Panel:"
+            echo "  python3 $APPLET_DIR/python/panel.py"
+            echo "(A Plasma widget for the system tray will be available soon.)"
             ;;
         *)
             echo -e "\nRestart your session to load the applet/extension."
@@ -363,15 +396,19 @@ fi
 
 # Build list of missing packages (from WMM_DEPENDENCIES and GNOME_DEPENDENCIES)
 MISSING_PKGS=""
-for dep_name in "${!WMM_DEPENDENCIES[@]}" "${!GNOME_DEPENDENCIES[@]}"; do
+for dep_name in "${!WMM_DEPENDENCIES[@]}" "${!GNOME_DEPENDENCIES[@]}" "${!KDE_DEPENDENCIES[@]}"; do
     # Obtener el comando de verificación y el nombre del paquete
     if [ -n "${WMM_DEPENDENCIES[$dep_name]}" ]; then
         test_cmd="${WMM_DEPENDENCIES[$dep_name]%%|*}"
         packages="${WMM_DEPENDENCIES[$dep_name]##*|}"
-    else
+    elif [ -n "${GNOME_DEPENDENCIES[$dep_name]}" ]; then
         test_cmd="${GNOME_DEPENDENCIES[$dep_name]%%|*}"
         packages="${GNOME_DEPENDENCIES[$dep_name]##*|}"
+    elif [ -n "${KDE_DEPENDENCIES[$dep_name]}" ]; then
+        test_cmd="${KDE_DEPENDENCIES[$dep_name]%%|*}"
+        packages="${KDE_DEPENDENCIES[$dep_name]##*|}"
     fi
+
     status=$(check_dep "$test_cmd")
     if [ "$status" -eq 0 ]; then
         if [ "$PKG_MANAGER" = "pacman" ]; then
@@ -412,6 +449,13 @@ if [ $missing -eq 0 ]; then
         gnome)
             echo -e "\nTo enable the extension, restart your session,"
             echo "open GNOME Extensions and enable 'WMM Manager'."
+            ;;
+        kde)
+            echo -e "\nTo start WMM, launch the engine manually:"
+            echo "  python3 $APPLET_DIR/python/main.py &"
+            echo "Then open the Control Panel:"
+            echo "  python3 $APPLET_DIR/python/panel.py"
+            echo "(A Plasma widget for the system tray will be available soon.)"
             ;;
         *)
             echo -e "\nRestart your session to load the applet/extension."
