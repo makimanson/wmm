@@ -1,0 +1,26 @@
+# ==========================================================
+# WMM - Wallpaper Master Manager
+# D-Bus Session Activation Service
+# ==========================================================
+#
+# This file is installed automatically by install.sh.
+#
+# Installation target (XDG):
+#   ~/.local/share/dbus-1/services/
+#
+# If your Linux distribution uses a different user D-Bus
+# services directory, you may adapt the installer or edit
+# this file accordingly.
+#
+# The @APP_DIR@ token is replaced during installation with
+# the actual installation directory of WMM.
+#
+# ==========================================================
+
+[D-BUS Service]
+
+# Well-known session bus name.
+Name=org.maki.wmm
+
+# Engine entry point.
+Exec=@PYTHON3@ @APP_DIR@/python/main.py

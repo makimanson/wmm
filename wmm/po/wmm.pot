@@ -1,0 +1,906 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-07-22 06:57+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/help_viewer.py:43
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:201
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:226
+msgid "Help"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/help_viewer.py:61
+msgid "Contents"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/help_viewer.py:167
+msgid "Help file not found."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/help_viewer.py:174
+msgid "Could not read help file:"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/config_handler.py:53
+msgid "Scaled"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/config_handler.py:54
+msgid "Zoom"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/config_handler.py:55
+msgid "Stretched"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/config_handler.py:58
+msgid "Solid color"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/config_handler.py:59
+msgid "Gradient H"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/config_handler.py:60
+msgid "Gradient V"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/config_handler.py:63
+msgid "None"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/config_handler.py:64
+msgid "Sepia"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/config_handler.py:65
+msgid "Black and White"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/config_handler.py:68
+msgid "Blur effect"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/config_handler.py:69
+msgid "Color"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/config_handler.py:420
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/config_handler.py:441
+msgid "Generic Monitor"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/config_handler.py:1557
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:230
+msgid "New"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/config_handler.py:1564
+msgid "Removed"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/config_handler.py:1570
+msgid "Total library"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/config_handler.py:1597
+msgid "Action"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/debug_log_viewer.py:77
+msgid "Debug Log Viewer"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/debug_log_viewer.py:102
+msgid "Origin"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/debug_log_viewer.py:115
+msgid "Level"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/debug_log_viewer.py:128
+msgid "Reason"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/debug_log_viewer.py:141
+msgid "Search"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/debug_log_viewer.py:144
+msgid "Filter by text"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/debug_log_viewer.py:185
+msgid "Clear log"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/debug_log_viewer.py:193
+msgid "Auto-scroll"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/debug_log_viewer.py:203
+msgid "Reverse order"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/debug_log_viewer.py:263
+msgid "Clear debug log?"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/debug_log_viewer.py:265
+msgid "All log entries will be permanently deleted."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/shell_add_bookmark.py:62
+msgid "Error adding to favorites"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/shell_add_bookmark.py:63
+msgid "Could not process image:"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/shell_add_bookmark.py:74
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/thumbnails_section.py:328
+msgid "Add to favorites"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/shell_add_bookmark.py:75
+msgid "Image is already in favorites."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel.py:55
+msgid "Control Center"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel.py:152
+msgid "Create/update preset on accept"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel.py:156
+msgid "Save composition as preset"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel.py:494
+msgid "Editing"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/restart_engine.py:58
+msgid "Engine restarted"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/restart_engine.py:59
+msgid "The engine has been restarted successfully."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/restart_engine.py:65
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/restart_engine.py:72
+msgid "Engine restart failed"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/restart_engine.py:66
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/restart_engine.py:73
+msgid "The engine could not be started. Check the debug log."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/add_bookmark.py:55
+msgid "Add Favorite Preset"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/add_bookmark.py:104
+msgid "Error loading data. Please restart panel"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/add_bookmark.py:119
+msgid "Preset name:"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/add_bookmark.py:138
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/shell_send_to_monitor.py:98
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:491
+msgid "Cancel"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/add_bookmark.py:144
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/shell_send_to_monitor.py:99
+msgid "OK"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/add_bookmark.py:159
+msgid "The name cannot be empty."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/add_bookmark.py:188
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/favorites_section.py:254
+msgid "A Preset with that name already exists!"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/add_bookmark.py:190
+msgid "Error saving"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/shell_send_to_monitor.py:68
+msgid "Send to Monitor"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/shell_send_to_monitor.py:86
+msgid "Select a monitor:"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/shell_send_to_monitor.py:188
+msgid "No monitors"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/shell_send_to_monitor.py:189
+msgid "No active monitors found"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/shell_send_to_monitor.py:230
+msgid "Image sent to monitor"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/shell_send_to_monitor.py:231
+#, python-brace-format
+msgid "Image '{name}' assigned to monitor {monitor}."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/main.py:231
+msgid "Favorite deleted"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/main.py:232
+msgid "Preset"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/main.py:232
+msgid "deleted successfully."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/main.py:257
+msgid "Changes detected"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/main.py:259
+msgid "No changes"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/main.py:266
+msgid "Synchronization"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/main.py:325
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/main.py:336
+msgid "Unknown"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/main.py:328
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/main.py:339
+msgid "Favorite added"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/main.py:329
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/main.py:340
+msgid "added successfully."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/main.py:535
+msgid "Cycle aborted: not enough images available to complete selection."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/main.py:538
+msgid "No images available"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/main.py:539
+msgid "Check status of Image Sources in Control Panel."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/main.py:578
+#, python-brace-format
+msgid "Image: '{image}' from preset: '{preset}' not found."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/main.py:581
+msgid "PRESET image not found"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/main.py:582
+msgid "Assigning a random one"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/thumbnails_section.py:111
+msgid "Thumbnails"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/thumbnails_section.py:124
+msgid "Horizontal"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/thumbnails_section.py:133
+msgid "Vertical"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/thumbnails_section.py:142
+msgid "Reload thumbnails"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/thumbnails_section.py:186
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/thumbnails_section.py:248
+msgid "No images found."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/thumbnails_section.py:191
+msgid "Generating thumbnails"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/thumbnails_section.py:210
+msgid "Processing"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/thumbnails_section.py:325
+msgid "Remove from favorites"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:127
+msgid "Options"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:136
+msgid "Restart engine and panel"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:142
+msgid "Open Debug Log Viewer"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:148
+msgid "Open Help"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:164
+msgid ""
+"If enabled, the wallpaper is changed at startup; if disabled, the last "
+"wallpaper is kept."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:168
+msgid "Change wallpaper on startup"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:174
+msgid "Span image across all active screens (Only if more than one)"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:177
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:272
+msgid "Spanned"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:183
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:258
+msgid "Picture aspect"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:199
+msgid "Image Effect:"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:210
+msgid "Background Effect:"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:216
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:227
+msgid "Background color"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:232
+msgid "Horizontal gradient start color"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:235
+msgid "Horizontal gradient end color"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:239
+msgid "Vertical gradient start color"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:242
+msgid "Vertical gradient end color"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:254
+msgid "Enable/Disable Timer"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:257
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:126
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:152
+msgid "Slideshow"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:264
+msgid "Max. Frequency"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:264
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:277
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:169
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:239
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:176
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:184
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:191
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:263
+msgid "minutes"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:277
+msgid "Slideshow every"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:290
+msgid "Sync: All Screens change at once"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:290
+msgid "Async: Change by turns"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:295
+msgid "Slideshow mode:"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:460
+msgid "Synchronized"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:461
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/favorites_section.py:99
+msgid "Presets"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:461
+msgid "All"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:463
+msgid "Asynchronous"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:464
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/favorites_section.py:136
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:101
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:131
+msgid "Favorites"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/options_section.py:464
+msgid "Single"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:147
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:148
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:187
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:234
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:203
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:206
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:259
+msgid "Displays"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:153
+msgid "Side Left"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:157
+msgid "Center"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:161
+msgid "Side Right"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:228
+msgid "Enable/disable screen editing mode"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:235
+msgid "Enable"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:235
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:239
+msgid "Editing Mode"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:239
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:179
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:219
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:159
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:247
+msgid "Enabled"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:252
+msgid "Span image across all active screens"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:258
+msgid "for current composition"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:277
+msgid "Aspect ratio:"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:282
+msgid "Effects"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:305
+msgid "Refresh real display status"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:495
+msgid "Primary monitor"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:502
+msgid "Enable/disable image"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:539
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:788
+msgid "Display"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/monitors_section.py:788
+msgid "editing"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/favorites_section.py:84
+msgid "Slideshow only among favorite images"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/favorites_section.py:108
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/favorites_section.py:146
+msgid "Name"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/favorites_section.py:124
+msgid "Delete selected preset/image"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/favorites_section.py:161
+msgid "Delete selected image from favorites"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/favorites_section.py:212
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/favorites_section.py:327
+msgid "empty"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/favorites_section.py:277
+msgid "Delete preset"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/favorites_section.py:279
+msgid "Load on screens"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/favorites_section.py:286
+msgid "Delete image"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/favorites_section.py:396
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/favorites_section.py:398
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:439
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:436
+msgid "Delete"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/favorites_section.py:398
+msgid "images"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:58
+msgid "Image Sources"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:79
+msgid "Source"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:91
+msgid "Recursive"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:103
+msgid "Resync Image Sources"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:113
+msgid "Add Image Source"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:116
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:318
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:328
+msgid "Delete image source"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:334
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:402
+msgid "Deactivate folder"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:337
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:402
+msgid "Activate folder"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:375
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:517
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:521
+msgid "Scanning"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:375
+msgid "folders"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:392
+msgid "Activate subfolders"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:396
+msgid "Deactivate subfolders"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:408
+msgid "Delete cache"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:434
+msgid "Delete cache of this folder?"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:437
+msgid "Will be removed from your library"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:439
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:555
+msgid "Images will no longer be available"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:446
+msgid "Cache deleted"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:447
+msgid "thumbnails have been removed from cache"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:452
+msgid "No cache"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:453
+msgid "No thumbnails found in cache for this folder."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:469
+msgid "Resynchronizing library"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:470
+msgid "Scanning sources"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:487
+msgid "Select Image Folder"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:492
+msgid "Add Source"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:502
+msgid "Include subfolders (Recursive)"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:551
+msgid "Delete image source?"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/python/panel/sources_section.py:554
+msgid "will be removed from your library"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:44
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:55
+msgid "Wallpaper Multi-Monitor Manager"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:45
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:56
+msgid "Click action"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:45
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:56
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:115
+msgid "Next Background"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:46
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:57
+msgid "Secondary Click"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:46
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:57
+msgid "Context Menu"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:91
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:247
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:125
+msgid "Settings"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:105
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:134
+msgid "Favorites Only"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:117
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:144
+msgid "Add Preset Favorite"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:131
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:179
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:219
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:156
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:159
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:247
+msgid "Disabled"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:148
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:187
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:234
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:203
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:206
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:259
+msgid "ASYNC (One)"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:152
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:212
+msgid "Spanned Mode"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:187
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:234
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:206
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:259
+msgid "SYNC (All)"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:194
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:222
+msgid "Sync Library"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:264
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:279
+msgid "No saved favorites"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/applet.cinnamon.js:438
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/gnome/extension.gnome.js:436
+msgid "Delete favorite"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:113
+msgid "Translation Manager"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:127
+msgid "Generate temporary .pot"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:131
+msgid "Apply changes"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:146
+msgid "Current: --"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:147
+msgid "Temporary: --"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:148
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:232
+msgid "New: --"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:149
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:233
+msgid "Modified: --"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:163
+msgid "Type"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:167
+msgid "String"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:175
+msgid "Ready."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:183
+msgid "Current: {} strings"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:184
+msgid "Temporary: {} strings"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:190
+msgid "Generating temporary .pot..."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:216
+msgid "Temporary .pot generated successfully."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:218
+msgid "Error generating temporary .pot: "
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:225
+msgid "New: {}"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:226
+msgid "Modified: {}"
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:234
+msgid "No official .pot to compare."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:243
+msgid "No temporary .pot to apply."
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:250
+msgid "Backup: "
+msgstr ""
+
+#: /home/maki/.local/share/cinnamon/applets/wmm@maki/po/pot_manager.py:254
+msgid "Changes applied successfully."
+msgstr ""

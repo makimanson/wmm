@@ -1,0 +1,12 @@
+{
+    "KPlugin": {
+        "Id": "org.maki.wmm",
+        "Name": "WMM Wallpaper Manager",
+        "Icon": "video-display",
+        "ServiceTypes": ["Plasma/Wallpaper"],
+        "Version": "1.2.3",
+        "Description": "Wallpaper Multi-Monitor Manager (WMM)"
+    },
+    "KPackageStructure": "Plasma/Wallpaper",
+    "X-Plasma-API-Minimum-Version": "6.0"
+}

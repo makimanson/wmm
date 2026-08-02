@@ -1,0 +1,19 @@
+{
+    "KPlugin": {
+        "Id": "org.maki.wmm",
+        "Name": "WMM Wallpaper Manager",
+        "Description": "Control WMM from the system tray",
+        "Icon": "video-display",
+        "Version": "1.2.3",
+        "Authors": [
+            {
+                "Name": "makimanson"
+            }
+        ],
+        "ServiceTypes": [
+            "Plasma/Applet"
+        ]
+    },
+    "KPackageStructure": "Plasma/Applet",
+    "X-Plasma-API-Minimum-Version": "6.0"
+}
