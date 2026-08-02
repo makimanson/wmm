@@ -1,5 +1,41 @@
 Changelog
 
+## v1.2.3 - 2026-08-02
+
+**Added**
+
+-   New image selection engine (`image_selection.py`): centralises all selection logic (sync/async modes, spanned, presets, history) and cuts `main.py` load by over 30%, improving maintainability and responsibility isolation.
+-   New monitor detection engine (`monitor_detection.py`): unifies detection strategies across X11 (libXrandr), GNOME Wayland (D-Bus), and generic GDK fallback. Detection logic is now fully decoupled from the rest of the engine.
+-   New hardware events engine (`monitor_events.py`): centralises monitor change monitoring (connect/disconnect) using D-Bus on GNOME and GDK signals as fallback, following same modular pattern as other engines.
+-   Full GNOME Wayland support: monitors detected via D-Bus (org.gnome.Mutter.DisplayConfig) with complete information (connector, model, serial, real size, orientation, physical dimensions, inches, and primary). Orientation correctly obtained (`current_transform` in CRTCs).
+-   Enhanced `get_monitor_display_name` in `config_handler.py`: now generates rich monitor names (e.g. "Samsung LC49G95T (49")" or "Generic Monitor DP-3 (49")") with clear logic prioritising model, then manufacturer, and finally connector as last resort.
+-   Monitor switches in control panel now show descriptive names including model, manufacturer, and inches, improving visual identification in multi‑monitor setups.
+
+**Changed**
+
+-   Deep refactor of `main.py`: duplicate selection methods (`_build_selection`, `_handle_selection_mode`, `_resolve_async_targets`, `_get_smart_favorite`) removed; they now live in `image_selection.py`. Main orchestrator shrinks from ~1200 to ~800 lines, gaining clarity and reducing coupling.
+-   Refactored `linux.py` and `gnome.py`: monitor detection functions (`get_x11_monitors`, `get_gdk_wayland_monitors`, `get_monitors_from_dbus`) extracted to new `monitor_detection.py`, and event functions (`init_monitor_events`) moved to new `monitor_events.py`. These files now focus exclusively on OS‑ or desktop‑specific implementations.
+-   `PlatformManager` (`core.py`) now delegates detection and events to the new orchestration engines instead of assigning functions from platform modules. This unifies usage patterns and eases extension to future desktops (KDE, etc.).
+-   Improved monitor identification on Wayland: position‑based identification removed; now uses `current_crtc` provided by D‑Bus, ensuring exact output‑to‑CRTC pairing.
+-   Wayland monitor orientation now calculated from actual CRTC size (width, height), no heuristics or assumptions.
+-   GDK fallback on Wayland retained as backup for environments without D‑Bus (e.g., experimental Cinnamon Wayland), though limited (no model or physical dimensions).
+-   Experimental Cinnamon Wayland support: not functional. Will be revisited when development matures. Currently not viable.
+
+**Fixed**
+
+-   Fixed issue where Spanned mode on Wayland incorrectly picked first monitor in list instead of primary, causing distortion. Now correctly selects main monitor.
+-   Fixed monitor orientation on GNOME Wayland: rotated (vertical) monitors now correctly detected and reflected in `geometry.json` with proper orientation.
+-   Fixed monitor name generation in control panel switches and tooltips: now displays full model (e.g. "LC49G95T") instead of connector (e.g. "DP-3"), and includes connector for identical monitors when model is missing.
+-   Removed "first available image" fallback in Spanned mode, which had been causing inappropriate vertical images. Now intelligently selects using `get_smart_selection`.
+-   Removed redundant logs and noise from log viewer generated during Wayland monitor detection.
+-   Ensured compatibility with Cinnamon X11 after refactorings: all X11 tests (Cinnamon, GNOME) pass without regressions.
+-   Fixed translation fallback in GNOME extension: removed `gnome-shell` domain dependency, now uses exclusive WMM translation domain (`wmm@maki`) for consistent and self‑contained i18n across all desktop environments.
+
+**Removed**
+
+-   Removed `get_primary_monitor` method (GDK‑based) from `linux.py`, obsolete after new D‑Bus detection.
+-   Removed position‑based monitor detection heuristic from `_get_spanned_master_image`; now uses D‑Bus `current_crtc`.
+
 ## v1.2.2 - 2026-06-23
 
 **Added**
