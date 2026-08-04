@@ -27,6 +27,9 @@ DEPENDENCIAS:
 import os
 import sys
 
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _PROJECT_ROOT)
+
 # ==========================================================
 # IMPORTS DE TERCEROS (GTK)
 # ==========================================================
@@ -37,10 +40,13 @@ from gi.repository import Gtk, Gio
 # ==========================================================
 # IMPORTS DE MÓDULOS DEL PROYECTO
 # ==========================================================
-from config_handler import ConfigHandler
 from wmm_platform.core import PlatformManager
+from config_handler import ConfigHandler
 from debug_logger import log_event
-from i18n import _
+from i18n import _, initialize
+
+platform = PlatformManager()
+initialize(platform)
 
 # ==========================================================
 # DIÁLOGO PRINCIPAL: AÑADIR FAVORITO
@@ -122,7 +128,6 @@ class AddBookmarkDialog(Gtk.ApplicationWindow):
 
         # Etiqueta para mostrar advertencias (inicialmente oculta)
         self.warning_label = Gtk.Label()
-        self.warning_label.set_no_show_all(True)
         vbox.pack_start(self.warning_label, False, False, 0)
 
         # Campo de entrada de texto
@@ -142,14 +147,11 @@ class AddBookmarkDialog(Gtk.ApplicationWindow):
         hbox.pack_start(cancel_btn, False, False, 0)
 
         # Botón Aceptar
-        ok_btn = Gtk.Button.new_with_label(_("OK"))
-        ok_btn.connect("clicked", self.on_accept)
-        ok_btn.set_can_default(True)
-        ok_btn.grab_default()
-        hbox.pack_start(ok_btn, False, False, 0)
-
-        self.set_default(ok_btn)
-        self.show_all()
+        self.ok_btn = Gtk.Button.new_with_label(_("OK"))
+        self.ok_btn.connect("clicked", self.on_accept)
+        self.ok_btn.set_can_default(True)
+        # grab_default y set_default se ejecutarán en do_activate tras show_all
+        hbox.pack_start(self.ok_btn, False, False, 0)
 
     def on_accept(self, widget):
         """
@@ -176,8 +178,12 @@ class AddBookmarkDialog(Gtk.ApplicationWindow):
         if success:
             # Notificar al motor para que el panel refresque la lista de presets
             # El motor detecta el cambio en commands.json vía Gio.FileMonitor
+            import subprocess
+            import json
+            cmd = json.dumps({"action": "bookmark_added", "name": name})
+            script = os.path.join(os.path.dirname(__file__), "send_command.py")
             try:
-                self.handler.save_json("commands", {"action": "bookmark_added", "name": name})
+                subprocess.run(["python3", script, cmd], check=True)
             except Exception as e:
                 log_event(f"No se pudo notificar al motor: {e}", origin="ADD_BOOK", level="WARN", reason="COMMAND")
             log_event(f"Preset guardado correctamente: {name}", origin="ADD_BOOK", level="INFO", reason="COMMAND")
@@ -199,7 +205,7 @@ class AddBookmarkDialog(Gtk.ApplicationWindow):
         Se utiliza para errores de validación o conflictos de nombres.
         """
         self.warning_label.set_markup(f"<span foreground='#D4A017'><b>{text}</b></span>")
-        self.warning_label.show()
+        self.warning_label.set_visible(True)
 
 
 # ==========================================================
@@ -223,6 +229,10 @@ class BookmarkApplication(Gtk.Application):
         if not self.window:
             self.window = AddBookmarkDialog(self)
             self.add_window(self.window)
+            self.window.show_all()
+            # Configurar el botón por defecto después de que la ventana sea visible
+            self.window.ok_btn.grab_default()
+            self.window.set_default(self.window.ok_btn)
         self.window.present()
 
 

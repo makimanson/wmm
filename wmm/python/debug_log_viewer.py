@@ -29,37 +29,51 @@ from i18n import _
 
 FILTER_ORIGINS = [
     "All",
-    "ENGINE",
-    "IMG_ENG",
-    "PANEL",
-    "CONFIG",
+    "ADD_BOOK",
     "BACKEND",
+    "CHANNELS",
+    "CINNAMON",
+    "CONFIG",
+    "CORE",
+    "DESKTOP",
+    "ENGINE",
+    "GNOME",
+    "IMG_ENG",
+    "IMG_SEL",
+    "KDE",
+    "LINUX",
+    "MON_DETECT",
+    "MON_EVENT",
+    "PANEL",
+    "SEND_COMM",
     "SHELL_SEND",
     "SHELL_ADD",
-    "ADD_BOOK",
-    "DESKTOP",
     "UNKNOW"
 ]
 
 FILTER_LEVELS = [
     "All",
     "DEBUG",
+    "ERROR",
     "INFO",
-    "WARN",
-    "ERROR"
+    "WARN"
 ]
 
 FILTER_REASONS = [
     "All",
-    "GENERIC",
-    "COMMAND",
-    "NOTIFY",
-    "VAULT",
-    "LIBRARY",
-    "HARDWARE",
-    "TIMER",
     "BOOKMARK",
-    "SETTINGS"
+    "COMMAND",
+    "D-BUS",
+    "FILE_MON",
+    "GENERIC",
+    "HARDWARE",
+    "INIT",
+    "LIBRARY",
+    "MODULE",
+    "NOTIFY",
+    "SETTINGS",
+    "TIMER",
+    "VAULT"
 ]
 
 class DebugLogViewer(Gtk.Window):

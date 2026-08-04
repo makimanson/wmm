@@ -38,7 +38,7 @@ from gi.repository import GLib
 from image_engine import ImageEngine
 from wmm_platform.core import PlatformManager
 from debug_logger import log_event, set_cache_dir
-from i18n import _, N_, set_app_domain, set_locale_dir
+from i18n import _, N_, initialize
 
 class ConfigHandler:
     ...
@@ -87,7 +87,7 @@ class ConfigHandler:
         REASON_BOOKMARK: "Bookmark Load"
     }
 
-    RECONFIGURATION_REASONS = (REASON_HARDWARE,)
+    RECONFIGURATION_REASONS = (REASON_HARDWARE)
     ROTATION_REASONS = (REASON_TIMER, REASON_MANUAL, REASON_SELECTION)
     ASYNC_ROTATION_REASONS = (REASON_TIMER, REASON_MANUAL)
 
@@ -100,9 +100,13 @@ class ConfigHandler:
     CMD_FORCE_ROTATION  = "force_rotation"
     CMD_SYNC_LIBRARY    = "sync_library"
     CMD_OPEN_PANEL      = "open_panel"
+    CMD_ADD_BOOKMARK    = "add_bookmark"
+    CMD_OPEN_HELP       = "open_help"
+    CMD_SHELL_SEND_TO = "shell_send_to_monitor"
+    CMD_SHELL_ADD_FAV = "shell_add_favorite"
     CMD_APPLY_SELECTION = "apply_manual_selection"
 
-    def __init__(self, cache_base_dir=None):
+    def __init__(self, cache_base_dir=None, platform=None):
         """
         Inicializa el gestor de configuración.
         Define todas las rutas del proyecto, la caché y los archivos JSON.
@@ -118,8 +122,8 @@ class ConfigHandler:
         # Estas rutas son independientes del SO y siempre apuntan
         # a la estructura interna del applet.
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
-        self.applet_root = os.path.dirname(self.base_dir)
-        self.data_dir = os.path.join(self.applet_root, "data")
+        self.app_root = os.path.dirname(self.base_dir)
+        self.data_dir = os.path.join(self.app_root, "data")
 
         # ==========================================================
         # BLOQUE 2: RUTAS DE CACHÉ (DEPENDIENTES DEL SO)
@@ -132,7 +136,7 @@ class ConfigHandler:
         if cache_base_dir:
             self.cache_dir = cache_base_dir
         else:
-            self.cache_dir = os.path.join(self.applet_root, "cache")
+            self.cache_dir = os.path.join(self.app_root, "cache")
         log_event(f"[DIAG] ConfigHandler: cache_base_dir={cache_base_dir!r}, cache_dir={self.cache_dir!r}", origin="CONFIG", level="DEBUG", reason="SETTINGS")
         # Rutas derivadas de la caché
         self.master_canvas = os.path.join(self.cache_dir, "wallpaper_master.jpg")
@@ -180,13 +184,16 @@ class ConfigHandler:
         # Garantiza que todos los directorios y archivos JSON existan.
         # Si es la primera ejecución, los crea con valores por defecto.
         self.ensure_structure()
-        # Configurar el dominio de traducción para que todos los componentes lo usen
-        try:
-            platform = PlatformManager()
-            set_app_domain(platform.app_domain)
-            set_locale_dir(platform.locale_dir)
-        except Exception:
-            pass
+
+        # Configurar el sistema de traducciones.
+        # Si se proporciona una instancia de PlatformManager, se reutiliza;
+        # si no, se crea una nueva (modo standalone, ej. scripts auxiliares).
+        if platform is not None:
+            self._platform = platform
+        else:
+            self._platform = PlatformManager()
+
+        initialize(self._platform)
 
     def ensure_structure(self):
         """
@@ -375,8 +382,7 @@ class ConfigHandler:
         active_session = vault.get("active_session", {})
 
         # Obtener coordenadas escaladas desde MonitorManager
-        platform = PlatformManager()
-        scaled = platform.scale_monitors_to_area(monitors_map, area_w, area_h)
+        scaled = self._platform.scale_monitors_to_area(monitors_map, area_w, area_h)
 
         layout_data = []
         for m_hash, coords in scaled.items():
@@ -401,11 +407,16 @@ class ConfigHandler:
         monitors = geo.get("monitors", {})
         return monitors.get(m_hash, {})
 
-
     def get_monitor_display_name(self, m_hash):
         """
-        Devuelve una etiqueta legible para el monitor con el hash dado,
-        combinando fabricante, modelo y pulgadas según la calidad de los datos.
+        Devuelve una etiqueta legible para el monitor con el hash dado.
+
+        Reglas:
+        1. Si hay modelo: se usa modelo (y fabricante si no está incluido en el modelo).
+           El conector NO se muestra.
+        2. Si no hay modelo pero hay fabricante: se muestra fabricante + conector + pulgadas.
+        3. Si no hay modelo ni fabricante: se muestra "Generic Monitor" + conector + pulgadas.
+        4. Si no hay conector: "Generic Monitor" (sin pulgadas si no hay).
         """
         geo = self.load_json("geometry")
         monitors = geo.get("monitors", {})
@@ -416,24 +427,35 @@ class ConfigHandler:
         connector = info.get("connector", "")
         mfg_code = info.get("manufacturer", "")
         inches = info.get("inches", 0)
+        model = info.get("model", "")
 
-        # Mapear código de fabricante a nombre legible
+        # Obtener nombre legible del fabricante
         mfg_map = self.get_mfg_map()
         mfg_name = mfg_map.get(mfg_code, mfg_code) if mfg_code else ""
 
-        # Construir la etiqueta según la riqueza de los datos
-        if mfg_name and mfg_name.lower() in connector.lower():
-            # El modelo ya contiene el fabricante (ej. "MSI MAG271CQR")
-            label = f"{connector}"
-        elif mfg_name and connector:
-            # Fabricante y modelo por separado (ej. "SAM" y "LC49G95T")
-            label = f"{mfg_name} {connector}"
+        # --- Construir label según reglas ---
+        if model:
+            # Caso 1: hay modelo
+            if mfg_name and mfg_name.lower() in model.lower():
+                label = model
+            elif mfg_name:
+                label = f"{mfg_name} {model}"
+            else:
+                label = model
+        elif mfg_name:
+            # Caso 2: sin modelo, con fabricante
+            if connector:
+                label = f"{mfg_name} {connector}"
+            else:
+                label = mfg_name
         elif connector:
-            # Solo tenemos conector/modelo
-            label = f"{connector}"
+            # Caso 3: sin modelo ni fabricante, con conector
+            label = f"{_('Generic Monitor')} {connector}"
         else:
+            # Caso 4: sin nada
             label = _("Generic Monitor")
 
+        # Añadir pulgadas si están disponibles
         if inches > 0:
             label += f' ({inches}")'
 
@@ -1393,12 +1415,10 @@ class ConfigHandler:
 
         # 5. Persistencia y actualización de timestamp
         limit = min(parent_total, 100)
-        log_event(f"parent_total={parent_total}, limit={limit}, log_len antes={len(log)}", origin="CONFIG", level="DEBUG", reason="LIBRARY")
         hist.update({
             log_key: log[:limit],
             "last_update": time.time()
         })
-
         self.save_json(file_key, hist)
 
     def _filter_by_smart_ratio(self, candidates, m_w, m_h, orientation):
@@ -1527,8 +1547,7 @@ class ConfigHandler:
         """
         try:
             if os.path.exists(path):
-                platform = PlatformManager()
-                platform.open_file(path)
+                self._platform.open_file(path)
                 return True
             return False
         except Exception as e:
@@ -1598,8 +1617,7 @@ class ConfigHandler:
 
         # 3. Delegar la ejecución en PlatformManager
         try:
-            platform = PlatformManager()
-            platform.send_notification(fixed_title, full_message, selected_icon)
+            self._platform.send_notification(fixed_title, full_message, selected_icon)
         except Exception as e:
             log_event(f"Error en notificación: {e}", origin="CONFIG", level="ERROR", reason="NOTIFY")
 
@@ -1613,7 +1631,7 @@ if __name__ == "__main__":
 
     # 1. Rutas Críticas
     print(f"\n[PATH CHECK]")
-    print(f"  Root:  {handler.applet_root}")
+    print(f"  Root:  {handler.app_root}")
     print(f"  Data:  {handler.data_dir}")
     print(f"  Cache: {handler.cache_dir}")
 

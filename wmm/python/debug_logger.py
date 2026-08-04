@@ -28,6 +28,10 @@ AUTOR:
 import os
 import sys
 from datetime import datetime
+# ----------------------------------------------------------------------
+# BLOQUEO DE ARCHIVOS
+# ----------------------------------------------------------------------
+from wmm_platform.file_utils import lock_file as _lock_file, unlock_file as _unlock_file
 
 # ----------------------------------------------------------------------
 # CONSTANTES
@@ -58,25 +62,6 @@ def set_cache_dir(cache_dir):
     global _LOG_PATH
     os.makedirs(cache_dir, exist_ok=True)
     _LOG_PATH = os.path.join(cache_dir, "debug.log")
-
-# ----------------------------------------------------------------------
-# BLOQUEO DE ARCHIVOS (importado desde la plataforma)
-# ----------------------------------------------------------------------
-
-_lock_file = lambda f: None
-_unlock_file = lambda f: None
-
-try:
-    # Importar las funciones de bloqueo desde core.py (PlatformManager)
-    from wmm_platform.core import PlatformManager
-    _platform = PlatformManager()
-    if hasattr(_platform, 'lock_file'):
-        _lock_file = _platform.lock_file
-    if hasattr(_platform, 'unlock_file'):
-        _unlock_file = _platform.unlock_file
-except (ImportError, AttributeError) as e:
-    print(f"[DEBUG_LOGGER] Funciones de bloqueo no disponibles ({e}). "
-          f"Escritura sin bloqueo.", file=sys.stderr)
 
 # ----------------------------------------------------------------------
 # FUNCIONES PÚBLICAS

@@ -132,17 +132,19 @@ class WMMBackend:
 
     def notify_engine(self, action):
         """
-        Escribe un comando en commands.json.
-        El motor será notificado automáticamente por Gio.FileMonitor.
-
+        Envía un comando al motor usando el script send_command.py.
         action: diccionario con la orden (ej. {"action": "force_rotation"}).
         """
+        import subprocess
+        import json
+        import os
+        cmd = json.dumps(action)
+        script = os.path.join(os.path.dirname(__file__), "send_command.py")
         try:
-            self.ch.save_json("commands", action)
+            subprocess.run(["python3", script, cmd], check=True)
             log_event(f"Comando enviado al motor: {action.get('action', 'unknown')}", origin="BACKEND", level="DEBUG", reason="COMMAND")
-
         except Exception as e:
-            log_event(f"No se pudo escribir el comando: {e}", origin="BACKEND", level="ERROR", reason="COMMAND")
+            log_event(f"No se pudo enviar comando al motor: {e}", origin="BACKEND", level="ERROR", reason="COMMAND")
 
     # --- MODO EDICIÓN ---
 

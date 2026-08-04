@@ -1,5 +1,17 @@
 Changelog
 
+## v1.2.4 - 2026-08-04
+
+**Fixed**
+
+- Critical bugfix: source files (`applet.js`, `extension.js`, etc.) were packaged with unresolved Git conflict markers (`<<<<<<<`, `=======`, `>>>>>>>`) in the v1.2.3 release. This caused `expected expression, got '<<'` errors when loading the applet/extension on some systems.
+- All conflict markers have been removed and the source tree is now clean. The applet and extension load correctly again.
+- No functional changes: this release only fixes the packaging issue.
+
+**Note for users**
+
+If you are using v1.2.3, please update to v1.2.4 as soon as possible. The previous version may not load correctly on your system.
+
 ## v1.2.3 - 2026-08-02
 
 **Added**

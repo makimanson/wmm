@@ -5,7 +5,7 @@ Forget distorted, cropped or repeated backgrounds.
 With WMM, you are in full control.
 
 <p align="center">
-  <a href=screenshots/"screenshot.png">
+  <a href="screenshots/screenshot.png">
     <img src="screenshots/screenshot.png" alt="WMM Screenshot" width="100%"/>
   </a>
 </p>

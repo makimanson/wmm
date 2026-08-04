@@ -108,7 +108,8 @@ class ThumbnailsSection:
         # ----------------------------------------------------------
         header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         label = Gtk.Label()
-        label.set_markup(f"<span weight='bold' size='large'>{_('Thumbnails')}</span>")
+        text = _("Thumbnails")
+        label.set_markup(f"<span weight='bold' size='large'>{text}</span>")
         label.set_halign(Gtk.Align.START)
         header_box.pack_start(label, False, False, 0)
 
@@ -328,7 +329,7 @@ class ThumbnailsSection:
             item.connect("activate", self._add_to_favorites, img_path)
         menu.append(item)
         menu.show_all()
-        menu.popup(None, None, None, None, event.button, event.time)
+        menu.popup_at_pointer(event)
         return True
 
     def _on_thumbnail_double_click(self, widget, event, img_path):

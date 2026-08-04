@@ -18,20 +18,12 @@ const St = imports.gi.St;
 const Gtk = imports.gi.Gtk;
 
 const Gettext = imports.gettext;
-<<<<<<<< Updated upstream:wmm_platform/shell/cinnamon/applet.js
-// Nota: No forzamos bindtextdomain/textdomain, confiamos en la herencia automática de Cinnamon.
-// Si fuera necesario forzarlo, las rutas correctas serían las comentadas abajo.
-Gettext.bindtextdomain('wmm-applet@maki', GLib.get_user_data_dir() + '/locale');
-// Gettext.bindtextdomain('cinnamon', '/usr/share/locale');
-// Gettext.textdomain('wmm-applet@maki');
-========
 
 // Dominio de traducciones propio del applet.
 Gettext.bindtextdomain(
     'wmm@maki',
     GLib.get_user_data_dir() + '/locale'
 );
->>>>>>>> Stashed changes:wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js
 
 function _(text) {
     return Gettext.dgettext('wmm@maki', text);
@@ -73,11 +65,8 @@ class WMMApplet extends Applet.IconApplet {
 
             this._motorBusy = false;
             this._ignoreNextBusy = false;
-<<<<<<<< Updated upstream:wmm_platform/shell/cinnamon/applet.js
-========
             this._cachedSettings = null;
             this._cachedBookmarks = null;
->>>>>>>> Stashed changes:wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js
             let statusPath = GLib.get_user_cache_dir() + "/wmm/engine_status.json";
             let statusFile = Gio.File.new_for_path(statusPath);
             this._statusMonitor = statusFile.monitor_file(Gio.FileMonitorFlags.NONE, null);
@@ -127,11 +116,7 @@ class WMMApplet extends Applet.IconApplet {
             // Botón añadir favorito
             let itemAddBookmark = new PopupMenu.PopupMenuItem(_("Add Preset Favorite"));
             itemAddBookmark.connect('activate', () => {
-<<<<<<<< Updated upstream:wmm_platform/shell/cinnamon/applet.js
-                Util.spawn(["python3", this.appletPath + "/python/add_bookmark.py"]);
-========
                 this._sendActionToEngine({ action: "add_bookmark" });
->>>>>>>> Stashed changes:wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js
             });
 
             this.menuBookmarks.menu.addMenuItem(itemAddBookmark);
@@ -215,11 +200,7 @@ class WMMApplet extends Applet.IconApplet {
             // --- 2.6 AYUDA ---
             let itemHelp = new PopupMenu.PopupMenuItem(_("Help"));
             itemHelp.connect('activate', () => {
-<<<<<<<< Updated upstream:wmm_platform/shell/cinnamon/applet.js
-                Util.spawn(["python3", this.appletPath + "/python/help_viewer.py"]);
-========
                 this._sendActionToEngine({ action: "open_help" });
->>>>>>>> Stashed changes:wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js
             });
             this._applet_context_menu.addMenuItem(itemHelp);
 
@@ -362,43 +343,6 @@ class WMMApplet extends Applet.IconApplet {
         try {
             if (!this.masterItem || !this.slider) return;
 
-<<<<<<<< Updated upstream:wmm_platform/shell/cinnamon/applet.js
-            // 1. Cargar Settings Globales
-            try {
-                let settingsFile = Gio.File.new_for_path(this.settingsPath);
-                let [s, content] = settingsFile.load_contents(null);
-                if (s) {
-                    let config = JSON.parse(content.toString()).global;
-                    this._currentMaxInterval = config.slideshow_max_interval || 60;
-
-                    let isEnabled = config.slideshow_enabled;
-                    let isSync = (config.slideshow_mode === "sync");
-                    let isFavSlideshow = config.slideshow_bookmark || false;
-
-                    this._syncTimerUI(isEnabled);
-                    this.modeSwitch.setToggleState(isSync);
-                    this.modeSwitch.label.set_text(isSync ? _("Displays") + ": " + _("SYNC (All)") : _("Displays") + ": " + _("ASYNC (One)"));
-                    this.favRotationSwitch.setToggleState(isFavSlideshow);
-
-                    let ratio = config.slideshow_interval / this._currentMaxInterval;
-                    this.slider.setValue(ratio);
-                    this.labelMin.set_text(config.slideshow_interval + " " + _("minutes"));
-
-                    let isSpanned = config.spanned_enabled || false;
-                    this.spannedSwitch.setToggleState(isSpanned);
-                    // Modo Debug
-                    this._debug_mode = config.debug_mode || false;
-                    if (this.settingsMenuItem) {
-                        this.settingsMenuItem.label.set_text(
-                            "WMM " + _("Settings") + (this._debug_mode ? " (Debug)" : "")
-                        );
-                    }
-                }
-            } catch (e) {
-                // settings.json no existe o no se puede leer
-            }
-            // 2. Cargar Favoritos Dinámicos
-========
             // 1. Aplicar caché si existe (apertura instantánea)
             if (this._cachedSettings) {
                 this._applySettingsToUI(this._cachedSettings);
@@ -446,7 +390,6 @@ class WMMApplet extends Applet.IconApplet {
             });
 
             // 3. Cargar Favoritos Dinámicos (async)
->>>>>>>> Stashed changes:wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js
             this._refreshBookmarks();
 
         } catch (e) {
@@ -455,109 +398,10 @@ class WMMApplet extends Applet.IconApplet {
     }
 
     _refreshBookmarks() {
-<<<<<<<< Updated upstream:wmm_platform/shell/cinnamon/applet.js
-        // Limpieza de memoria: destruir widgets previos
-        this.favItems.forEach(item => item.destroy());
-        this.favItems = [];
-
-        let s, content;
-        try {
-            let bookmarksFile = Gio.File.new_for_path(this.bookmarksPath);
-            [s, content] = bookmarksFile.load_contents(null);  // sin let, usa las variables externas
-        } catch (e) {
-            return;
-        }
-
-        if (s) {
-            let bookmarks;
-            try {
-                bookmarks = JSON.parse(content.toString());
-                global.log("WMM bookmarks loaded: " + Object.keys(bookmarks).length + " presets");
-            } catch (e) {
-                global.logError("WMM Bookmarks Error: " + e.message);
-                let info = new PopupMenu.PopupMenuItem(_("Error loading favorites"), { reactive: false });
-                this.menuBookmarks.menu.addMenuItem(info);
-                this.favItems.push(info);
-                return;
-            }
-            let keys = Object.keys(bookmarks);
-
-            if (keys.length === 0) {
-                let info = new PopupMenu.PopupMenuItem(_("No saved favorites"), { reactive: false });
-                this.menuBookmarks.menu.addMenuItem(info);
-                this.favItems.push(info);
-                return;
-            }
-
-            // Contenedor del scroll
-            let scrollItem = new PopupMenu.PopupBaseMenuItem({ reactive: false, activate: false });
-            scrollItem.actor.style = 'padding: 0; margin: 0; background-color: transparent;';
-            scrollItem.actor.remove_all_children();
-
-            // Caja vertical con margen izquierdo y sin expandir (para controlar el ancho)
-            let favBox = new St.BoxLayout({
-                vertical: true,
-                style: 'margin-left: 10px; padding: 0;'
-            });
-
-            keys.forEach(name => {
-                let row = new St.BoxLayout({ style: 'padding: 3px 0px; spacing: 0px;' });
-
-                // Botón con el nombre del preset
-                let nameBtn = new St.Button({
-                    reactive: true,
-                    can_focus: true,
-                    track_hover: true,
-                    x_align: St.Align.START
-                });
-                let nameLabel = new St.Label({ text: name });
-                nameLabel.style = 'overflow: hidden; white-space: nowrap; text-overflow: ellipsis;';
-                nameBtn.set_child(nameLabel);
-
-                nameBtn.connect('clicked', () => {
-                    this._syncTimerUI(false);
-                    this._sendActionToEngine({ action: "load_bookmark", name: name, timer_force_off: true });
-                    this._applet_context_menu.close();
-                });
-
-                // Papelera
-                let deleteBtn = new St.Button({ reactive: true, can_focus: true, track_hover: true });
-                deleteBtn.set_width(28);
-                let deleteIcon = new St.Icon({
-                    icon_name: 'user-trash-symbolic',
-                    style_class: 'popup-menu-icon',
-                    icon_size: 16,
-                    reactive: false
-                });
-                deleteBtn.set_child(deleteIcon);
-                deleteBtn.connect('clicked', () => {
-                    this._confirmDeleteBookmark(name);
-                    this._applet_context_menu.close();
-                });
-
-                row.add(nameBtn, { expand: true, x_fill: true, x_align: St.Align.START });
-                row.add(deleteBtn);
-                favBox.add(row, { expand: true, x_fill: true });
-            });
-
-            // ScrollView con tamaño fijo y sin expandir
-            let scrollView = new St.ScrollView({
-                hscrollbar_policy: St.PolicyType.AUTOMATIC,
-                vscrollbar_policy: St.PolicyType.AUTOMATIC,
-                style: 'border: none; background-color: transparent; padding: 0; margin: 0;'
-            });
-            scrollView.set_size(200, Math.min(keys.length * 38, 125));
-            scrollView.add_actor(favBox);
-
-            scrollItem.addActor(scrollView, { expand: false });
-            this.menuBookmarks.menu.addMenuItem(scrollItem);
-            this.favItems.push(scrollItem);
-========
         let bookmarksFile = Gio.File.new_for_path(this.bookmarksPath);
         if (!bookmarksFile.query_exists(null)) {
             this._clearBookmarksUI();
             return;
->>>>>>>> Stashed changes:wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js
         }
         bookmarksFile.load_contents_async(null, (file, res) => {
             try {
@@ -635,27 +479,8 @@ class WMMApplet extends Applet.IconApplet {
 
     _sendActionToEngine(command) {
         try {
-<<<<<<<< Updated upstream:wmm_platform/shell/cinnamon/applet.js
-            let file = Gio.File.new_for_path(this.commandsPath);
-            let rawContent = JSON.stringify(command, null, 4);
-            file.replace_contents_async(
-                new GLib.Bytes(rawContent),
-                null,
-                false,
-                Gio.FileCreateFlags.REPLACE_DESTINATION,
-                null,
-                (obj, result) => {
-                    try {
-                        obj.replace_contents_finish(result);
-                    } catch (e) {
-                        global.logError("WMM Write Error: " + e.message);
-                    }
-                }
-            );
-========
             let cmd = JSON.stringify(command);
             Util.spawn(["python3", this.appletPath + "/python/send_command.py", cmd]);
->>>>>>>> Stashed changes:wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js
         } catch (e) {
             global.logError("WMM Send Error (" + (command.action || 'unknown') + "): " + e.message);
         }
@@ -682,20 +507,6 @@ class WMMApplet extends Applet.IconApplet {
             let pidPath = GLib.get_user_cache_dir() + "/wmm/pid_main.pid";
             let file = Gio.File.new_for_path(pidPath);
 
-<<<<<<<< Updated upstream:wmm_platform/shell/cinnamon/applet.js
-            try {
-                let [success, content] = file.load_contents(null);
-                if (success) {
-                    let pid = content.toString().trim();
-                    // kill -9 garantiza la muerte inmediata del proceso
-                    Util.spawn(["kill", "-9", pid]);
-                    Util.spawn(["rm", pidPath]);
-                    global.logError(" [WMM] Applet eliminado. Proceso " + pid + " finalizado y rastro borrado.");
-                }
-            } catch (e) {
-                // El archivo PID no existe o no se puede leer
-            }
-========
             file.load_contents_async(null, (file, res) => {
                 try {
                     let [success, content] = file.load_contents_finish(res);
@@ -708,26 +519,18 @@ class WMMApplet extends Applet.IconApplet {
                     // El archivo PID no existe o no se puede leer
                 }
             });
->>>>>>>> Stashed changes:wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js
         } catch (e) {
             // error al construir Gio.File
         }
     }
 
     _updateIconFromStatus() {
-<<<<<<<< Updated upstream:wmm_platform/shell/cinnamon/applet.js
-        try {
-            let file = Gio.File.new_for_path(GLib.get_user_cache_dir() + "/wmm/engine_status.json");
-            let [success, contents] = file.load_contents(null);
-            if (success) {
-========
         let file = Gio.File.new_for_path(GLib.get_user_cache_dir() + "/wmm/engine_status.json");
         if (!file.query_exists(null)) return;
         file.load_contents_async(null, (file, res) => {
             try {
                 let [success, contents] = file.load_contents_finish(res);
                 if (!success || contents.length === 0) return;
->>>>>>>> Stashed changes:wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js
                 let status = JSON.parse(contents);
                 this._motorBusy = status.busy;
                 if (status.busy) {
@@ -738,17 +541,10 @@ class WMMApplet extends Applet.IconApplet {
                     this._ignoreNextBusy = false;
                     this.set_applet_icon_name("video-display");
                 }
-<<<<<<<< Updated upstream:wmm_platform/shell/cinnamon/applet.js
-            }
-        } catch (e) {
-            // archivo no existe aún
-        }
-========
             } catch (e) {
                 // JSON a medias, ignorar silenciosamente
             }
         });
->>>>>>>> Stashed changes:wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js
     }
 
 }

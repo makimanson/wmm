@@ -12,13 +12,31 @@ acceso rápido al contenido a la derecha. Un marcador (▶) señala la
 sección activa en el índice.
 """
 
+# ==========================================================
+# IMPORTS DE LIBRERÍA ESTÁNDAR
+# ==========================================================
 import os
 import re
-import gi
+import sys
 
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _PROJECT_ROOT)
+
+# ==========================================================
+# IMPORTS DE TERCEROS (GTK)
+# ==========================================================
+import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Pango, GLib
-from i18n import _
+
+# ==========================================================
+# IMPORTS DE MÓDULOS DEL PROYECTO
+# ==========================================================
+from wmm_platform.core import PlatformManager
+from i18n import _, initialize
+
+platform = PlatformManager()
+initialize(platform)
 
 # ----------------------------------------------------------------------
 # VISOR DE AYUDA
@@ -48,7 +66,7 @@ class HelpViewer(Gtk.Window):
         left_box.set_border_width(6)
 
         index_label = Gtk.Label()
-        index_label.set_markup(f"<b>{_('Contents')}</b>")
+        index_label.set_markup("<b>" + _("Contents") + "</b>")
         index_label.set_halign(Gtk.Align.START)
         left_box.pack_start(index_label, False, False, 4)
 
@@ -321,24 +339,25 @@ class HelpViewer(Gtk.Window):
 # PRUEBA INDEPENDIENTE DEL VISOR
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
-    import sys
-    from gi.repository import Gtk, Gio
 
+    import sys
+    from gi.repository import Gtk
     # Usar Gtk.Application para garantizar instancia única
     class HelpApplication(Gtk.Application):
+
         def __init__(self):
             super().__init__(application_id="org.wmm.HelpViewer")
 
         def do_activate(self):
             # Si ya hay una ventana abierta, traerla al frente
-            for window in self.get_windows():
-                window.present()
-                return
+            window = self.props.active_window
             # Si no, crear una nueva
-            viewer = HelpViewer()
-            viewer.connect("destroy", lambda w: self.quit())
-            self.add_window(viewer)
-            viewer.show_all()
+            if window is None:
+                window = HelpViewer()
+                window.connect("destroy", lambda *_: self.quit())
+                self.add_window(window)
+
+            window.present()
 
     app = HelpApplication()
     app.run(sys.argv)

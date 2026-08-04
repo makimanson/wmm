@@ -77,7 +77,7 @@ class FavoritesSection:
         # --- Cabecera con switch "Solo favoritos" ---
         header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
         label = Gtk.Label()
-        label.set_markup(f"<span weight='bold' size='large'>{_('Favorites')}</span>")
+        label.set_markup(f"<span weight='bold' size='large'>{_("Favorites")}</span>")
         label.set_halign(Gtk.Align.START)
         header_box.pack_start(label, True, True, 0)
         self.fav_rotation_switch = Gtk.Switch(active=False)
@@ -287,7 +287,7 @@ class FavoritesSection:
             item.connect("activate", self._delete_image_from_preset, iter)
         menu.append(item)
         menu.show_all()
-        menu.popup(None, None, None, None, event.button, event.time)
+        menu.popup_at_pointer(event)
 
     def _delete_preset(self, widget, preset_name):
         if self.handler.delete_bookmark(preset_name):
@@ -403,7 +403,7 @@ class FavoritesSection:
         ))
         menu.append(item)
         menu.show_all()
-        menu.popup(None, None, None, None, event.button, event.time)
+        menu.popup_at_pointer(event)
 
     def _delete_bookmark_single(self, img_path):
         flat_list = self.backend.load_json("bookmarks_single")

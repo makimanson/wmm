@@ -68,6 +68,7 @@ class MonitorsSection:
         self._updating_switches = False
         self._repaint_scheduled = False
         self._last_container_size = (0, 0)
+        self._panel_realized = False
         self._current_preset_name = None
 
         # Construir la interfaz
@@ -319,6 +320,10 @@ class MonitorsSection:
     # ==========================================================
     # ALINEACIÓN DEL GRUPO DE MONITORES
     # ==========================================================
+    def on_panel_realized(self):
+        """Activa el flag cuando la ventana del panel está completamente construida."""
+        self._panel_realized = True
+
     def _on_align_label_clicked(self, widget, event):
         """Detecta clic en el control de alineación y actualiza el estado."""
         if event.button != 1:
@@ -358,6 +363,8 @@ class MonitorsSection:
     def _on_container_resized(self, widget, allocation):
         """Reposiciona los monitores solo si el tamaño del contenedor cambia realmente."""
         new_size = (allocation.width, allocation.height)
+        if not self._panel_realized:
+            return
         if new_size == self._last_container_size:
             return
         self._last_container_size = new_size
@@ -379,6 +386,7 @@ class MonitorsSection:
         """Carga los monitores virtuales en el modo normal."""
         geo_check = self.handler.load_json("geometry")
         num_monitors = len(geo_check.get("monitors", {}))
+        layout_info = geo_check.get("monitors", {})
         log_event(f"Panel cargando geometría: {num_monitors} monitores encontrados en JSON",
                   origin="PANEL", level="DEBUG", reason="HARDWARE")
 
@@ -422,7 +430,7 @@ class MonitorsSection:
             self._monitor_widgets[m_hash] = eb
 
         # Pintar miniaturas
-        settings = self.backend.load_settings()
+        #settings = self.backend.load_settings()
         settings = self.backend.load_settings()
         wallpaper_mode = settings.get("wallpaper_mode", "fit")
         spanned_enabled = settings.get("spanned_enabled", False)
@@ -437,7 +445,9 @@ class MonitorsSection:
             spanned_enabled=spanned_enabled,
             color_tuple=self.backend.get_background_color_tuple(),
             wallpaper_effect_scope=wallpaper_effect_scope,
-            image_effect=wallpaper_effect
+            image_effect=wallpaper_effect,
+            layout_info=layout_info,
+            settings=settings
         )
 
         # Ajustar tamaño y switches
@@ -468,7 +478,17 @@ class MonitorsSection:
         self._updating_switches = True
         state_source = self.backend.edit_active_states if self.backend.edit_mode_active else self.backend.get_active_session()
 
-        for m_hash, eb in self._monitor_widgets.items():
+        # Ordenar hashes para que el monitor primario aparezca primero
+        ordered_hashes = sorted(
+            self._monitor_widgets.keys(),
+            key=lambda h: (
+                not self.handler.get_monitor_info(h).get("primary", False),
+                self._monitor_display_names.get(h, "")
+            )
+        )
+
+        for m_hash in ordered_hashes:
+            eb = self._monitor_widgets[m_hash]
             if self.backend.edit_mode_active:
                 is_active = state_source.get(m_hash, True)
             else:
@@ -480,7 +500,7 @@ class MonitorsSection:
             else:
                 hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
                 label_text = self.handler.get_monitor_display_name(m_hash)
-                info = self.handler.get_monitor_info(m_hash)  # aún necesario para detectar el primario
+                info = self.handler.get_monitor_info(m_hash)
 
                 if info and info.get("primary", False):
                     label = Gtk.Label()
@@ -766,7 +786,6 @@ class MonitorsSection:
         layout_w = self.monitors_fixed.get_allocated_width()
         if layout_w < 50:
             layout_w = 400
-
         target_height = 425
         layout_data = self.handler.get_monitors_layout_data(layout_w, target_height)
         if not layout_data:
@@ -809,7 +828,7 @@ class MonitorsSection:
         layout_w = self.monitors_fixed.get_allocated_width()
         if layout_w < 50:
             layout_w = 400
-        target_height = 0
+        target_height = 425
         layout_data = self.handler.get_monitors_layout_data(layout_w, target_height)
         if not layout_data:
             return

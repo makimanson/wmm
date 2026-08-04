@@ -45,7 +45,7 @@ from gi.repository import Gtk
 from config_handler import ConfigHandler
 from wmm_platform.core import PlatformManager
 from debug_logger import log_event, set_cache_dir
-from i18n import _
+from i18n import _, initialize
 
 # ----------------------------------------------------------------------
 # DIÁLOGO DE SELECCIÓN DE MONITOR
@@ -129,9 +129,17 @@ def main():
     if not os.path.isfile(image_path):
         sys.exit(1)
 
-    # Crear ConfigHandler temprano y configurar el logger
+    # Inicializar la plataforma
     platform = PlatformManager()
-    ch = ConfigHandler(cache_base_dir=platform.cache_dir)
+
+    # Inicializar traducciones
+    initialize(platform)
+
+    # Inicializar el sistema de registro
+    set_cache_dir(platform.cache_dir)
+
+    # Crear el gestor de configuración
+    ch = ConfigHandler(cache_base_dir=platform.cache_dir, platform=platform)
 
     log_event(f"sys.argv = {sys.argv}", origin="SHELL_SEND", level="DEBUG", reason="BOOKMARK")
     log_event(f"CWD = {os.getcwd()}", origin="SHELL_SEND", level="DEBUG", reason="BOOKMARK")
@@ -215,9 +223,11 @@ def main():
 
         # --- Notificar al motor ---
         log_event("Notificando al motor (apply_manual_selection)", origin="SHELL_SEND", level="DEBUG", reason="COMMAND")
-        # El motor detecta el cambio en commands.json vía Gio.FileMonitor
+        import json
+        cmd = json.dumps({"action": "apply_manual_selection"})
+        script = os.path.join(os.path.dirname(__file__), "send_command.py")
         try:
-            ch.save_json("commands", {"action": "apply_manual_selection"})
+            subprocess.run(["python3", script, cmd], check=True)
         except Exception as e:
             log_event(f"No se pudo notificar al motor: {e}", origin="SHELL_SEND", level="WARN", reason="COMMAND")
 

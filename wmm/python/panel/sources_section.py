@@ -55,7 +55,8 @@ class SourcesSection:
 
         # Etiqueta de la sección
         label = Gtk.Label()
-        label.set_markup(f"<span weight='bold' size='large'>{_('Image Sources')}</span>")
+        text = _("Image Sources")
+        label.set_markup(f"<span weight='bold' size='large'>{text}</span>")
         label.set_halign(Gtk.Align.START)
         vbox.pack_start(label, False, False, 0)
 
@@ -314,7 +315,7 @@ class SourcesSection:
         if not tree_iter:
             # Sin selección: icono de papelera inactivo
             self.del_btn.set_image(Gtk.Image.new_from_icon_name("user-trash", Gtk.IconSize.BUTTON))
-            self.del_btn.set_tooltip_text(_("Delete selected preset/image"))
+            self.del_btn.set_tooltip_text(_("Delete image source"))
             self.del_btn.set_sensitive(False)
             return
 
@@ -407,9 +408,8 @@ class SourcesSection:
             item_purge = Gtk.MenuItem(label=_("Delete cache"))
             item_purge.connect("activate", self.on_purge_cache_clicked, path)
             menu.append(item_purge)
-
         menu.show_all()
-        menu.popup(None, None, None, None, event.button, event.time)
+        menu.popup_at_pointer(event)
 
     def toggle_child_active(self, widget, model, iter):
         path = model.get_value(iter, 2)
@@ -427,7 +427,7 @@ class SourcesSection:
 
     def on_purge_cache_clicked(self, widget, folder_path):
         dialog = Gtk.MessageDialog(
-            transient_for=None,  # Se establecerá desde el panel principal
+            transient_for=self._callbacks.get('get_parent_window', lambda: None)(),
             flags=0,
             message_type=Gtk.MessageType.QUESTION,
             buttons=Gtk.ButtonsType.YES_NO,
@@ -485,7 +485,7 @@ class SourcesSection:
     def on_add_source_clicked(self, widget):
         dialog = Gtk.FileChooserDialog(
             title=_("Select Image Folder"),
-            parent=None,  # Se establecerá desde el panel principal
+            parent=self._callbacks.get('get_parent_window', lambda: None)(),
             action=Gtk.FileChooserAction.SELECT_FOLDER
         )
         dialog.add_button(_("Cancel"), Gtk.ResponseType.CANCEL)
@@ -544,7 +544,7 @@ class SourcesSection:
             source_name = model[treeiter][1]
             source_path = model[treeiter][2]
             dialog = Gtk.MessageDialog(
-                transient_for=None,  # Se establecerá desde el panel principal
+                transient_for=self._callbacks.get('get_parent_window', lambda: None)(),
                 flags=0,
                 message_type=Gtk.MessageType.QUESTION,
                 buttons=Gtk.ButtonsType.YES_NO,

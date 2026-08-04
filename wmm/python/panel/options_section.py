@@ -468,28 +468,34 @@ class OptionsSection:
     # BOTONES DE ACCIÓN
     # ==========================================================
     def _on_restart_clicked(self, widget):
-        engine_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "main.py")
+        engine_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "main.py")
         self.backend.save_json("commands", {})
         log_event("Buzón de comandos limpiado antes de reiniciar motor", origin="PANEL", level="DEBUG", reason="COMMAND")
-        time.sleep(0.1)
+
         pid_path = os.path.join(self.handler.cache_dir, "pid_main.pid")
+
+        # Matar el motor antiguo y eliminar su PID
         if os.path.exists(pid_path):
             try:
                 with open(pid_path, "r") as f:
                     old_pid = int(f.read().strip())
                 os.kill(old_pid, signal.SIGKILL)
-                time.sleep(0.5)
+                time.sleep(0.3)  # Breve espera para que el proceso muera
                 os.remove(pid_path)
+                log_event("Motor antiguo detenido y PID eliminado", origin="PANEL", level="INFO", reason="COMMAND")
             except (OSError, ValueError, FileNotFoundError):
                 pass
+
+        # Lanzar el script de reinicio en segundo plano
+        restart_script = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "restart_engine.py")
         subprocess.Popen(
-            ["python3", engine_path],
+            ["python3", restart_script],
             start_new_session=True,
-            env=os.environ.copy(),
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
-        time.sleep(0.5)
+
+        # Cerrar el panel inmediatamente
         panel_pid_path = os.path.join(self.handler.cache_dir, "pid_panel.pid")
         if os.path.exists(panel_pid_path):
             try:
