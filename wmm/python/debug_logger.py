@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM Applet - Cinnamon Edition
-----------------------------
-debug_logger.py – Módulo centralizado de logging para depuración.
+WMM - Wallpaper Multi-Monitor Manager
 
+debug_logger.py – Módulo centralizado de logging para depuración.
+==========================================================
 PROPÓSITO:
     Proporcionar un sistema de logging simple, seguro y unificado para
     todos los componentes de WMM (motor, panel, scripts auxiliares, etc.).

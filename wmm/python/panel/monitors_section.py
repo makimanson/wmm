@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM
-----------------------------
-monitors_section.py – Sección de Monitores del panel de control.
+WMM - Wallpaper Multi-Monitor Manager
 
+monitors_section.py – Sección de Monitores del panel de control.
+==========================================================
 Muestra los monitores virtuales con sus imágenes, permite activar/desactivar
 monitores, cambiar la alineación del grupo, entrar en modo edición para
 asignar imágenes manualmente mediante Drag & Drop, y guardar composiciones
@@ -25,6 +27,7 @@ class MonitorsSection:
     """
     Sección de Monitores del panel de control.
     """
+    _MONITOR_AREA_MIN_WIDTH = 650
 
     def __init__(self, handler, backend, ie, right_col,
                  fav_checkbox=None, accept_btn=None, spanned_switch=None):
@@ -200,7 +203,7 @@ class MonitorsSection:
         normal_page_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
         normal_page_box.set_halign(Gtk.Align.START)
         anchor = Gtk.Box()
-        anchor.set_size_request(825, 0)
+        anchor.set_size_request(self._MONITOR_AREA_MIN_WIDTH, 0)
         normal_page_box.pack_start(anchor, False, False, 0)
         self.monitors_fixed = Gtk.Fixed()
         self.monitors_fixed.set_valign(Gtk.Align.START)
@@ -224,6 +227,7 @@ class MonitorsSection:
         self.edit_mode_btn = Gtk.ToggleButton()
         icon = Gtk.Image.new_from_icon_name("document-edit-symbolic", Gtk.IconSize.SMALL_TOOLBAR)
         self.edit_mode_btn.add(icon)
+        self.edit_mode_btn.set_valign(Gtk.Align.CENTER)
         self.edit_mode_btn.set_relief(Gtk.ReliefStyle.NORMAL)
         self.edit_mode_btn.set_tooltip_text(_("Enable/disable screen editing mode"))
         self.edit_mode_btn.connect("toggled", self._on_toggle_edit_mode)
@@ -249,6 +253,7 @@ class MonitorsSection:
 
         # 2. OPCIONES DE EDICIÓN (centro)
         self.spanned_switch_edit = Gtk.Switch(active=False)
+        self.spanned_switch_edit.set_valign(Gtk.Align.CENTER)
         self.spanned_switch_edit.set_tooltip_text(_("Span image across all active screens"))
         self.spanned_switch_edit.connect("notify::active", self._on_spanned_edit_changed)
 
@@ -268,24 +273,32 @@ class MonitorsSection:
         edit_aspects_box.get_style_context().add_class("edit-aspects-box")
         edit_aspects_box.set_halign(Gtk.Align.CENTER)
 
-        hbox_dist = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
-        hbox_dist.pack_start(Gtk.Label(label=_("Spanned") + ":"), False, False, 0)
+        hbox_dist = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        spanned_label = Gtk.Label(label=_("Spanned") + ":")
+        spanned_label.set_halign(Gtk.Align.CENTER)
+        self.spanned_switch_edit.set_halign(Gtk.Align.CENTER)
+        self.spanned_switch_edit.set_valign(Gtk.Align.CENTER)
+        hbox_dist.pack_start(spanned_label, False, False, 0)
         hbox_dist.pack_start(self.spanned_switch_edit, False, False, 0)
         edit_aspects_box.pack_start(hbox_dist, False, False, 0)
 
-        hbox_aspect = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
-        hbox_aspect.pack_start(Gtk.Label(label=_("Aspect ratio:")), False, False, 0)
+        hbox_aspect = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        aspect_label = Gtk.Label(label=_("Aspect ratio") + ":")
+        aspect_label.set_halign(Gtk.Align.START)
+        hbox_aspect.pack_start(aspect_label, False, False, 0)
         hbox_aspect.pack_start(self.aspect_combo_edit, False, False, 0)
         edit_aspects_box.pack_start(hbox_aspect, False, False, 0)
 
-        hbox_effect = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
-        hbox_effect.pack_start(Gtk.Label(label=_("Effects") + ":"), False, False, 0)
+        hbox_effect = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        effect_label = Gtk.Label(label=_("Effects") + ":")
+        effect_label.set_halign(Gtk.Align.START)
+        hbox_effect.pack_start(effect_label, False, False, 0)
         hbox_effect.pack_start(self.image_effect_combo_edit, False, False, 0)
         edit_aspects_box.pack_start(hbox_effect, False, False, 0)
 
         self.edit_aspects_box = edit_aspects_box
         self.edit_aspects_box.set_sensitive(False)
-        GLib.idle_add(lambda: self.edit_aspects_box.set_opacity(0.0) if self.edit_aspects_box else None)
+        self.edit_aspects_box.set_opacity(0.0)
 
         button_align_box.pack_start(edit_aspects_box, True, True, 0)
 
@@ -298,10 +311,12 @@ class MonitorsSection:
 
         if self.accept_btn:
             self.accept_btn.set_sensitive(False)
+            self.accept_btn.set_valign(Gtk.Align.CENTER)
             self.accept_btn.connect("clicked", self._on_accept_monitors)
             right_group.pack_start(self.accept_btn, False, False, 0)
 
         refresh_btn = Gtk.Button.new_from_icon_name("view-refresh-symbolic", Gtk.IconSize.BUTTON)
+        refresh_btn.set_valign(Gtk.Align.CENTER)
         refresh_btn.set_tooltip_text(_("Refresh real display status"))
         refresh_btn.connect("clicked", self._on_refresh_monitors)
         right_group.pack_start(refresh_btn, False, False, 0)
@@ -379,6 +394,19 @@ class MonitorsSection:
         self._debounce_timer_id = None
         return False
 
+    def _center_monitor_layout(self, layout_data, area_width):
+        """Centra horizontalmente el conjunto de monitores dentro del área disponible."""
+        if not layout_data:
+            return
+
+        min_x = min(d['x'] for d in layout_data)
+        max_x = max(d['x'] + d['w'] for d in layout_data)
+        monitors_width = max_x - min_x
+        offset_x = int((area_width - monitors_width) / 2) - min_x
+
+        for data in layout_data:
+            data['x'] += offset_x
+
     # ==========================================================
     # CARGA DE MONITORES (MODO NORMAL)
     # ==========================================================
@@ -399,14 +427,18 @@ class MonitorsSection:
             GLib.idle_add(self._load_monitors_normal)
             return
 
-        target_height = 425
+        target_height = 325
         layout_data = self.handler.get_monitors_layout_data(layout_w, target_height)
         if not layout_data:
             return
+        self._center_monitor_layout(layout_data, layout_w)
 
         # Construir img_source desde active_session
         vault = self.backend.load_vault()
         active_session = vault.get("active_session", {})
+        active_composition = vault.get("active_composition", {})
+        if not isinstance(active_composition, dict):
+            active_composition = {}
         img_source = {}
         for m_hash in [d['hash'] for d in layout_data]:
             entry = active_session.get(m_hash, {})
@@ -430,12 +462,11 @@ class MonitorsSection:
             self._monitor_widgets[m_hash] = eb
 
         # Pintar miniaturas
-        #settings = self.backend.load_settings()
         settings = self.backend.load_settings()
-        wallpaper_mode = settings.get("wallpaper_mode", "fit")
-        spanned_enabled = settings.get("spanned_enabled", False)
-        wallpaper_effect_scope = settings.get("wallpaper_effect_scope", "blur")
-        wallpaper_effect = settings.get("wallpaper_effect", "none")
+        wallpaper_mode = active_composition.get("__mode__", settings.get("wallpaper_mode", "fit"))
+        spanned_enabled = active_composition.get("__spanned__", settings.get("spanned_enabled", False))
+        wallpaper_effect_scope = active_composition.get("__effect_scope__", settings.get("wallpaper_effect_scope", "blur"))
+        wallpaper_effect = active_composition.get("__effect__", settings.get("wallpaper_effect", "none"))
 
         self.ie.paint_monitors_thumbnails(
             fixed_widget=self.monitors_fixed,
@@ -447,7 +478,6 @@ class MonitorsSection:
             wallpaper_effect_scope=wallpaper_effect_scope,
             image_effect=wallpaper_effect,
             layout_info=layout_info,
-            settings=settings
         )
 
         # Ajustar tamaño y switches
@@ -741,6 +771,8 @@ class MonitorsSection:
             self.backend.edit_temp_image_effect = img_effect
 
             self.backend.edit_temp_wp_scope = settings.get("wallpaper_effect_scope", "blur")
+            # Los valores iniciales proceden de settings y no son overrides.
+            self.backend.edit_temp_composition.clear()
             if self.accept_btn:
                 self.accept_btn.set_sensitive(True)
         else:
@@ -772,6 +804,7 @@ class MonitorsSection:
             mode = keys[index]
             self.backend.edit_temp_wp_mode = mode
             if self.backend.edit_mode_active:
+                self.backend.edit_temp_composition["__mode__"] = mode
                 self._set_monitor_switches_sensitive(mode != "spanned")
                 self._load_monitors_edit()
                 if self.backend.edit_active_session:
@@ -784,12 +817,15 @@ class MonitorsSection:
         self._edit_monitor_widgets.clear()
 
         layout_w = self.monitors_fixed.get_allocated_width()
+        # Edit/preset: necesitamos construir inmediatamente
         if layout_w < 50:
-            layout_w = 400
-        target_height = 425
+            layout_w = self._MONITOR_AREA_MIN_WIDTH
+        target_height = 325
         layout_data = self.handler.get_monitors_layout_data(layout_w, target_height)
         if not layout_data:
             return
+
+        self._center_monitor_layout(layout_data, layout_w)
 
         for data in layout_data:
             m_hash = data['hash']
@@ -826,12 +862,14 @@ class MonitorsSection:
     def _load_preset_to_edit_monitors(self, preset_data):
         """Carga los datos de un preset en los monitores virtuales de edición."""
         layout_w = self.monitors_fixed.get_allocated_width()
+        # Edit/preset: necesitamos construir inmediatamente
         if layout_w < 50:
-            layout_w = 400
-        target_height = 425
+            layout_w = self._MONITOR_AREA_MIN_WIDTH
+        target_height = 325
         layout_data = self.handler.get_monitors_layout_data(layout_w, target_height)
         if not layout_data:
             return
+        self._center_monitor_layout(layout_data, layout_w)
 
         wall_mode = self.backend.edit_temp_wp_mode or self.backend.load_settings().get("wallpaper_mode", "fit")
         wp_scope = self.backend.edit_temp_wp_scope or self.backend.load_settings().get("wallpaper_effect_scope", "blur")
@@ -914,6 +952,9 @@ class MonitorsSection:
         if self._loading:
             return
         self.backend.edit_temp_spanned_enabled = switch.get_active()
+        if self.backend.edit_mode_active:
+            self.backend.edit_temp_composition["__spanned__"] = self.backend.edit_temp_spanned_enabled
+
         if self.backend.edit_mode_active and self.backend.edit_active_session:
             self._updating_switches = True
             self._load_preset_to_edit_monitors(self.backend.edit_active_session)
@@ -927,6 +968,10 @@ class MonitorsSection:
         index = combo.get_active()
         if 0 <= index < len(keys):
             self.backend.edit_temp_image_effect = keys[index]
+
+            if self.backend.edit_mode_active:
+                self.backend.edit_temp_composition["__effect__"] = self.backend.edit_temp_image_effect
+
             if self.backend.edit_mode_active and self.backend.edit_active_session:
                 self._updating_switches = True
                 self._load_preset_to_edit_monitors(self.backend.edit_active_session)

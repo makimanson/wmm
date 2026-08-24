@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 """
-WMM Applet - Cinnamon Edition
-----------------------------
+WMM - Wallpaper Multi-Monitor Manager
+
 config_handler.py – Gestor de configuración y persistencia.
 """
-
 # ==========================================================
 # IMPORTS DE LIBRERÍA ESTÁNDAR
 # ==========================================================
@@ -47,6 +47,9 @@ class ConfigHandler:
     Maneja la lectura/escritura de JSONs, el escaneo de bibliotecas y la
     normalización de rutas con soporte para caracteres especiales.
     """
+    # Dimensiones máximas de las miniaturas de la biblioteca
+    thumbnail_max_width = 190
+    thumbnail_max_height = 120
 
     # Modos de ajuste disponibles para la interfaz
     ASPECT_MODES = {
@@ -82,8 +85,8 @@ class ConfigHandler:
         REASON_HARDWARE:  "Hardware Plug/Unplug",
         REASON_SERVICE:   "WMM Service",
         REASON_TIMER:     "Timer",
-        REASON_MANUAL:    "manual_next_wallpaper",
-        REASON_SELECTION: "manual_selection",
+        REASON_MANUAL:    "Manual next Wallapaper",
+        REASON_SELECTION: "Manual Selection",
         REASON_BOOKMARK: "Bookmark Load"
     }
 
@@ -231,6 +234,7 @@ class ConfigHandler:
             "sources": {"sources": []},
             "vault": {
                 "active_session": {},
+                "active_composition": {},
                 "history": {}
             },
             "history": {"last_update": 0, "history_log": []},
@@ -495,6 +499,12 @@ class ConfigHandler:
                 vault["active_session"][m_hash] = {"path": vault["active_session"][m_hash], "active": True}
             vault["active_session"][m_hash]["path"] = image_path
             self.save_json("vault", vault)
+
+    def set_active_composition(self, overrides):
+        """Guarda los overrides impuestos por la composición actualmente aplicada."""
+        vault = self.load_json("vault")
+        vault["active_composition"] = overrides if isinstance(overrides, dict) else {}
+        self.save_json("vault", vault)
 
     def load_json(self, key):
         """Lee un JSON con soporte para UTF-8."""
@@ -1325,7 +1335,7 @@ class ConfigHandler:
             return
         deleted = 0
         for fname in os.listdir(thumb_dir):
-            if fname.startswith("blur_") and fname.endswith(".jpg"):
+            if (fname.startswith("blur_") or fname.startswith("spanned_")) and fname.endswith(".jpg"):
                 fpath = os.path.join(thumb_dir, fname)
                 try:
                     os.remove(fpath)
@@ -1531,9 +1541,9 @@ class ConfigHandler:
         """Delega en ImageEngine el procesado de la imagen."""
         return ImageEngine.process_image(path)
 
-    def get_thumbnail(self, img_path, max_height=160, max_width=250):
+    def get_thumbnail(self, img_path):
         """Delega en ImageEngine la generación de miniaturas."""
-        return ImageEngine.generate_thumbnail(img_path, max_height, max_width, thumb_dir=self.thumbnails_dir)
+        return ImageEngine.generate_thumbnail(img_path, self.thumbnail_max_height, self.thumbnail_max_width, thumb_dir=self.thumbnails_dir)
 
     def get_composite_thumbnail(self, img_path, target_w, target_h):
         """Delega en ImageEngine la generación de miniaturas compuestas con blur."""

@@ -1,3 +1,15 @@
+/*
+ * SPDX-FileCopyrightText: 2026 makimanson
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ ***************************************************************************
+ *  WMM - Wallpaper Multi-Monitor Manager
+ *
+ *  Plasma 6 Frontend
+ *
+ *  FullRepresentation.qml: Este archivo implementa la interfaz gráfica del plasmoide KDE Plasma.
+ */
+
 import QtQuick 2.15
 import QtQuick.Layouts 1.15
 

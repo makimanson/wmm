@@ -1,5 +1,9 @@
 #!/bin/bash
-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
+#################################
+# wmm-send-to-monitor.sh
+#################################
 # WMM File manager Script Router
 # Actúa como intermediario para ejecutar el script de Python correcto
 # según el escritorio que esté activo en este momento.

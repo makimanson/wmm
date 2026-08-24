@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM
-----------------------------
-help_viewer.py – Visor de ayuda integrado con índice de navegación.
+WMM - Wallpaper Multi-Monitor Manager
 
+help_viewer.py – Visor de ayuda integrado con índice de navegación.
+===============================
 Carga un archivo de ayuda en formato Markdown según el idioma del sistema
 (help/HELP_xx.md) y muestra un índice de secciones a la izquierda con
 acceso rápido al contenido a la derecha. Un marcador (▶) señala la

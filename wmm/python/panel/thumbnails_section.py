@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM
-----------------------------
-thumbnails_section.py – Sección de miniaturas del panel de control.
+WMM - Wallpaper Multi-Monitor Manager
 
+thumbnails_section.py – Sección de miniaturas del panel de control.
+==========================================================
 Muestra la galería de imágenes indexadas, permite filtrar por orientación,
 añadir/eliminar favoritos, arrastrar imágenes a los monitores virtuales
 y regenerar las miniaturas bajo demanda.
@@ -136,6 +138,15 @@ class ThumbnailsSection:
         self.btn_v.connect("clicked", self._scroll_to_v)
         nav_box.pack_start(self.btn_v, False, False, 0)
 
+        # Botón Favorites
+        self.btn_favorites = Gtk.Button()
+        label_favorites = Gtk.Label()
+        label_favorites.set_markup("<b>" + _("Favorites") + "</b>")
+        self.btn_favorites.add(label_favorites)
+        self.btn_favorites.set_relief(Gtk.ReliefStyle.NONE)
+        self.btn_favorites.connect("clicked", self._show_favorites)
+        nav_box.pack_start(self.btn_favorites, False, False, 0)
+
         # Botón de refresco de miniaturas
         refresh_thumb = Gtk.Button.new_from_icon_name("view-refresh-symbolic",
                                                       Gtk.IconSize.BUTTON)
@@ -146,16 +157,32 @@ class ThumbnailsSection:
         vbox.pack_start(header_box, False, False, 0)
 
         # ----------------------------------------------------------
-        # FLOWBOX DE MINIATURAS
+        # VISTAS DE MINIATURAS
         # ----------------------------------------------------------
-        scrolled = Gtk.ScrolledWindow()
+        self.thumbnails_stack = Gtk.Stack()
+
+        # Vista normal H/V
+        self.thumbnails_scrolled = Gtk.ScrolledWindow()
         self.thumbnails_flowbox = Gtk.FlowBox()
         self.thumbnails_flowbox.set_homogeneous(False)
         self.thumbnails_flowbox.set_row_spacing(4)
         self.thumbnails_flowbox.set_column_spacing(4)
         self.thumbnails_flowbox.set_valign(Gtk.Align.START)
-        scrolled.add(self.thumbnails_flowbox)
-        vbox.pack_start(scrolled, True, True, 0)
+        self.thumbnails_scrolled.add(self.thumbnails_flowbox)
+        self.thumbnails_stack.add_named(self.thumbnails_scrolled, "library")
+
+        # Vista Favorites
+        self.favorites_scrolled = Gtk.ScrolledWindow()
+        self.favorites_flowbox = Gtk.FlowBox()
+        self.favorites_flowbox.set_homogeneous(False)
+        self.favorites_flowbox.set_row_spacing(4)
+        self.favorites_flowbox.set_column_spacing(4)
+        self.favorites_flowbox.set_valign(Gtk.Align.START)
+        self.favorites_scrolled.add(self.favorites_flowbox)
+        self.thumbnails_stack.add_named(self.favorites_scrolled, "favorites")
+
+        self.thumbnails_stack.set_visible_child_name("library")
+        vbox.pack_start(self.thumbnails_stack, True, True, 0)
 
         return vbox
 
@@ -233,10 +260,11 @@ class ThumbnailsSection:
 
         for img in h_list:
             if self.handler._is_path_active(img[0]):
-                self._add_thumbnail_item(img[0], favorites)
+                self._add_thumbnail_item(img[0], favorites, self.thumbnails_flowbox)
+
         for img in v_list:
             if self.handler._is_path_active(img[0]):
-                self._add_thumbnail_item(img[0], favorites)
+                self._add_thumbnail_item(img[0], favorites, self.thumbnails_flowbox)
 
         children = self.thumbnails_flowbox.get_children()
         if h_list and len(children) > 0:
@@ -255,7 +283,7 @@ class ThumbnailsSection:
         self._set_progress_active(False)
         log_event("Thumbnails cargados", origin="PANEL", level="INFO", reason="LIBRARY")
 
-    def _add_thumbnail_item(self, img_path, favorites):
+    def _add_thumbnail_item(self, img_path, favorites, flowbox):
         """
         Crea un elemento de miniatura con su imagen, nombre y eventos.
         Args:
@@ -269,7 +297,7 @@ class ThumbnailsSection:
         thumb_path = self.handler.get_thumbnail(img_path)
         img = Gtk.Image.new_from_file(thumb_path)
         img.set_tooltip_text(img_path)
-        img.set_size_request(-1, 160)
+        img.set_size_request(-1, self.handler.thumbnail_max_height)
         item_box.pack_start(img, False, False, 0)
 
         name_label = Gtk.Label(label=os.path.basename(img_path))
@@ -296,22 +324,59 @@ class ThumbnailsSection:
         event_box.connect("drag-begin", self._on_thumbnail_drag_begin, img_path)
         event_box.connect("drag-end", self._on_thumbnail_drag_end, img_path)
 
-        self.thumbnails_flowbox.add(event_box)
+        flowbox.add(event_box)
 
     # ==========================================================
     # NAVEGACIÓN H/V
     # ==========================================================
     def _scroll_to_h(self, widget):
-        """Desplaza la galería hasta el primer elemento horizontal."""
+        """Muestra la biblioteca normal y desplaza hasta el primer elemento horizontal."""
+        self.thumbnails_stack.set_visible_child_name("library")
         if self._first_h_item:
             self.thumbnails_flowbox.select_child(self._first_h_item)
             self._first_h_item.grab_focus()
 
     def _scroll_to_v(self, widget):
-        """Desplaza la galería hasta el primer elemento vertical."""
+        """Muestra la biblioteca normal y desplaza hasta el primer elemento vertical."""
+        self.thumbnails_stack.set_visible_child_name("library")
         if self._first_v_item:
             self.thumbnails_flowbox.select_child(self._first_v_item)
             self._first_v_item.grab_focus()
+
+    # ==========================================================
+    # VISTA DE FAVORITOS
+    # ==========================================================
+    def _load_favorites_view(self):
+        """Reconstruye la vista de miniaturas favoritas desde bookmarks_single_list.json."""
+        for child in self.favorites_flowbox.get_children():
+            self.favorites_flowbox.remove(child)
+
+        fav_list = self.backend.load_json("bookmarks_single")
+        favorites = {entry[0] for entry in fav_list if entry and len(entry) > 0}
+        visible_count = 0
+
+        for entry in fav_list:
+            if not entry or len(entry) == 0:
+                continue
+
+            img_path = entry[0]
+
+            if not img_path or not os.path.exists(img_path):
+                continue
+
+            self._add_thumbnail_item(img_path, favorites, self.favorites_flowbox)
+            visible_count += 1
+
+        if visible_count == 0:
+            self.favorites_flowbox.add(Gtk.Label(label=_("No favorite images.")))
+
+        self.favorites_flowbox.show_all()
+        log_event(f"Vista de favoritos cargada: {visible_count} imágenes", origin="PANEL", level="INFO", reason="BOOKMARK")
+
+    def _show_favorites(self, widget):
+        """Muestra la galería específica de imágenes favoritas."""
+        self._load_favorites_view()
+        self.thumbnails_stack.set_visible_child_name("favorites")
 
     # ==========================================================
     # EVENTOS DE RATÓN SOBRE MINIATURAS
@@ -380,7 +445,8 @@ class ThumbnailsSection:
             self._load_thumbnails()
 
     def _remove_from_favorites(self, widget, img_path):
-        """Elimina una imagen de la lista plana de favoritos."""
+        """Elimina una imagen de favoritos y actualiza ambas vistas."""
         if self.handler.remove_from_favorites(img_path):
             self._load_bookmarks_single()
+            self._load_favorites_view()
             self._load_thumbnails()

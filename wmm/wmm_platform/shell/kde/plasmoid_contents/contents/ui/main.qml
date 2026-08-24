@@ -1,9 +1,13 @@
-/***************************************************************************
+/*
+ * SPDX-FileCopyrightText: 2026 makimanson
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ ***************************************************************************
  *  WMM - Wallpaper Multi-Monitor Manager
  *
  *  Plasma 6 Frontend
  *
- *  Este archivo implementa la interfaz gráfica del plasmoide KDE Plasma.
+ *  main.qml: Este archivo implementa la interfaz gráfica del plasmoide KDE Plasma.
  *
  *  Filosofía de diseño
  *  -------------------
@@ -90,23 +94,48 @@ PlasmoidItem {
        rootItem: root
    }
 
-    // ==========================================================
-    // CACHÉ LOCAL
-    // ==========================================================
-    //
-    // Estas estructuras almacenan la última información recibida
-    // desde el motor.
-    //
-    // Su objetivo es evitar reconstrucciones innecesarias del menú
-    // cuando el usuario vuelve a abrir el menú contextual.
-    //
-    // Nunca contienen información persistente.
-    //
-    // ==========================================================
+   // ==========================================================
+   // ESTADO LOCAL SINCRONIZADO
+   // ==========================================================
+   //
+   // Último estado recibido desde el motor.
+   //
+   // Se obtiene inicialmente mediante consultas D-Bus y se mantiene
+   // actualizado de forma reactiva mediante DBus.SignalWatcher.
+   //
+   // Nunca contiene información persistente.
+   //
+   // ==========================================================
 
-    property var cachedSettings: ({ })
-    property var cachedBookmarks: ({ })
+   property var cachedSettings: ({ })
+   property var cachedBookmarks: ({ })
 
+    DBus.SignalWatcher {
+        service: "org.maki.wmm"
+        path: "/org/maki/wmm"
+        iface: "org.maki.wmm"
+
+        function dbusSettingsChanged(jsonData) {
+            try {
+                var data = JSON.parse(jsonData)
+                cachedSettings = data.global || data
+                applySettings()
+                buildMenu()
+            }
+            catch(e) {
+                console.error("WMM: Invalid SettingsChanged:", e)
+            }
+        }
+
+        function dbusBookmarksChanged(jsonData) {
+            try {
+                cachedBookmarks = JSON.parse(jsonData)
+            }
+            catch(e) {
+                console.error("WMM: Invalid BookmarksChanged:", e)
+            }
+        }
+    }
     // ==========================================================
     // ESTADO DEL MENÚ
     // ==========================================================
@@ -120,20 +149,6 @@ PlasmoidItem {
     // ==========================================================
 
     property var menuActions: [ ]
-
-    // ==========================================================
-    // ESTADO DE LA INTERFAZ
-    // ==========================================================
-    //
-    // Variables temporales utilizadas únicamente por la interfaz.
-    //
-    // No representan el estado real del motor.
-    // El estado real siempre reside en Python.
-    //
-    // ==========================================================
-
-    property bool menuReady: false
-    property bool menuOpen: false
 
     // ==========================================================
     // COMUNICACIÓN CON EL MOTOR
@@ -478,22 +493,13 @@ PlasmoidItem {
     //
     // Esta función genera completamente el contenido del menú.
     //
-    // El menú nunca se modifica parcialmente.
+    // El menú se construye:
     //
-    // Cada apertura reconstruye la lista de acciones a partir del
-    // estado actual del motor almacenado en la caché local.
+    //     • durante la inicialización del plasmoide
+    //     • cuando SettingsChanged notifica un cambio externo
     //
-    // Filosofía:
-    //
-    //      Motor
-    //         ↓
-    //   refreshSettings()
-    //         ↓
-    //   refreshBookmarks()
-    //         ↓
-    //     buildMenu()
-    //         ↓
-    //     menuActions
+    // De esta forma las acciones ya contienen el estado correcto
+    // antes de que Plasma abra el menú contextual.
     //
     // ==========================================================
 
@@ -602,54 +608,46 @@ PlasmoidItem {
         )
 
         //------------------------------------------------------
+        // Exit WMM
+        //------------------------------------------------------
+
+        actions.push(createSeparator())
+
+        actions.push(
+            createAction(
+                _("Exit") + " WMM",
+                         "application-exit",
+                         function() {
+                             var reply = DBus.SessionBus.asyncCall({
+                                 service: "org.maki.wmm",
+                                 path: "/org/maki/wmm",
+                                 iface: "org.maki.wmm",
+                                 member: "Shutdown"
+                             })
+
+                             reply.finished.connect(function() {
+                                 reply.destroy()
+                             })
+                         }
+            )
+        )
+
+        //------------------------------------------------------
         // Publicar menú
         //------------------------------------------------------
-
         menuActions = actions
-        menuReady = true
+     }
 
-    }
+     // ==========================================================
+     // MENÚ CONTEXTUAL
+     // ==========================================================
+     //
+     // Plasma utiliza una lista de acciones mantenida previamente
+     // sincronizada con el estado del motor.
+     //
+     // ==========================================================
 
-    // ==========================================================
-    // CICLO DE VIDA DEL MENÚ
-    // ==========================================================
-    //
-    // Plasma solicita las acciones contextuales cada vez que el
-    // usuario abre el menú del plasmoide.
-    //
-    // Aprovechamos este momento para sincronizar el estado con el
-    // motor y reconstruir completamente el menú.
-    //
-    // No existe actualización "en caliente" mientras el menú está
-    // abierto, ya que Plasma cierra automáticamente el menú tras
-    // ejecutar cualquier acción.
-    //
-    // ==========================================================
-
-    //----------------------------------------------------------
-    // Apertura del menú contextual
-    //----------------------------------------------------------
-
-    Plasmoid.contextualActions: menuActions
-
-    Plasmoid.onContextualActionsAboutToShow:{
-        console.log("WMM: Opening contextual menu")
-
-        //------------------------------------------------------
-        // Actualizar información procedente del motor
-        //------------------------------------------------------
-
-        refreshMenuData(function(){
-
-            applySettings()
-
-        //------------------------------------------------------
-        // Reconstruir completamente el menú
-        //------------------------------------------------------
-
-            buildMenu()
-        })
-    }
+     Plasmoid.contextualActions: menuActions
 
     // ==========================================================
     // INICIALIZACIÓN
@@ -670,17 +668,7 @@ PlasmoidItem {
     // FINALIZACIÓN
     // ==========================================================
 
-    Component.onDestruction:{
-        console.log("WMM: Plasma frontend destroyed")
-        var reply = DBus.SessionBus.asyncCall({
-            service: "org.maki.wmm",
-            path: "/org/maki/wmm",
-            iface: "org.maki.wmm",
-            member: "Shutdown"
-        })
-
-        reply.finished.connect(function() {
-            reply.destroy()
-        })
+    Component.onDestruction: {
+        console.log("WMM: Plasma frontend unloaded")
     }
 }

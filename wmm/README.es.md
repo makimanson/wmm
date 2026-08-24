@@ -1,6 +1,11 @@
+<!--
+SPDX-FileCopyrightText: 2026 makimanson
+SPDX-License-Identifier: GPL-3.0-or-later
+-->
+
 # WMM - Wallpaper Multi-Monitor Manager
 
-Un gestor de fondos de pantalla para configuraciones multi-monitor en **Cinnamon** y **GNOME Shell**.
+Un gestor de fondos de pantalla para configuraciones multi-monitor en **Cinnamon**, **GNOME Shell** y **KDE Plasma 6**.
 Olvídate de fondos deformados, recortados o repetidos.
 Con WMM, tú tienes el control total.
 
@@ -12,224 +17,109 @@ Con WMM, tú tienes el control total.
 
 ## ✨ Características principales
 
-*   **Gestión multi-monitor real**: Asigna fondos diferentes a cada monitor o "extiende" (spanned) una imagen panorámica por todos ellos.
-*   **Asignación de imágenes**: Intenta adaptar la imagen más apropiada a cada monitor según su orientación (Vertical-Horizontal).
+*   **Gestión multi-monitor real**: Asigna fondos diferentes a cada monitor o extiende (`Spanned`) una imagen panorámica por todos ellos.
+*   **Asignación inteligente de imágenes**: Intenta seleccionar la imagen más apropiada para cada monitor según su orientación vertical u horizontal.
 *   **Modos de aspecto flexibles**: Controla cómo se ajusta la imagen: `Scaled` (sin deformar), `Zoom` (llenar recortando) o `Stretched` (llenar deformando).
 *   **Efectos visuales**: Aplica filtros `Sepia` o `Blanco y Negro` a las imágenes por monitor.
-*   **Efectos de fondo**: Aplica filtros `Desenfoque` o `Color` al fondo si la imagen no ocupa toda el área del monitor.
-*   **Rotación automática**: Configura un temporizador para cambiar los fondos automáticamente, ya sea de forma síncrona o asíncrona.
-*   **Favoritos (Presets)**: Guarda tus combinaciones de fondos favoritas como "Presets" y carga la que quieras al instante.
-*   **Internacionalización**: Interfaz preparada para múltiples idiomas (Inglés, Español, Catalán), con dominio de traducción propio y totalmente independiente del escritorio.
-*   **Compatibilidad multi-entorno**: Funciona tanto en Cinnamon como en GNOME Shell. El instalador detecta tu escritorio y copia automáticamente los archivos correctos.
+*   **Efectos de fondo**: Aplica `Desenfoque` o `Color` al fondo cuando la imagen no ocupa toda el área del monitor.
+*   **Rotación automática**: Configura un temporizador para cambiar los fondos de forma síncrona (`SYNC`) o asíncrona (`ASYNC`).
+*   **Modo Spanned**: Compone una única imagen lógica a través de todos los monitores respetando su posición y geometría.
+*   **Favoritos**: Guarda imágenes individuales y combinaciones completas de fondos como Presets para recuperarlas rápidamente.
+*   **Panel de control**: Gestiona fuentes, monitores, favoritos, efectos, miniaturas y opciones desde una interfaz común para todos los escritorios soportados.
+*   **Integración con el escritorio**: Applet nativo en Cinnamon, extensión en GNOME Shell y plasmoide en KDE Plasma 6.
+*   **Internacionalización**: Interfaz disponible en Inglés, Español y Catalán mediante un dominio de traducción propio e independiente del entorno de escritorio.
 
 ## 🖥️ Entornos soportados
 
-| Escritorio          | Soporte       | Notas                                                 |
-|---------------------|---------------|-------------------------------------------------------|
-| **Cinnamon**        | X11           | Applet nativo con todas las funciones                 |
-| **GNOME Shell**     | Completo      | Extensión con menú contextual idéntico al de Cinnamon |
-| **KDE Plasma**      | En desarrollo | Módulo de plataforma preparado                        |
-| **Windows / macOS** | Planeado      | Módulos de plataforma ya esbozados                    |
+| Escritorio          | Soporte       | Notas                                      |
+|---------------------|---------------|--------------------------------------------|
+| **Cinnamon**        | Completo      | Applet nativo. Soporte actual sobre X11    |
+| **GNOME Shell**     | Completo      | Extensión nativa. GNOME Shell 45–50        |
+| **KDE Plasma 6**    | Completo      | Plasmoide nativo. Requiere Plasma 6        |
+| **MATE**            | En desarrollo | Próxima integración                        |
+| **XFCE**            | Planeado      | Previsto junto con MATE                    |
+| **Windows / macOS** | Planeado      | Soporte futuro                             |
 
-## ⚙️ Configuración ideal del sistema
+## ⚙️ Integración con el escritorio
 
-Para que WMM funcione correctamente y las transiciones de fondos sean limpias, necesita que el escritorio tenga los siguientes ajustes en Configuración del sistema → Fondos de pantalla:
+WMM adapta la aplicación de los fondos a las capacidades de cada entorno de escritorio.
 
-| Ajuste                           | Valor necesario       | Motivo                                                        |
-|----------------------------------|-----------------------|---------------------------------------------------------------|
-| Relación de aspecto de la imagen | Distribuida (spanned) | Evitar que el sistema deforme o recorte la composición de WMM |
-| Tipo de degradado                | Sólido (solid)        | Evitar mezclas con otros colores durante la transición        |
-| Presentación de diapositivas     | Desactivada (false)   | Evitar que el sistema interfiera en los cambios de WMM        |
-
-*   WMM intenta forzar estos ajustes automáticamente cada vez que aplica un fondo.
-*   Si no puede (por ejemplo, por restricciones del sistema), te mostrará una notificación con los pasos a seguir.
-*   Puedes configurarlos manualmente en cualquier momento en Configuración del sistema → Fondos de pantalla.
+*   **Cinnamon** y **GNOME Shell** utilizan su integración específica para aplicar la composición generada por WMM.
+*   **KDE Plasma 6** aplica los fondos por monitor mediante la API nativa de Plasma, conservando sus transiciones visuales.
+*   WMM gestiona automáticamente los ajustes necesarios para su funcionamiento normal; no es necesario preparar manualmente un modo de fondo común para todos los escritorios.
 
 ## 🚀 Instalación
 
-*   Descarga o clona este repositorio en tu ordenador.
-*   Abre una terminal en la carpeta raíz del proyecto.
-*   Ejecuta el script de instalación:
+1.  Descarga o clona este repositorio en tu ordenador.
+2.  Abre una terminal en la carpeta raíz del proyecto.
+3.  Ejecuta:
+
     ```bash
     chmod +x install.sh
     ./install.sh
     ```
 
-*   El script detectará tu escritorio (Cinnamon o GNOME), comprobará las dependencias y te preguntará si quieres instalarlas automáticamente.
+El instalador detecta automáticamente **Cinnamon, GNOME Shell o KDE Plasma 6**, comprueba las dependencias necesarias y puede instalar las que falten mediante el gestor de paquetes de la distribución.
 
-*   En Cinnamon: Ve a la configuración de Applets, busca "WMM Manager" y actívalo.
+Después de la instalación:
 
-*   En GNOME: Abre la aplicación «Extensiones» (instálala con sudo apt install gnome-shell-extension-prefs si no la tienes), busca "WMM Manager" y actívala. Luego reinicia sesión (Wayland) o recarga GNOME Shell con Alt+F2 → r (X11).
+*   **Cinnamon**: Reinicia la sesion, abre la configuración de Miniaplicaciones y activa **WMM Manager**, o inicia WMM desde **Menú → Gráficos**.
+*   **GNOME Shell**: Reinicia la sesión, abre **Extensiones** y activa **WMM Manager**, o inicia WMM desde **Aplicaciones → WMM**..
+*   **KDE Plasma 6**: WMM se iniciará automáticamente en la siguiente sesión de Plasma. También puedes iniciarlo manualmente desde **Menú → Gráficos**.
 
-## 🔧 Instalación manual
+## 📋 Dependencias
 
-Si prefieres no usar el script:
+Se recomienda utilizar `install.sh` en lugar de instalar dependencias manualmente. El script comprueba tanto los requisitos comunes como los específicos del escritorio y utiliza los nombres de paquete adecuados para distribuciones basadas en `apt`, `dnf` o `pacman`.
 
-1.  **Crea la carpeta del applet**:
+Entre los componentes utilizados por WMM se encuentran:
 
-      Para Cinnamon:
-      ```bash
-      mkdir -p ~/.local/share/cinnamon/applets/wmm-applet@maki
-      ```
-      Para GNOME:
-      ```bash
-      mkdir -p ~/.local/share/gnome-shell/extensions/wmm@maki
-      ```
-2. Copia los archivos del proyecto en esa carpeta (el contenido del zip, no la carpeta padre)
-3. Copia el archivo JavaScript y metadata correctos según tu escritorio:
-       Para Cinnamon:
-       ```bash
-       cp wmm_platform/shell/cinnamon/metadata.cinnamon.json ~/.local/share/cinnamon/applets/wmm@maki/metadata.json
-       cp wmm_platform/shell/cinnamon/applet.cinnamon.js ~/.local/share/cinnamon/applets/wmm-applet@maki/applet.js
-       ```
+*   Python 3.
+*   Pillow y NumPy para el procesamiento de imágenes.
+*   GTK 3, GLib y PyGObject para el panel de control y componentes comunes.
+*   `libnotify` para notificaciones.
+*   `gettext` para traducciones.
+*   `zenity` para determinados diálogos.
+*   Herramientas adicionales propias de GNOME o KDE cuando la integración del escritorio las necesita.
 
-       Para GNOME:
-       ```bash
-       cp wmm_platform/shell/gnome/metadata.gnome.json ~/.local/share/gnome-shell/extensions/wmm@maki/metadata.json
-       cp wmm_platform/shell/gnome/extension.gnome.js ~/.local/share/gnome-shell/extensions/wmm@maki/extension.js
-       ```
+La lista mantenida por `install.sh` es la referencia autoritativa para las dependencias de cada plataforma.
 
-4.  **Compila las traducciones**
-       ```bash
-       for po in po/*.po; do lang=$(basename "$po" .po); msgfmt "$po" -o ~/.local/share/locale/$lang/LC_MESSAGES/wmm-applet@maki.mo; done
-       ```
+## 🗑️ Desinstalación
 
-5.  **Instalar dependencias** listadas a continuacion:
-6.  Reinicia la sesion de usuario y **Activa el applet:** Ve a la configuración de Applets de Cinnamon o el Gestro de Extensiones en Gnome, busca **WMM - Wallpaper Multi-Monitor Manager** y actívalo.
+WMM 1.3.0 todavía no incluye un desinstalador automático.
 
-### 📋 Dependencias
+La instalación se realiza en el perfil del usuario y no modifica archivos del sistema fuera de los mecanismos estándar de instalación de dependencias. La desinstalación completa y la reinstalación controlada se incorporarán en una futura versión.
 
-Antes de instalar, asegúrate de tener estas dependencias. Puedes instalarlas manualmente o dejar que el script `install.sh` lo haga por ti.
+No se recomienda eliminar automáticamente paquetes instalados como dependencias de WMM, ya que pueden ser utilizados por otras aplicaciones.
 
-| Paquete                       | Descripción                                                          |
-|------------------------------ |----------------------------------------------------------------------|
-| **Dependencias instalables**  | **(se instalan con `install.sh`)**                                   |
-| `python3`                     | Intérprete de Python 3                                               |
-| `python3-pillow`              | Librería de manipulación de imágenes                                 |
-| `python3-numpy`               | Librería de computación científica para procesado rápido de imágenes |
-| `libnotify-bin`               | Para enviar notificaciones de escritorio                             |
-| **Dependencias del sistema**  | **(vienen con Cinnamon y Gnome)**                                    |
-| `python3-gi`                  | Bindings de GTK para Python                                          |
-| `python3-gi-cairo`            | Bindings de Cairo para Python                                        |
-| `gir1.2-gtk-3.0`              | Información de tipos para GTK+ 3.0                                   |
-| `gir1.2-glib-2.0`             | Información de tipos para GLib 2.0                                   |
-| `gettext`                     | Herramientas de internacionalización                                 |
-| `zenity`                      | Para mostrar diálogos gráficos                                       |
-| `procps`                      | Para la herramienta de gestión de procesos `pkill`                   |
-| **Dependencias de Gnome**     | **(se instalan con `install.sh`)**                                   |
-| `gnome-extensions`            | Soporte para extensiones en GNOME                                    |
-| `gnome-shell-extension-prefs` | Interfaz grafica para GNOME Shell Extensions                         |
-
-### Instalación rápida de dependencias (si no usas `install.sh`)
-
-*   **Linux Mint / Ubuntu / Debian**:
-       ```bash
-       sudo apt install -y python3 python3-pillow python3-numpy libnotify-bin
-       ```
-       Solo en GNOME:
-       ```bash
-       sudo apt install -y gnome-shell-extension-prefs
-       ```
-
-*   **Fedora**:
-       ```bash
-       sudo dnf install -y python3 python3-pillow python3-numpy libnotify
-       ```
-
-*   **Arch Linux / Manjaro**:
-       ```bash
-       sudo pacman -Sy --noconfirm python python-pillow python-numpy libnotify
-       ```
-
-       Solo en GNOME:
-       ```bash
-       sudo pacman -Sy --noconfirm gnome-shell-extensions
-       ```
-
-### 🗑️ Desinstalación
-
-1.  En Cinnamon: haz clic derecho en el applet del panel y selecciona **Eliminar**. Abre **Miniaplicaciones**, busca **WMM Manager** y pulsa **Desinstalar**.
-2.  En GNOME: abre la aplicación **Extensiones**, busca **WMM Manager** y desactívala. Luego usa la opcion **Quitar**
-3.  Borra la carpeta de caché:
-    ```bash
-    rm -rf ~/.cache/wmm
-    ```
-
-4.  Elimina las acciones de Nemo (Cinnamon) o los scripts de Nautilus (GNOME) instalados previamente:
-
-       Acciones de Nemo (Cinnamon)
-       ```bash
-       rm ~/.local/share/nemo/actions/wmm-*
-       ```
-
-       Scripts de Nautilus (GNOME)
-       ```bash
-       rm ~/.local/share/nautilus/scripts/wmm-*
-       ``
 ## ⌨️ Atajos de teclado
 
-Si quieres forzar la rotación de fondos sin usar el ratón, puedes configurar un atajo de teclado personalizado en tu escritorio. WMM incluye un pequeño script preparado para ello.
+WMM integra la acción de **Siguiente fondo** con los mecanismos de atajos de Cinnamon, GNOME y KDE.
 
-### 🖥️ En Cinnamon
-
-1.  Abre **Configuración del sistema → Teclado → Atajos de teclado**.
-2.  Haz clic en **Añadir atajo personalizado**.
-3.  Ponle el nombre **"WMM - Cambiar fondo de pantalla"**.
-4.  En el campo **Comando**, escribe:
-
-    ```bash
-    bash -c "bash $HOME/.local/share/cinnamon/applets/wmm-applet@maki/wmm_platform/shell/cinnamon/wmm-next.sh"
-    ```
-
-5.  Asigna la combinación de teclas que prefieras (por ejemplo, `Ctrl+Alt+N`).
-6.  Pulsa **Aceptar** y prueba el atajo.
-
-### 🖥️ En GNOME
-
-1.  Abre **Configuración → Teclado → Atajos personalizados**.
-2.  Haz clic en **"+"** para añadir uno nuevo.
-3.  Ponle el nombre **"WMM - Cambiar fondo de pantalla"**.
-4.  En el campo **Comando**, escribe:
-
-    ```bash
-    bash -c "bash $HOME/.local/share/gnome-shell/extensions/wmm@maki/wmm_platform/shell/gnome/wmm-next.sh"
-    ```
-
-5.  Asigna la combinación de teclas que prefieras (por ejemplo, `Ctrl+Alt+N`).
-6.  Cierra la ventana y prueba el atajo.
-
-**Nota:** El script `wmm-next.sh` se instala automáticamente con WMM y debería tener los permisos de ejecución correctos. Si el atajo no funciona, asegúrate de que el script sea ejecutable:
-
-    Para Cinnamon:
-    ```bash
-    chmod +x ~/.local/share/cinnamon/applets/wmm-applet@maki/wmm_platform/shell/cinnamon/wmm-next.sh
-    ```
-
-    Para GNOME:
-    ```bash
-    chmod +x ~/.local/share/gnome-shell/extensions/wmm@maki/wmm_platform/shell/gnome/wmm-next.sh
-    ```
+La combinación de teclas puede asignarse o modificarse desde la configuración de atajos del propio escritorio. La acción llama directamente al canal de comandos de WMM; los antiguos scripts `wmm-next.sh` ya no forman parte de la instalación.
 
 ## 🛠️ Visor de depuración / Registro de eventos
 
-WMM incluye un sistema de registro integrado que graba la actividad del motor, el panel y los scripts en tiempo real. Puedes consultar los registros en cualquier momento sin reiniciar la aplicación.
+WMM incluye un sistema de registro integrado que graba en tiempo real la actividad del engine, el panel y las integraciones del escritorio.
 
-*   **Abrir el Visor de Registros**: En el Panel de Control, haz clic en el botón **Log** (icono de documento). Se abrirá una ventana independiente que muestra los eventos del motor, el panel y las acciones de Nemo con marca de tiempo.
-*   **Actualización en tiempo real**: El visor se refresca automáticamente según se escriben nuevos eventos. Usa los filtros (origen, nivel, motivo) o la barra de búsqueda para encontrar exactamente lo que necesitas.
-*   **Inspección manual**: El archivo de registro se guarda en `~/.cache/wmm/debug.log`. Puedes abrirlo con cualquier editor de texto, usar el visor del panel, o ejecutar el siguiente comando para mostrarlo directamente en una terminal:
+*   **Visor integrado**: puede abrirse desde el Panel de Control.
+*   **Actualización en tiempo real**: permite filtrar por origen, nivel y motivo, además de buscar texto especifico.
+*   **Inspección manual**: el registro se guarda en:
 
-    ```bash
-    python3 ~/.local/share/cinnamon/applets/wmm-applet@maki/python/debug_logger.py
+    ```text
+    ~/.cache/wmm/debug.log
     ```
+
+El archivo puede abrirse con cualquier editor de texto o consultarse mediante el propio visor de WMM.
 
 ## 🌍 Traducción
 
-WMM soporta múltiples idiomas. Las traducciones se instalan automáticamente al ejecutar install.sh.
-*   Los archivos fuente se encuentran en la carpeta /po del proyecto.
-*   La interfaz se mostrará automáticamente en tu idioma si las traducciones están disponibles.
-*   Todas las cadenas traducibles están centralizadas en el dominio propio de WMM, completamente independiente de las traducciones del sistema. Esto garantiza la compatibilidad con cualquier escritorio o sistema operativo.
+WMM soporta múltiples idiomas y las traducciones se instalan automáticamente mediante `install.sh`.
 
-Si quieres ayudarnos a traducir WMM a tu idioma, ¡serás más que bienvenido!
+*   Los archivos fuente se encuentran en la carpeta `po/` del proyecto.
+*   La interfaz utiliza automáticamente el idioma disponible que corresponda a la sesión del usuario. Ingles por defecto si no hay traduccion disponible.
+*   Todas las cadenas traducibles utilizan el dominio propio de WMM, independiente de las traducciones del entorno de escritorio y preparado para facilitar futuras integraciones.
+
+Si quieres ayudar a traducir WMM a tu idioma, ¡serás más que bienvenido!
 
 ## 📜 Licencia
 

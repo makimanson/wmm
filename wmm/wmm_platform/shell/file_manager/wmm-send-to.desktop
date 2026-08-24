@@ -1,3 +1,9 @@
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
+#################################
+# wmm-send-to.desktop: lanzador KDE para wmm-send-to-monitor.sh
+#################################
+
 [Desktop Entry]
 Type=Service
 MimeType=image/*;

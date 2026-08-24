@@ -1,5 +1,13 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """
-Módulo de plataforma para Linux.
+WMM - Wallpaper Multi-Monitor Manager
+
+linux.py - Módulo de plataforma para Linux.
+==========================================================
 Contiene funciones comunes a todos los escritorios de Linux.
 """
 import os

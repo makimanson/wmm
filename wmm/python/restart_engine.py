@@ -1,8 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM - Restart Engine Script
+WMM - Wallpaper Multi-Monitor Manager
+
+restart_engine.py - Restart Engine Script
+===============================
 Lanza el motor y notifica al usuario tras un reinicio solicitado desde el panel.
 """
 
@@ -34,7 +39,7 @@ def main():
 
     # 1. Verificar que el PID antiguo ya no existe (con margen mínimo)
     if os.path.exists(pid_path):
-        time.sleep(0.3)  # Margen de seguridad mínimo
+        time.sleep(0.8)  # Margen de seguridad mínimo
         if os.path.exists(pid_path):
             try:
                 os.remove(pid_path)
@@ -50,8 +55,8 @@ def main():
         stderr=subprocess.DEVNULL
     )
 
-    # 3. Verificar que arrancó
-    time.sleep(0.3)
+    # 3. Verify that engine has started
+    time.sleep(0.9) # Usually 0.3, but for slow PCs 0.8
     if os.path.exists(pid_path):
         try:
             with open(pid_path, "r") as f:

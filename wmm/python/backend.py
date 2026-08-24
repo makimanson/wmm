@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM Applet - Cinnamon Edition
-----------------------------
+WMM - Wallpaper Multi-Monitor Manager
+
 backend.py – Backend de lógica de datos para el panel de control.
+==========================================================
 * FLUJO DE CONTROL:
   1. Panel (UI) delega en el backend todas las operaciones de datos.
   2. Backend usa ConfigHandler para leer/escribir JSON.
@@ -29,6 +32,7 @@ class WMMBackend:
         self.edit_temp_spanned_enabled = None
         self.edit_temp_image_effect = None
         self.edit_temp_wp_scope = None
+        self.edit_temp_composition = {}
 
     # --- LECTURA / ESCRITURA DE JSON ---
 
@@ -165,15 +169,24 @@ class WMMBackend:
 
         preset_data = bookmarks[preset_name].copy()  # no modificar el original
 
-        # Extraer preferencias del preset
+        # Extraer los overrides propios de la composición.
+        self.edit_temp_composition.clear()
+
         if "__mode__" in preset_data:
             self.edit_temp_wp_mode = preset_data.pop("__mode__")
+            self.edit_temp_composition["__mode__"] = self.edit_temp_wp_mode
+
         if "__spanned__" in preset_data:
             self.edit_temp_spanned_enabled = preset_data.pop("__spanned__")
+            self.edit_temp_composition["__spanned__"] = self.edit_temp_spanned_enabled
+
         if "__effect__" in preset_data:
             self.edit_temp_image_effect = preset_data.pop("__effect__")
+            self.edit_temp_composition["__effect__"] = self.edit_temp_image_effect
+
         if "__effect_scope__" in preset_data:
             self.edit_temp_wp_scope = preset_data.pop("__effect_scope__")
+            self.edit_temp_composition["__effect_scope__"] = self.edit_temp_wp_scope
 
         # Limpiar sesión de edición y cargar los monitores del preset
         self.edit_active_session.clear()
@@ -220,6 +233,8 @@ class WMMBackend:
             log_event(f"Fallo al construir datos de edición: {e}", origin="BACKEND", level="ERROR", reason="BOOKMARK")
             return None, None, None
         self.apply_edit_changes(edit_session, edit_states)
+        # Guardar únicamente los overrides impuestos por la composición aplicada.
+        self.ch.set_active_composition(dict(self.edit_temp_composition))
 
         # 2. Construir datos del preset
         bookmark_data = {}
@@ -266,5 +281,6 @@ class WMMBackend:
             self.edit_temp_spanned_enabled = None
             self.edit_temp_image_effect = None
             self.edit_temp_wp_scope = None
+            self.edit_temp_composition.clear()
         except Exception as e:
             log_event(f"Fallo al cancelar edición: {e}", origin="BACKEND", level="ERROR", reason="BOOKMARK")

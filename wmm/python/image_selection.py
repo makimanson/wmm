@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM - Image Selection Engine
+WMM - Wallpaper Multi-Monitor Manager
+
+image_selection.py - Image Selection Engine
 =============================
 Centraliza toda la lógica de selección de imágenes para los distintos
 escenarios de WMM (rotaciones, cambios manuales, modos sync/async, spanned, etc.)
@@ -24,8 +28,6 @@ Flujo típico:
     3. El motor recibe el diccionario selection {hash: path} y metadatos.
     4. main.py renderiza y aplica el fondo.
 
-Autor: WMM Project
-Fecha: 2026-08-02 (Refactorización desde main.py actual)
 """
 
 import os
@@ -36,7 +38,7 @@ from typing import Dict, List, Optional, Tuple, Any
 from config_handler import ConfigHandler
 from image_engine import ImageEngine  # Solo para dimensiones, si es necesario
 from debug_logger import log_event
-
+from monitor_manager import get_spanned_reference_hash
 
 class ImageSelectionEngine:
     """
@@ -143,7 +145,16 @@ class ImageSelectionEngine:
         # RECONFIGURACIÓN (cambio de hardware, inicio)
         # ============================================================
         if reason in ConfigHandler.RECONFIGURATION_REASONS:
+
             log_event("Reconfiguración: manteniendo imágenes del vault", origin="IMG_SEL", level="DEBUG", reason="VAULT")
+
+            if spanned_enabled:
+                selection, valid_assets_found = self._build_spanned_selection(
+                    reason, active_hashes, monitors_map, active_session, settings,
+                    target_preset=None, preset_assigned_paths=None, fav_mode=fav_mode
+                )
+                return selection, valid_assets_found, metadata
+
             for m_hash in active_hashes:
                 if m_hash not in monitors_map:
                     continue
@@ -192,6 +203,7 @@ class ImageSelectionEngine:
         target_preset = None
         preset_assigned_paths = []
         target_preset_data = None
+        active_composition = {}
 
         if target_bookmark or (sl_mode == "sync" and fav_mode):
             bookmarks = self.ch.load_json("bookmarks")
@@ -214,6 +226,11 @@ class ImageSelectionEngine:
 
             if target_preset and target_preset in bookmarks:
                 bm_data = bookmarks[target_preset].copy()
+                active_composition = {
+                    key: bm_data[key]
+                    for key in ("__mode__", "__spanned__", "__effect__", "__effect_scope__")
+                    if key in bm_data
+                }
                 if "__mode__" in bm_data:
                     preset_wp_mode = bm_data.pop("__mode__")
                 if "__spanned__" in bm_data:
@@ -246,49 +263,21 @@ class ImageSelectionEngine:
             wallpaper_effect = preset_effect
             metadata["wallpaper_effect"] = wallpaper_effect
 
+        # La composición activa corresponde exclusivamente a los
+        # overrides impuestos por este ciclo.
+        self.ch.set_active_composition(active_composition)
+
         # ============================================================
         # CONSTRUCCIÓN DE LA SELECCIÓN
         # ============================================================
         if spanned_enabled:
-            # --- MODO SPANNED (copiado exacto de main.py) ---
-            geo_data = self.ch.load_json("geometry")
-            monitors_map_real = geo_data.get("monitors", None) if geo_data else None
-            if not monitors_map_real:
-                monitors_map_real = self.platform.get_monitors()
-                log_event("Usando hardware real para monitors_map_real (fallback)", origin="IMG_SEL", level="DEBUG", reason="HARDWARE")
-            canvas_w, canvas_h = self.platform.get_total_canvas_geometry(monitors_map_real)
-            primary_hash = None
-            for m_hash in active_hashes:
-                if monitors_map.get(m_hash, {}).get("primary", False):
-                    primary_hash = m_hash
-                    break
-            if primary_hash is None:
-                primary_hash = active_hashes[0]
+            selection, valid_assets_found = self._build_spanned_selection(
+                reason, active_hashes, monitors_map, active_session, settings,
+                target_preset=target_preset, preset_assigned_paths=preset_assigned_paths,
+                fav_mode=fav_mode
+            )
+            return selection, valid_assets_found, metadata
 
-            entry = active_session.get(primary_hash)
-            if isinstance(entry, dict):
-                current_path = entry.get("path")
-            else:
-                current_path = entry
-
-            if reason == ConfigHandler.REASON_SELECTION and current_path and os.path.exists(current_path):
-                path = current_path
-            elif reason == ConfigHandler.REASON_HARDWARE and current_path and os.path.exists(current_path):
-                path = current_path
-            else:
-                if target_preset:
-                    path = preset_assigned_paths[0] if preset_assigned_paths else self._get_smart_favorite(primary_hash, "sync", "h", target_preset)
-                elif fav_mode:
-                    path = self.ch.get_vault_selection(orientation="h")
-                else:
-                    path = self.ch.get_smart_selection(canvas_w, canvas_h, orientation="h")
-
-            if not path:
-                log_event("Spanned: Imposible encontrar imagen", origin="IMG_SEL", level="WARN", reason="LIBRARY")
-            else:
-                selection = {primary_hash: path}
-                valid_assets_found = True
-                self.ch.update_monitor_image(primary_hash, path)
         else:
             # --- MODO NORMAL (cada monitor con su imagen) ---
             current_f_mode = sl_mode.lower()
@@ -450,6 +439,75 @@ class ImageSelectionEngine:
         else:
             return self.ch.get_vault_selection(orientation=t_orient, exclude=exclude_paths)
 
+    def _build_spanned_selection(self, reason, active_hashes, monitors_map, active_session,
+                                 settings, target_preset=None, preset_assigned_paths=None,
+                                 fav_mode=False):
+        """
+        Construye la selección para el modo spanned.
+        Retorna (selection, valid_assets_found).
+        """
+        selection = {}
+        valid_assets_found = False
+
+        # Obtener geometría, orientación y monitor de referencia para Spanned.
+        canvas_w, canvas_h = self.platform.get_total_canvas_geometry(monitors_map)
+        canvas_orientation = "horizontal" if canvas_w >= canvas_h else "vertical"
+        canvas_orient = canvas_orientation[0]
+        spanned_hash = get_spanned_reference_hash(monitors_map)
+
+        if spanned_hash is None:
+            return selection, valid_assets_found
+
+        log_event(f"Spanned: canvas {canvas_w}x{canvas_h} ({canvas_orientation}), monitor de referencia {spanned_hash}", origin="IMG_SEL", level="DEBUG", reason="VAULT")
+
+        # Obtener imagen actual del vault del monitor que representa al canvas
+        entry = active_session.get(spanned_hash, {})
+        if isinstance(entry, dict):
+            current_path = entry.get("path")
+        else:
+            current_path = entry
+
+        # Parámetros de color
+        color_mode = settings.get("color_mode", "solid_color")
+        solid_color = settings.get("solid_color", "#000000")
+        gradient_h = settings.get("gradient_h", ["#000000", "#8D9797"])
+        gradient_v = settings.get("gradient_v", ["#000000", "#8D9797"])
+
+        # Decidir la ruta
+        path = None
+
+        # Casos especiales: mantener imagen actual en hardware o selección manual
+        if reason in (ConfigHandler.REASON_HARDWARE, ConfigHandler.REASON_SELECTION):
+            if current_path and os.path.exists(current_path):
+                path = current_path
+
+        if not path and target_preset:
+            # Usar preset
+            if preset_assigned_paths and preset_assigned_paths[0]:
+                path = preset_assigned_paths[0]
+            else:
+                path = self._get_smart_favorite(
+                    spanned_hash, "sync", canvas_orient,
+                    forced_bookmark=target_preset,
+                    exclude_paths=preset_assigned_paths
+                )
+        elif not path and fav_mode:
+            path = self.ch.get_vault_selection(orientation=canvas_orient)
+        elif not path:
+            path = self.ch.get_smart_selection(canvas_w, canvas_h, orientation=canvas_orient)
+
+        # Asignar y persistir siempre sobre el monitor alineado con el canvas
+        if path and os.path.exists(path):
+            selection[spanned_hash] = path
+            valid_assets_found = True
+            self.ch.update_monitor_image(spanned_hash, path)
+            self._update_history(path)
+        else:
+            selection[spanned_hash] = ("color", color_mode, solid_color, gradient_h, gradient_v)
+            valid_assets_found = False
+
+        return selection, valid_assets_found
+
     def _handle_selection_mode(
         self,
         temp_settings: Dict,
@@ -488,37 +546,91 @@ class ImageSelectionEngine:
         }
 
         if spanned_enabled:
-            log_event("Modo Spanned activo en selección manual. Usando solo monitor primario.", origin="IMG_SEL", level="DEBUG", reason="VAULT")
+            canvas_w, canvas_h = self.platform.get_total_canvas_geometry(monitors_map_real)
+            canvas_orientation = "horizontal" if canvas_w >= canvas_h else "vertical"
+            canvas_orient = "h" if canvas_orientation == "horizontal" else "v"
 
-            primary_hash = None
-            for m_hash in active_hashes:
-                if monitors_map_real.get(m_hash, {}).get("primary", False):
-                    primary_hash = m_hash
-                    break
-            if primary_hash is None and active_hashes:
-                primary_hash = active_hashes[0]
-                log_event(f"No se encontró primario, usando {primary_hash} como fallback", origin="IMG_SEL", level="DEBUG", reason="VAULT")
+            log_event(f"Spanned reactivo: canvas {canvas_w}x{canvas_h} ({canvas_orientation})", origin="IMG_SEL", level="DEBUG", reason="VAULT")
 
-            entry = active_session.get(primary_hash, {})
+            active_monitors_map = {m_hash: monitors_map_real[m_hash] for m_hash in active_hashes if m_hash in monitors_map_real}
+            spanned_hash = get_spanned_reference_hash(active_monitors_map)
+
+            if spanned_hash is None:
+                return {}, False, metadata
+
+            log_event(f"Spanned reactivo: monitor de referencia {spanned_hash}", origin="IMG_SEL", level="DEBUG", reason="VAULT")
+
+            path = None
+            source_hash = None
+
+            # 1. Intentar primero el monitor de referencia Spanned
+            entry = active_session.get(spanned_hash, {})
             if isinstance(entry, dict):
-                path = entry.get("path")
+                candidate_path = entry.get("path")
+                is_active = entry.get("active", True)
             else:
-                path = entry
+                candidate_path = entry if entry else None
+                is_active = True
 
-            if not path or not os.path.exists(path):
-                log_event(f"El monitor primario {primary_hash} no tiene imagen válida. Seleccionando nueva...", origin="IMG_SEL", level="DEBUG", reason="VAULT")
-                canvas_w, canvas_h = self.platform.get_total_canvas_geometry(monitors_map_real)
-                path = self.ch.get_smart_selection(canvas_w, canvas_h, orientation="h")
+            if is_active and candidate_path and os.path.exists(candidate_path):
+                path = candidate_path
+                source_hash = spanned_hash
+
+            # 2. Si no tiene imagen válida, probar otros monitores activos
+            #    con la misma orientación que el canvas, de forma determinista
+            if not path:
+                compatible_hashes = []
+
+                for candidate_hash in active_hashes:
+                    if candidate_hash == spanned_hash:
+                        continue
+
+                    monitor = monitors_map_real.get(candidate_hash, {})
+                    monitor_orientation = monitor.get("orientation")
+
+                    if monitor_orientation not in ("horizontal", "vertical"):
+                        monitor_w = monitor.get("width", 0)
+                        monitor_h = monitor.get("height", 0)
+                        monitor_orientation = "horizontal" if monitor_w >= monitor_h else "vertical"
+
+                    if monitor_orientation == canvas_orientation:
+                        compatible_hashes.append(candidate_hash)
+
+                for candidate_hash in sorted(compatible_hashes):
+                    entry = active_session.get(candidate_hash, {})
+                    if isinstance(entry, dict):
+                        candidate_path = entry.get("path")
+                        is_active = entry.get("active", True)
+                    else:
+                        candidate_path = entry if entry else None
+                        is_active = True
+
+                    if not is_active:
+                        continue
+
+                    if candidate_path and os.path.exists(candidate_path):
+                        path = candidate_path
+                        source_hash = candidate_hash
+                        break
+
+            if path:
+                log_event(f"Spanned reactivo: reutilizando imagen del monitor {source_hash}", origin="IMG_SEL", level="DEBUG", reason="VAULT")
+
+            # 3. Si ninguna imagen actual sirve, seleccionar una nueva
+            if not path:
+                log_event(f"Spanned reactivo: ninguna imagen actual coincide con canvas {canvas_orientation}; seleccionando nueva", origin="IMG_SEL", level="DEBUG", reason="VAULT")
+                path = self.ch.get_smart_selection(canvas_w, canvas_h, orientation=canvas_orient)
+
                 if path:
-                    self.ch.update_monitor_image(primary_hash, path)
+                    self.ch.update_monitor_image(spanned_hash, path)
                     self._update_history(path)
                 else:
                     log_event("No se pudo obtener imagen para spanned. Usando color de fondo.", origin="IMG_SEL", level="WARN", reason="LIBRARY")
 
             if path and os.path.exists(path):
-                selection = {primary_hash: path}
+                selection = {spanned_hash: path}
             else:
-                selection = {primary_hash: ("color", color_mode, solid_color, gradient_h, gradient_v)}
+                selection = {spanned_hash: ("color", color_mode, solid_color, gradient_h, gradient_v)}
 
             return selection, bool(selection), metadata
 

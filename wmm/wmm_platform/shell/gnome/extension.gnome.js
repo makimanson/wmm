@@ -1,18 +1,47 @@
-/**
- * WMM Extension - GNOME Shell Edition
- * Panel indicator for Wallpaper Multi-Monitor Manager.
- */
+/*
+* SPDX-FileCopyrightText: 2026 makimanson
+* SPDX-License-Identifier: GPL-3.0-or-later
+*
+* extension.js: WMM Extension - GNOME Shell Edition
+* Panel indicator for Wallpaper Multi-Monitor Manager.
+*/
 
 import Gio from 'gi://Gio';
+import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
+import Meta from 'gi://Meta';
+import Gettext from 'gettext';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
+import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
 
+// Mutter's window/workarea information is only available from inside GNOME Shell.
+// Expose the minimum interface required by gnome.py to query the usable area
+// of the monitor containing a WMM window.
+const workareaBusName = 'org.maki.wmm.Gnome';
+const workareaObjectPath = '/org/maki/wmm/Gnome';
+
+const workareaInterface = `
+<node>
+  <interface name="org.maki.wmm.Gnome">
+    <method name="GetWindowAvailableArea">
+      <arg name="pid" type="u" direction="in"/>
+      <arg name="area" type="s" direction="out"/>
+    </method>
+    <method name="PurgeBackgroundCache">
+      <arg name="path" type="s" direction="in"/>
+      <arg name="purged" type="b" direction="out"/>
+    </method>
+  </interface>
+</node>`;
+
 // ── Translations ──────────────────────────────────────────
-const Gettext = imports.gettext;
+// bindtextdomain() is safe before the catalog exists. The first dgettext()
+// lookup is delayed until the engine has completed its initial setup,
+// because a failed lookup is cached for the lifetime of GNOME Shell.
 Gettext.bindtextdomain('wmm@maki', GLib.get_user_data_dir() + '/locale');
 
 function _(text) {
@@ -35,64 +64,137 @@ export default class WMMExtension {
         this._isForcedOpen = false;
         this._button = null;
         this._menu = null;
+        this._workareaDbus = null;
+        this._workareaOwnerId = 0;
     }
 
     enable() {
         // Start the engine
         GLib.spawn_async(null, ["python3", this.enginePath], null, GLib.SpawnFlags.SEARCH_PATH, null);
-        // Panel button (importación correcta de PanelMenu)
+
+        // Panel button
         this._button = new PanelMenu.Button(0.0, 'WMM', false);
+
         let icon = new St.Icon({
             icon_name: 'video-display',
             style_class: 'system-status-icon'
         });
-        this._button.add_child(icon);
 
-        // Tooltip en el botón (volvemos a lo que originalmente funcionó sin error)
+        this._button.add_child(icon);
+        Main.panel.addToStatusArea('wmm-indicator', this._button);
+
+        let cssFile = Gio.File.new_for_path(this.metadata.path + '/wmm_platform/shell/gnome/stylesheet.css');
+        St.ThemeContext.get_for_stage(global.stage).get_theme().load_stylesheet(cssFile);
+
+        // Export the workarea bridge used by the GNOME platform backend.
+        // The query itself must run inside GNOME Shell because Meta.Window belongs
+        // to Mutter's live compositor context.
+        this._workareaDbus = Gio.DBusExportedObject.wrapJSObject(workareaInterface, this);
+        this._workareaDbus.export(Gio.DBus.session, workareaObjectPath);
+
+        this._workareaOwnerId = Gio.bus_own_name_on_connection(
+            Gio.DBus.session,
+            workareaBusName,
+            Gio.BusNameOwnerFlags.NONE,
+            null,
+            null
+        );
+
+        /*
+         * The engine compiles translations during its initial setup before
+         * acquiring org.maki.wmm. Wait for that point before the first gettext
+         * lookup so a missing catalog is never cached by GNOME Shell.
+         */
+        this._engineWatchId = Gio.bus_watch_name_on_connection(
+            Gio.DBus.session,
+            'org.maki.wmm',
+            Gio.BusNameWatcherFlags.NONE,
+            () => {
+                if (this._engineWatchId) {
+                    Gio.bus_unwatch_name(this._engineWatchId);
+                    this._engineWatchId = 0;
+                }
+
+                this._initializeTranslatedUI();
+            },
+            null
+        );
+    }
+
+    _initializeTranslatedUI() {
+        if (!this._button || this._menu)
+            return;
+
+        // From this point the translation catalog is already available.
         this._button.container.tooltip_text = 'WMM: ' + _('Wallpaper Multi-Monitor Manager') + '\n' +
             _('Click action') + ': ' + _('Next Background') + '\n' +
             _('Secondary Click') + ': ' + _('Context Menu');
 
-        // Construir el menú (usando el menú del botón)
         this._menu = this._button.menu;
         this._populateMenu();
+
         this._menu.connect('open-state-changed', (menu, open) => {
             if (!open && this._keepMenuOpen) {
                 this._keepMenuOpen = false;
                 GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                    this._isForcedOpen = true;  // <--- Activar bandera
+                    this._isForcedOpen = true;
                     menu.open();
                     this._refreshSettingsFromDisk(false);
                     return false;
                 });
             }
         });
-
-        Main.panel.addToStatusArea('wmm-indicator', this._button);
-        let cssFile = Gio.File.new_for_path(this.metadata.path + '/wmm_platform/shell/gnome/stylesheet.css');
-        St.ThemeContext.get_for_stage(global.stage).get_theme().load_stylesheet(cssFile);
     }
 
     disable() {
-        // Kill engine
-        try {
-            let pidPath = GLib.get_user_cache_dir() + '/wmm/pid_main.pid';
-            let file = Gio.File.new_for_path(pidPath);
-            file.load_contents_async(null, (file, res) => {
-                try {
-                    let [success, content] = file.load_contents_finish(res);
-                    if (success && content.length > 0) {
-                        let pid = parseInt(new TextDecoder().decode(content).trim());
-                        if (pid > 0) {
-                            GLib.spawn_async(null, ["kill", "-9", pid.toString()], null, GLib.SpawnFlags.SEARCH_PATH, null);
-                        }
+        /*
+         * GNOME Shell puede descargar temporalmente una extensión sin que el
+         * usuario la haya deshabilitado. Solo cerramos WMM cuando el UUID ha
+         * desaparecido realmente de la lista de extensiones habilitadas.
+         */
+        const shellSettings = new Gio.Settings({ schema_id: 'org.gnome.shell' });
+        const shutdownWMM = !shellSettings.get_strv('enabled-extensions').includes(this.metadata.uuid);
+        // Stop a pending engine watcher if the extension is unloaded before startup completes.
+        if (this._engineWatchId) {
+            Gio.bus_unwatch_name(this._engineWatchId);
+            this._engineWatchId = 0;
+        }
+
+        // Remove the workarea bridge together with the GNOME Shell integration.
+        if (this._workareaDbus) {
+            this._workareaDbus.unexport();
+            this._workareaDbus = null;
+        }
+
+        if (this._workareaOwnerId) {
+            Gio.bus_unown_name(this._workareaOwnerId);
+            this._workareaOwnerId = 0;
+        }
+
+        /*
+         * Una deshabilitación explícita de la extensión representa "Salir de WMM".
+         * Se utiliza el Shutdown D-Bus normal del engine y se impide la
+         * autoactivación para no arrancarlo accidentalmente si ya estaba detenido.
+         */
+        if (shutdownWMM) {
+            Gio.DBus.session.call(
+                'org.maki.wmm',
+                '/org/maki/wmm',
+                'org.maki.wmm',
+                'Shutdown',
+                null,
+                null,
+                Gio.DBusCallFlags.NO_AUTO_START,
+                1000,
+                null,
+                (connection, result) => {
+                    try {
+                        connection.call_finish(result);
+                    } catch (e) {
+                        // El engine puede haber terminado ya; no requiere recuperación.
                     }
-                } catch (e) {
-                    // El archivo PID no existe o no se puede leer
                 }
-            });
-        } catch (e) {
-            // error al construir Gio.File
+            );
         }
 
         // Clean up the UI
@@ -104,6 +206,36 @@ export default class WMMExtension {
         }
     }
 
+    /**
+     * Return the usable area of the monitor containing the window identified by PID.
+     *
+     * Mutter already resolves which monitor owns the window and calculates its
+     * current workarea, including desktop reservations that GDK does not expose
+     * reliably under GNOME/Wayland.
+     *
+     * The result is returned as "x,y,width,height". An empty string means that
+     * Mutter could not find a window for the requested PID.
+     */
+    GetWindowAvailableArea(pid) {
+        const window = global.display.list_all_windows().find(window => window.get_pid() === pid);
+
+        if (!window)
+            return '';
+
+        const area = window.get_work_area_current_monitor();
+        return `${area.x},${area.y},${area.width},${area.height}`;
+    }
+
+    PurgeBackgroundCache(path) {
+        try {
+            const file = Gio.File.new_for_path(path);
+            Meta.BackgroundImageCache.get_default().purge(file);
+            return true;
+        } catch (e) {
+            log('WMM background cache purge ERROR: ' + e.message);
+            return false;
+        }
+    }
     // ── Menu construction (same as Cinnamon) ──────────────
     _populateMenu() {
         // this._menu ya está creado en enable()
@@ -117,7 +249,6 @@ export default class WMMExtension {
         this._menu.addMenuItem(rotateItem);
         this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-
         // Settings
         let settingsItem = new PopupMenu.PopupMenuItem('WMM ' + _('Settings'));
         settingsItem.connect('activate', () => this._openSettingsPanel());
@@ -126,23 +257,42 @@ export default class WMMExtension {
 
         // Bookmarks
         this.menuBookmarks = new PopupMenu.PopupSubMenuMenuItem(_('Favorites'));
+        this.menuBookmarks.menu.actor.add_style_class_name('wmm-submenu');
         this._menu.addMenuItem(this.menuBookmarks);
 
         this.favRotationSwitch = new PopupMenu.PopupSwitchMenuItem(_('Favorites Only'), false);
+        this.favRotationSwitch.add_style_class_name('wmm-menu-idle');
+
+        this.favRotationSwitch.connect('notify::hover', () => {
+            if (this.favRotationSwitch.hover)
+                this.favRotationSwitch.remove_style_class_name('wmm-menu-idle');
+            else
+                this.favRotationSwitch.add_style_class_name('wmm-menu-idle');
+        });
+
         this.favRotationSwitch.connect('toggled', (item, state) => {
             this._keepMenuOpen = true;
             if (state && !this.masterItem.state) this._syncTimerUI(true);
             this._updateTimerSettings();
         });
         this.menuBookmarks.menu.addMenuItem(this.favRotationSwitch);
-
         this.menuBookmarks.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-        let addBookmarkItem = new PopupMenu.PopupMenuItem(_('Add Preset Favorite'));
-        addBookmarkItem.connect('activate', () => {
+        let addBookmarkItem = new PopupMenu.PopupBaseMenuItem({ activate: false, reactive: false });
+        addBookmarkItem.add_style_class_name('wmm-flat-row');
+        let addBookmarkButton = new St.Button({
+            label: _('Add Preset Favorite'),
+            style_class: 'button',
+            reactive: true,
+            can_focus: true,
+            track_hover: true
+        });
+        addBookmarkButton.connect('clicked', () => {
             this._sendActionToEngine({ action: "add_bookmark" });
         });
+        addBookmarkItem.add_child(addBookmarkButton);
         this.menuBookmarks.menu.addMenuItem(addBookmarkItem);
+
         this.menuBookmarks.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         // Timer
@@ -151,6 +301,15 @@ export default class WMMExtension {
 
         // Switch maestro
         this.masterItem = new PopupMenu.PopupSwitchMenuItem(_('Disabled'), false);
+        this.masterItem.add_style_class_name('wmm-menu-idle');
+
+        this.masterItem.connect('notify::hover', () => {
+            if (this.masterItem.hover)
+                this.masterItem.remove_style_class_name('wmm-menu-idle');
+            else
+                this.masterItem.add_style_class_name('wmm-menu-idle');
+        });
+
         this.masterItem.connect('toggled', (item, state) => {
             this._keepMenuOpen = true;
             item.label.set_text(state ? _('Enabled') : _('Disabled'));
@@ -158,41 +317,31 @@ export default class WMMExtension {
             this._updateTimerSettings();
         });
         this.menuTimer.menu.addMenuItem(this.masterItem);
-
-        let infoItem = new PopupMenu.PopupBaseMenuItem({ reactive: false });
-        let infoBox = new St.BoxLayout({ style: 'margin-left: 110px;' });
-        this.labelMin = new St.Label({ text: '' });
-        infoBox.add_child(this.labelMin);
-        infoItem.add_child(infoBox);
-        this.menuTimer.menu.addMenuItem(infoItem);
-
-        // --- Selector de intervalo con SpinButton (mismo control que panel.py) ---
+        this.menuTimer.menu.actor.add_style_class_name('wmm-submenu');
+        // --- Selector de intervalo ---
         let intervalItem = new PopupMenu.PopupBaseMenuItem({ activate: false });
-        let intervalBox = new St.BoxLayout({ style: 'spacing: 8px;' });
-        let minusBtn = new St.Button({ label: '−', style_class: 'button' });
-        this.intervalLabel = new St.Label({ text: '15 ' + _('minutes') });
-        let plusBtn = new St.Button({ label: '+', style_class: 'button' });
-
-        this._currentInterval = 15; // valor por defecto
-
-        minusBtn.connect('clicked', () => {
-            if (this._currentInterval > 1) {
-                this._currentInterval--;
-                this.intervalLabel.set_text(this._currentInterval + ' ' + _('minutes'));
-                if (this.masterItem && this.masterItem.state) this._updateTimerSettings();
-            }
+        intervalItem.add_style_class_name('wmm-flat-row');
+        let intervalBox = new St.BoxLayout({ vertical: true, x_expand: true, style: 'spacing: 4px;' });
+        this._currentInterval = 15;
+        this.intervalLabel = new St.Label({
+            text: this._currentInterval + ' ' + _('minutes'),
+            x_expand: true,
+            x_align: Clutter.ActorAlign.CENTER
         });
-        plusBtn.connect('clicked', () => {
-            if (this._currentInterval < 60) {
-                this._currentInterval++;
-                this.intervalLabel.set_text(this._currentInterval + ' ' + _('minutes'));
-                if (this.masterItem && this.masterItem.state) this._updateTimerSettings();
-            }
-        });
+        let ratio = (this._currentInterval - 1) / (this._currentMaxInterval - 1);
+        this.intervalSlider = new Slider.Slider(ratio);
 
-        intervalBox.add_child(minusBtn);
+        this.intervalSlider.connect('notify::value', () => {
+            let interval = 1 + Math.round(this.intervalSlider.value * (this._currentMaxInterval - 1));
+            this._currentInterval = interval;
+            this.intervalLabel.set_text(this._currentInterval + ' ' + _('minutes'));
+        });
+        this.intervalSlider.connect('drag-end', () => {
+            if (this.masterItem && this.masterItem.state)
+                this._updateTimerSettings();
+        });
         intervalBox.add_child(this.intervalLabel);
-        intervalBox.add_child(plusBtn);
+        intervalBox.add_child(this.intervalSlider);
         intervalItem.add_child(intervalBox);
         this.menuTimer.menu.addMenuItem(intervalItem);
 
@@ -226,6 +375,25 @@ export default class WMMExtension {
         });
         this._menu.addMenuItem(helpItem);
 
+        // Exit WMM
+        //
+        // La salida se realiza deshabilitando la propia extensión. De este modo,
+        // tanto esta opción como el gestor de extensiones de GNOME recorren
+        // exactamente el mismo lifecycle y terminan en disable().
+        this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+        let exitItem = new PopupMenu.PopupMenuItem(_('Exit') + ' WMM');
+        exitItem.connect('activate', () => {
+            GLib.spawn_async(
+                null,
+                ['gnome-extensions', 'disable', this.metadata.uuid],
+                null,
+                GLib.SpawnFlags.SEARCH_PATH,
+                null
+            );
+        });
+        this._menu.addMenuItem(exitItem);
+
         this._menuOpenSignalId = this._menu.connect('open-state-changed', (menu, open) => {
             if (open) {
                 if (this._isForcedOpen) {
@@ -240,12 +408,22 @@ export default class WMMExtension {
 
     _syncTimerUI(enabled) {
         if (!this.masterItem) return;
+
         this.masterItem.setToggleState(enabled);
         this.masterItem.label.set_text(enabled ? _('Enabled') : _('Disabled'));
+
+        if (this.intervalSlider) {
+            this.intervalSlider.reactive = enabled;
+            this.intervalSlider.can_focus = enabled;
+            this.intervalSlider.opacity = enabled ? 255 : 128;
+        }
+
+        if (this.intervalLabel)
+            this.intervalLabel.opacity = enabled ? 255 : 128;
     }
 
     _applySettingsToUI(config) {
-        if (!this.masterItem || !this.intervalLabel) return;
+        if (!this.masterItem || !this.intervalLabel || !this.intervalSlider) return;
         this._currentMaxInterval = config.slideshow_max_interval || 60;
         let isEnabled = config.slideshow_enabled;
         let isSync = (config.slideshow_mode === 'sync');
@@ -257,6 +435,8 @@ export default class WMMExtension {
         this.favRotationSwitch.setToggleState(isFavSlideshow);
 
         this._currentInterval = config.slideshow_interval || 15;
+        let ratio = (this._currentInterval - 1) / (this._currentMaxInterval - 1);
+        this.intervalSlider.value = ratio;
         this.intervalLabel.set_text(this._currentInterval + ' ' + _('minutes'));
 
         let isSpanned = config.spanned_enabled || false;
@@ -270,39 +450,64 @@ export default class WMMExtension {
 
     _paintBookmarks(bookmarks) {
         this._clearBookmarksUI();
+
         let keys = Object.keys(bookmarks);
         log('WMM bookmarks: ' + keys.length + ' presets found');
+
         if (keys.length === 0) {
             let info = new PopupMenu.PopupMenuItem(_('No saved favorites'), { reactive: false });
             this.menuBookmarks.menu.addMenuItem(info);
             this.favItems.push(info);
             return;
         }
-        // Contenedor sin usar actor
-        let scrollItem = new PopupMenu.PopupBaseMenuItem({ reactive: true, activate: false });
-        let favBox = new St.BoxLayout({
-            vertical: true,
-            style: 'margin-left: 10px; padding: 0;'
-        });
+
+        let section = new PopupMenu.PopupMenuSection();
+
         keys.forEach(name => {
-            let row = new St.BoxLayout({ style: 'padding: 3px 0px; spacing: 0px;' });
+            let rowItem = new PopupMenu.PopupBaseMenuItem({
+                reactive: false,
+                can_focus: false,
+            });
+            rowItem.add_style_class_name('wmm-flat-row');
+            rowItem.set_style('padding: 2px 6px;');
+
+            let row = new St.BoxLayout({
+                x_expand: true,
+                style: 'spacing: 4px; padding: 0;'
+            });
 
             // Botón del preset
             let nameBtn = new St.Button({
                 reactive: true,
                 can_focus: true,
                 track_hover: true,
-                style_class: 'wmm-preset-button',
+                x_expand: true,
+                style_class: 'popup-menu-item wmm-preset-button wmm-preset-idle',
             });
+
+            nameBtn.connect('notify::hover', () => {
+                if (nameBtn.hover)
+                    nameBtn.remove_style_class_name('wmm-preset-idle');
+                else
+                    nameBtn.add_style_class_name('wmm-preset-idle');
+            });
+
             let nameLabel = new St.Label({
                 text: name,
+                x_expand: true,
                 style: 'overflow: hidden; white-space: nowrap; text-overflow: ellipsis;'
             });
+
             nameBtn.set_child(nameLabel);
+
             nameBtn.connect('clicked', () => {
                 this._keepMenuOpen = true;
                 this._syncTimerUI(false);
-                this._sendActionToEngine({ action: 'load_bookmark', name: name, timer_force_off: true });
+                this._sendActionToEngine({
+                    action: 'load_bookmark',
+                    name: name,
+                    timer_force_off: true
+                });
             });
 
             // Botón de eliminar
@@ -310,16 +515,27 @@ export default class WMMExtension {
                 reactive: true,
                 can_focus: true,
                 track_hover: true,
-                style_class: 'wmm-preset-button',
+                style_class: 'popup-menu-item wmm-preset-button wmm-preset-idle',
             });
+
+            deleteBtn.connect('notify::hover', () => {
+                if (deleteBtn.hover)
+                    deleteBtn.remove_style_class_name('wmm-preset-idle');
+                else
+                    deleteBtn.add_style_class_name('wmm-preset-idle');
+            });
+
             deleteBtn.set_width(28);
+
             let deleteIcon = new St.Icon({
                 icon_name: 'user-trash-symbolic',
                 style_class: 'popup-menu-icon',
                 icon_size: 16,
                 reactive: false
             });
+
             deleteBtn.set_child(deleteIcon);
+
             deleteBtn.connect('clicked', () => {
                 this._confirmDeleteBookmark(name);
                 this._button.menu.close();
@@ -327,19 +543,27 @@ export default class WMMExtension {
 
             row.add_child(nameBtn);
             row.add_child(deleteBtn);
-            favBox.add_child(row);
+
+            rowItem.add_child(row);
+            section.addMenuItem(rowItem);
         });
+
         let scrollView = new St.ScrollView({
-            hscrollbar_policy: St.PolicyType.AUTOMATIC,
+            hscrollbar_policy: St.PolicyType.NEVER,
             vscrollbar_policy: St.PolicyType.AUTOMATIC,
             style: 'border: none; background-color: transparent; padding: 0; margin: 0;'
         });
-        scrollView.set_size(200, Math.min(keys.length * 38, 125));
-        scrollView.add_child(favBox);
-        scrollItem.add_child(scrollView);
-        log('WMM bookmarks: adding scrollItem to menu');
-        this.menuBookmarks.menu.addMenuItem(scrollItem);
-        this.favItems.push(scrollItem);
+
+        scrollView.set_size(200, Math.min(keys.length * 30, 90));
+
+        if (typeof scrollView.add_actor === 'function') {
+            scrollView.add_actor(section.actor);
+        } else {
+            scrollView.add_child(section.actor);
+        }
+        this.menuBookmarks.menu.box.add_child(scrollView);
+
+        this.favItems.push(scrollView);
     }
     _refreshSettingsFromDisk(forceRefresh = true) {
         // 1. Aplicar caché si existe (apertura instantánea)
@@ -424,6 +648,8 @@ export default class WMMExtension {
                 this._cachedBookmarks = bookmarks;
                 this._paintBookmarks(bookmarks);
             } catch (e) {
+                log('WMM bookmarks ERROR: ' + e.message);
+                log('WMM bookmarks STACK: ' + e.stack);
                 this._clearBookmarksUI();
             }
         });
@@ -519,10 +745,7 @@ export default class WMMExtension {
             this.intervalLabel.destroy();
             this.intervalLabel = null;
         }
-        if (this.labelMin) {
-            this.labelMin.destroy();
-            this.labelMin = null;
-        }
+
         if (this._masterLabel) {
             this._masterLabel.destroy();
             this._masterLabel = null;

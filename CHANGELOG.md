@@ -1,4 +1,163 @@
-Changelog
+<!--
+SPDX-FileCopyrightText: 2026 makimanson
+SPDX-License-Identifier: GPL-3.0-or-later
+
+WMM - Wallpaper Multi-Monitor Manager
+-->
+
+# Changelog
+
+## v1.3.0 - 2026-08-24
+
+**KDE Plasma 6 integration**
+
+WMM 1.3.0 introduces full support for KDE Plasma 6, including independent wallpapers per monitor, native Plasma crossfades, coordinated SYNC transitions, Spanned compositions distributed across Plasma containments, panel/workarea integration on Wayland, plasmoid lifecycle management, global shortcuts, Dolphin integration and D-Bus activation.
+
+KDE wallpaper application now uses the native `org.kde.PlasmaShell.setWallpaper()` API through Gio/GLib. The previous refresh workaround based on `plasma-apply-wallpaperimage`, `evaluateScript()` and `reloadConfig()` is no longer used by the active wallpaper path.
+
+**Added**
+
+**Wallpapers, composition and transitions**
+
+- Independent wallpapers, SYNC/ASYNC rotation and Spanned composition across supported desktop environments.
+- Native KDE Plasma 6 Crossfade transitions through `org.kde.image`.
+- Coordinated KDE SYNC transition using `current image → black → new image`.
+- Double-buffered KDE masters per containment to guarantee a real URI change and preserve native transitions.
+- GNOME and Cinnamon SYNC transitions reordered around a fixed black fade resource to avoid visible races while replacing the master image.
+- Opportunistic preview caching and an optimized preview pipeline that reduces images before effects and composition.
+- Shared Spanned reference-monitor resolution through `get_spanned_reference_hash()`.
+- `active_composition` vault state for temporary composition overrides without duplicating global settings.
+
+**Monitor detection and workarea integration**
+
+- Stable KDE monitor/container mapping based on connector, UUID, priority and Plasma containment.
+- Runtime-only resolution of Plasma `screenNum`; it is never used as persistent monitor identity.
+- GNOME Wayland monitor detection through `org.gnome.Mutter.DisplayConfig`.
+- Reactive GNOME monitor updates through `MonitorsChanged`.
+- Real window workarea detection for the WMM panel on KDE/KWin, GNOME/Mutter and Cinnamon.
+
+**Panel and thumbnails**
+
+- Persistent expanded/collapsed state for Options, Favorites and Image Sources in `settings.json`.
+- Persistent complete collapse of the left panel through `panel.collapsed`.
+- Compact collapsed sidebar with Expand, Help, Debug Log Viewer and Restart actions.
+- Visual separators between the side panel, Monitors and Thumbnails areas.
+- New Favorites view in Thumbnails using `Gtk.Stack`, fed directly from `bookmarks_single_list.json`.
+- Favorite thumbnails retain normal interactions: double-click opens the image and right-click removes it from favorites immediately.
+
+**Favorites and slideshow UI**
+
+- Reactive favorites/settings synchronization in desktop frontends.
+- GNOME native slideshow slider with live minute display.
+- GNOME Favorites list with a dedicated scroll area and fixed controls.
+- Cinnamon Favorites list with independent hover for preset name and trash action.
+- Cinnamon Favorites ScrollView now grows naturally up to a maximum height and only then enables vertical scrolling.
+- Cinnamon scroll policy compatibility through runtime selection of `St.PolicyType` or `Gtk.PolicyType`.
+
+**Desktop integration**
+
+- KDE Plasma 6 plasmoid with D-Bus activation tied to `org.maki.wmm`.
+- Global `Exit WMM` action with coordinated frontend, panel and engine shutdown.
+- Native application launchers and autostart integration.
+- KDE global shortcut through the `next-background` Desktop Action and KGlobalAccel.
+- GNOME Shell extension support for versions 45–50.
+- GNOME D-Bus bridge through `org.maki.wmm.Gnome`.
+- Cinnamon applet lifecycle coordinated with the WMM engine.
+- Dolphin and Nemo desktop/file-manager integration retained across their respective environments.
+
+**Installation and compatibility**
+
+- GTK, GLib, PyGObject and common runtime requirements are treated as shared dependencies across desktops, including KDE.
+- Plasma 6 minimum-version validation during installation.
+- GNOME Shell metadata compatibility declared for versions 45–50.
+- Runtime capability detection used where GNOME/Cinnamon APIs differ between releases.
+- D-Bus services, translations, desktop launchers and desktop-specific integrations are installed and refreshed during setup.
+
+**Changed**
+
+**Wallpaper application and composition**
+
+- KDE wallpaper application migrated from configuration/reload-based refreshes to live `PlasmaShell.setWallpaper()` calls via Gio/GLib.
+- KDE masters changed from one persistent path per containment to two alternating slots.
+- KDE SYNC and ASYNC now rely on Plasma's native `org.kde.image` transition mechanism.
+- Spanned reference selection is centralized and shared between engine and panel.
+- Preview generation now performs early resizing and reuses in-memory results instead of reloading temporary previews from disk.
+- Temporary composition state is separated from global configuration and is cleared when returning to normal rotation.
+
+**Panel and UI**
+
+- Panel expansion preserves the top position of the window when sections grow beyond the available workarea.
+- The right side of the panel automatically absorbs the space freed when the left side is collapsed.
+- Options header now integrates Help, Debug Log Viewer, Restart and Collapse without consuming an additional row.
+- Horizontal and Vertical remain navigation controls in Thumbnails; Favorites is a separate view and does not alter H/V semantics.
+- Cinnamon Favorites rows use natural height instead of distributing unused ScrollView height between items.
+
+**Frontend synchronization and lifecycle**
+
+- KDE plasmoid settings/bookmarks synchronization uses `DBus.SignalWatcher` instead of polling.
+- Settings/bookmarks file monitoring reacts to completed logical writes rather than every intermediate file event.
+- KDE, GNOME and Cinnamon keyboard rotation paths invoke `send_command.py` directly.
+- Frontend destruction no longer implicitly shuts down the engine; explicit Exit/Remove actions control global shutdown.
+- GNOME extension startup waits for the WMM service before constructing translatable UI.
+- GNOME monitor-event handling uses its own D-Bus connection/main-loop context.
+- GNOME and Cinnamon shortcut setup detects runtime schema capabilities instead of assuming one desktop version.
+
+**Fixed**
+
+**Wallpapers and Spanned**
+
+- Incorrect KDE containment association with identical monitors.
+- Global KDE flicker caused by the former workaround around KDE bug 506862.
+- Missing KDE transition when image bytes changed under an unchanged URI.
+- Spanned vault corruption when the primary monitor did not match the canvas orientation.
+- Divergence between physical and preview composition during temporary effects/bookmarks.
+- Accidental double application of effects in Fit mode.
+- Busy state left active after exceptions, which could block future rotations.
+- Cinnamon race where `wallpaper_master.jpg` could be overwritten while still visible.
+- GNOME reuse of stale cached wallpaper content after replacing a same-path master.
+- GNOME fade-resource cache races and interference from the desktop primary color.
+
+**Panel and favorites**
+
+- Panel position shifts when expanding sections near the workarea limit.
+- KDE contextual menu/settings updates appearing one opening late.
+- GNOME Favorites lists disappearing or remaining empty across API differences between Shell versions.
+- GNOME Favorites scroll affecting the entire submenu instead of only the preset list.
+- GNOME slideshow slider remaining interactive while disabled.
+- Cinnamon Favorites ScrollView using only part of the available menu width.
+- Cinnamon favorite rows showing excessive vertical separation because each row expanded into unused ScrollView space.
+
+**Integration and startup**
+
+- KDE D-Bus channel registration failure on first clean startup.
+- D-Bus activation race immediately after installing a new user service.
+- KDE global-shortcut registration races caused by dynamic `.desktop` discovery through KSycoca.
+- Incorrect or unfriendly KDE shortcut naming.
+- GTK dependencies omitted from KDE installation flow.
+- GNOME shortcut setup failures caused by schema differences in `binding` and `enable-in-lockscreen`.
+- GNOME monitor-event handling falling back incorrectly because no D-Bus main loop was attached.
+- GNOME Wayland panel sizing based on inaccurate `Gdk.Monitor.get_workarea()` results.
+- GNOME first-run translation failures caused by gettext cache timing.
+
+**Removed**
+
+- Active KDE wallpaper workaround based on:
+  - `trigger_transparent.png`
+  - `plasma-apply-wallpaperimage`
+  - manual `Image` writes in `appletsrc`
+  - `evaluateScript()`
+  - `reloadConfig()`
+- Legacy global KDE FillMode forcing from the active wallpaper path.
+- Duplicate historical Spanned-selection logic.
+- Redundant preview disk reloads and GTK rescaling.
+- KDE/GNOME/Cinnamon `wmm-next.sh` wrappers.
+- Auxiliary KDE shortcut launcher and KSycoca retry logic.
+- KDE launcher dependency on `gdbus` side-effect activation.
+- Automatic engine shutdown from plasmoid destruction.
+- GNOME dependency on `Gdk.Monitor.get_workarea()` for real Wayland workarea.
+- Obsolete GNOME Favorites container hierarchy and unconditional `add_actor()` usage.
+- GNOME slideshow +/- interval buttons.
+- Hardcoded GNOME hover/active colors where the desktop theme can provide them.
 
 ## v1.2.4 - 2026-08-04
 

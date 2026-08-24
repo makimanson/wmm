@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-==========================================================
-WMM - Send Command
-==========================================================
+WMM - Wallpaper Multi-Monitor Manager
 
+send_command.py - Send Command
+==========================================================
 Punto de entrada para el envío de comandos externos al motor.
 
 Este script constituye la API de línea de comandos de WMM y es

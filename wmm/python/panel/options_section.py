@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM
-----------------------------
-options_section.py – Sección de Opciones del panel de control.
+WMM - Wallpaper Multi-Monitor Manager
 
+options_section.py – Sección de Opciones del panel de control.
+==========================================================
 Gestiona todas las opciones de configuración de WMM: persistencia,
 modo distribuido, aspecto, efectos, colores, presentación de diapositivas
 y los botones de acción (reiniciar, visor de logs, ayuda).
@@ -54,10 +56,6 @@ class OptionsSection:
         # Construir la interfaz
         self.widget = self._build()
         left_col.pack_start(self.widget, False, False, 0)
-        left_col.pack_start(
-            Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL),
-            False, False, 0
-        )
 
     def set_callbacks(self, callbacks):
         """Asigna los callbacks después de que la instancia exista."""
@@ -124,30 +122,38 @@ class OptionsSection:
         # CABECERA: Label + Botones de acción
         # ----------------------------------------------------------
         hbox_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        options_label = self._create_section_label(_("Options"))
-        options_label.set_margin_top(8)
-        options_label.set_margin_bottom(8)
-        hbox_header.pack_start(options_label, True, True, 0)
+        self.options_toggle = Gtk.EventBox()
+        self.options_label = self._create_section_label("▼ " + _("Options"))
+        self.options_label.set_margin_top(8)
+        self.options_label.set_margin_bottom(8)
+        self.options_toggle.add(self.options_label)
+        self.options_toggle.set_events(Gdk.EventMask.BUTTON_PRESS_MASK)
+        self.options_toggle.connect("button-press-event", self._on_options_toggle)
+        hbox_header.pack_start(self.options_toggle, True, True, 0)
 
         action_block = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
 
-        # Botón reiniciar
-        self.restart_btn = Gtk.Button.new_from_icon_name("view-refresh-symbolic", Gtk.IconSize.BUTTON)
-        self.restart_btn.set_tooltip_text(_("Restart engine and panel"))
-        self.restart_btn.connect("clicked", self._on_restart_clicked)
-        action_block.pack_start(self.restart_btn, False, False, 0)
+        self.help_btn = Gtk.Button.new_from_icon_name("help-contents", Gtk.IconSize.BUTTON)
+        self.help_btn.set_tooltip_text(_("Open Help"))
+        self.help_btn.connect("clicked", self._on_open_help)
+        action_block.pack_start(self.help_btn, False, False, 0)
 
-        # Botón Visor de logs
         self.debug_log_btn = Gtk.Button.new_from_icon_name("text-x-generic", Gtk.IconSize.BUTTON)
         self.debug_log_btn.set_tooltip_text(_("Open Debug Log Viewer"))
         self.debug_log_btn.connect("clicked", self._on_open_debug_log)
         action_block.pack_start(self.debug_log_btn, False, False, 0)
 
-        # Botón de Ayuda
-        self.help_btn = Gtk.Button.new_from_icon_name("help-contents", Gtk.IconSize.BUTTON)
-        self.help_btn.set_tooltip_text(_("Open Help"))
-        self.help_btn.connect("clicked", self._on_open_help)
-        action_block.pack_start(self.help_btn, False, False, 0)
+        self.restart_btn = Gtk.Button.new_from_icon_name("view-refresh-symbolic", Gtk.IconSize.BUTTON)
+        self.restart_btn.set_tooltip_text(_("Restart engine and panel"))
+        self.restart_btn.set_margin_start(10)
+        self.restart_btn.connect("clicked", self._on_restart_clicked)
+        action_block.pack_start(self.restart_btn, False, False, 0)
+
+        self.collapse_btn = Gtk.Button(label="◀")
+        self.collapse_btn.set_tooltip_text(_("Collapse side panel"))
+        self.collapse_btn.set_margin_start(8)
+        self.collapse_btn.connect("clicked", self._on_collapse_clicked)
+        action_block.pack_start(self.collapse_btn, False, False, 0)
 
         hbox_header.pack_end(action_block, False, False, 0)
 
@@ -155,19 +161,19 @@ class OptionsSection:
         vbox.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
 
         # ----------------------------------------------------------
-        # OPCIONES DE CONFIGURACIÓN
+        # CONTENIDO PLEGABLE
         # ----------------------------------------------------------
+        self.options_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        vbox.pack_start(self.options_content, False, False, 0)
 
         # --- Cambiar fondo al inicio ---
         self.persist_switch = Gtk.Switch(active=True, halign=Gtk.Align.END)
-        self.persist_switch.set_tooltip_text(
-            _("If enabled, the wallpaper is changed at startup; if disabled, the last wallpaper is kept.")
-        )
+        self.persist_switch.set_tooltip_text(_("If enabled, the wallpaper is changed at startup; if disabled, the last wallpaper is kept."))
         self.persist_switch.connect("notify::active", self._on_persist_changed)
         hbox_persist = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         hbox_persist.pack_start(Gtk.Label(label=_("Change wallpaper on startup"), halign=Gtk.Align.START), True, True, 0)
         hbox_persist.pack_start(self.persist_switch, False, False, 0)
-        vbox.pack_start(hbox_persist, False, False, 0)
+        self.options_content.pack_start(hbox_persist, False, False, 0)
 
         # --- Modo Distribuido ---
         self.spanned_switch = Gtk.Switch(active=False, halign=Gtk.Align.END)
@@ -176,7 +182,7 @@ class OptionsSection:
         hbox_spanned = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         hbox_spanned.pack_start(Gtk.Label(label=_("Spanned") + ":", halign=Gtk.Align.START), True, True, 0)
         hbox_spanned.pack_start(self.spanned_switch, False, False, 0)
-        vbox.pack_start(hbox_spanned, False, False, 0)
+        self.options_content.pack_start(hbox_spanned, False, False, 0)
 
         # --- Relación Aspecto ---
         hbox_aspect = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -187,7 +193,7 @@ class OptionsSection:
         self.aspect_combo.set_active(0)
         self.aspect_combo.connect("changed", self._on_aspect_changed)
         hbox_aspect.pack_start(self.aspect_combo, False, False, 0)
-        vbox.pack_start(hbox_aspect, False, False, 5)
+        self.options_content.pack_start(hbox_aspect, False, False, 5)
 
         # --- Efecto de Imagen ---
         self.image_effect_combo = Gtk.ComboBoxText()
@@ -198,7 +204,7 @@ class OptionsSection:
         hbox_img_effect = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         hbox_img_effect.pack_start(Gtk.Label(label=_("Image Effect:"), halign=Gtk.Align.START), True, True, 0)
         hbox_img_effect.pack_start(self.image_effect_combo, False, False, 0)
-        vbox.pack_start(hbox_img_effect, False, False, 0)
+        self.options_content.pack_start(hbox_img_effect, False, False, 0)
 
         # --- Efecto de Fondo ---
         self.back_effect_combo = Gtk.ComboBoxText()
@@ -209,7 +215,7 @@ class OptionsSection:
         hbox_back_effect = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         hbox_back_effect.pack_start(Gtk.Label(label=_("Background Effect:"), halign=Gtk.Align.START), True, True, 0)
         hbox_back_effect.pack_start(self.back_effect_combo, False, False, 0)
-        vbox.pack_start(hbox_back_effect, False, False, 0)
+        self.options_content.pack_start(hbox_back_effect, False, False, 0)
 
         # --- Color de fondo ---
         hbox_color = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
@@ -234,7 +240,6 @@ class OptionsSection:
         self.grad_h_end_btn = Gtk.ColorButton()
         self.grad_h_end_btn.set_tooltip_text(_("Horizontal gradient end color"))
         self.grad_h_end_btn.connect("color-set", self._on_gradient_h_changed)
-
         self.grad_v_start_btn = Gtk.ColorButton()
         self.grad_v_start_btn.set_tooltip_text(_("Vertical gradient start color"))
         self.grad_v_start_btn.connect("color-set", self._on_gradient_v_changed)
@@ -245,9 +250,8 @@ class OptionsSection:
         color_controls_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
         color_controls_box.pack_end(self.bg_mode_combo, False, False, 0)
         color_controls_box.pack_end(self.bg_color_box, False, False, 0)
-
         hbox_color.pack_end(color_controls_box, False, False, 0)
-        vbox.pack_start(hbox_color, False, False, 5)
+        self.options_content.pack_start(hbox_color, False, False, 5)
 
         # --- Presentación Diapositivas ---
         self.slideshow_switch = Gtk.Switch(active=True, halign=Gtk.Align.END)
@@ -256,48 +260,61 @@ class OptionsSection:
         hbox_slideshow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         hbox_slideshow.pack_start(Gtk.Label(label=_("Slideshow"), halign=Gtk.Align.START), True, True, 0)
         hbox_slideshow.pack_start(self.slideshow_switch, False, False, 0)
-        vbox.pack_start(hbox_slideshow, False, False, 0)
+        self.options_content.pack_start(hbox_slideshow, False, False, 0)
 
         # --- Max. Intervalo ---
         hbox_max = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        hbox_max.pack_start(
-            Gtk.Label(label=_("Max. Frequency") + ": " + "(" + _("minutes") + ")", halign=Gtk.Align.START),
-            True, True, 0
-        )
+        hbox_max.pack_start(Gtk.Label(label=_("Max. Frequency") + ": " + "(" + _("minutes") + ")", halign=Gtk.Align.START), True, True, 0)
         self.max_interval_spin = Gtk.SpinButton.new_with_range(1, 999, 1)
         self.max_interval_spin.set_value(60)
         self.max_interval_spin.connect("value-changed", self._on_max_interval_changed)
         self.max_interval_spin.connect("activate", lambda w: self._parent_window.set_focus(None))
         hbox_max.pack_start(self.max_interval_spin, False, False, 0)
-        vbox.pack_start(hbox_max, False, False, 0)
+        self.options_content.pack_start(hbox_max, False, False, 0)
 
         # --- Rotación ---
         hbox_rot = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        hbox_rot.pack_start(
-            Gtk.Label(label=_("Slideshow every") + ": " + "(" + _("minutes") + ")", halign=Gtk.Align.START),
-            True, True, 0
-        )
+        hbox_rot.pack_start(Gtk.Label(label=_("Slideshow every") + ": " + "(" + _("minutes") + ")", halign=Gtk.Align.START), True, True, 0)
         self.rotation_spin = Gtk.SpinButton.new_with_range(1, 99, 1)
         self.rotation_spin.set_value(15)
         self.rotation_spin.connect("value-changed", self._on_rotation_changed)
         self.rotation_spin.connect("activate", lambda w: self._parent_window.set_focus(None))
         hbox_rot.pack_start(self.rotation_spin, False, False, 0)
-        vbox.pack_start(hbox_rot, False, False, 0)
+        self.options_content.pack_start(hbox_rot, False, False, 0)
 
         # --- Modo de rotación ---
         self.mode_switch = Gtk.Switch(active=True, halign=Gtk.Align.END)
-        self.mode_switch.set_tooltip_text(
-            _("Sync: All Screens change at once") + "\n" + _("Async: Change by turns")
-        )
+        self.mode_switch.set_tooltip_text(_("Sync: All Screens change at once") + "\n" + _("Async: Change by turns"))
         self.mode_switch.connect("notify::active", self._on_mode_changed)
         self.mode_info_label = Gtk.Label(label="", halign=Gtk.Align.CENTER, margin_left=8)
         hbox_mode = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         hbox_mode.pack_start(Gtk.Label(label=_("Slideshow mode:"), halign=Gtk.Align.START), False, False, 0)
         hbox_mode.pack_start(self.mode_info_label, True, True, 0)
         hbox_mode.pack_start(self.mode_switch, False, False, 0)
-        vbox.pack_start(hbox_mode, False, False, 0)
+        self.options_content.pack_start(hbox_mode, False, False, 0)
+        self.options_content.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
 
         return vbox
+
+    def _on_options_toggle(self, widget, event=None):
+        """Pliega o despliega el contenido de Opciones."""
+        expanded = not self.options_content.get_visible()
+
+        if expanded:
+            self._parent_window._preserve_window_position_on_expand()
+
+        self.set_expanded(expanded)
+        self._parent_window._save_section_state("options", expanded)
+
+        if not expanded:
+            GLib.timeout_add(50, self._parent_window._fit_collapsed)
+
+    def set_expanded(self, expanded):
+        """Aplica el estado de despliegue de Opciones sin persistirlo."""
+        self.options_content.set_visible(expanded)
+        arrow = "▼ " if expanded else "▶ "
+        self.options_label.set_markup(f"<span weight='bold' size='large'>{arrow}{_('Options')}</span>")
+        self.widget.queue_resize()
 
     # ==========================================================
     # EVENTOS DE OPCIONES
@@ -515,5 +532,11 @@ class OptionsSection:
     def _on_open_help(self, widget):
         # Gestionado por el panel principal mediante callback
         cb = self._callbacks.get('on_open_help')
+        if cb:
+            cb()
+
+    def _on_collapse_clicked(self, widget):
+        """Solicita al panel principal plegar el bloque izquierdo."""
+        cb = self._callbacks.get('collapse_left_panel')
         if cb:
             cb()

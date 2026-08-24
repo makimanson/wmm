@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM
-----------------------------
-favorites_section.py – Sección de Favoritos del panel de control.
+WMM - Wallpaper Multi-Monitor Manager
 
+favorites_section.py – Sección de Favoritos del panel de control.
+==========================================================
 Gestiona los presets (composiciones de fondos guardadas) y la lista
 plana de favoritos individuales. Permite crear, cargar, renombrar,
 eliminar y gestionar tanto presets como imágenes favoritas.
@@ -14,7 +16,7 @@ eliminar y gestionar tanto presets como imágenes favoritas.
 import os
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Pango
+from gi.repository import Gtk, Pango, Gdk, GLib
 from debug_logger import log_event
 from i18n import _
 
@@ -76,14 +78,21 @@ class FavoritesSection:
 
         # --- Cabecera con switch "Solo favoritos" ---
         header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
-        label = Gtk.Label()
-        label.set_markup(f"<span weight='bold' size='large'>{_("Favorites")}</span>")
-        label.set_halign(Gtk.Align.START)
-        header_box.pack_start(label, True, True, 0)
+
+        self.favorites_toggle = Gtk.EventBox()
+        self.favorites_toggle.set_events(Gdk.EventMask.BUTTON_PRESS_MASK)
+        self.favorites_label = Gtk.Label()
+        self.favorites_label.set_markup(f"<span weight='bold' size='large'>▼ {_('Favorites')}</span>")
+        self.favorites_label.set_halign(Gtk.Align.START)
+        self.favorites_toggle.add(self.favorites_label)
+        self.favorites_toggle.connect("button-press-event", self._on_favorites_toggle)
+        header_box.pack_start(self.favorites_toggle, True, True, 0)
+
         self.fav_rotation_switch = Gtk.Switch(active=False)
         self.fav_rotation_switch.set_tooltip_text(_("Slideshow only among favorite images"))
         self.fav_rotation_switch.connect("notify::active", self._on_fav_rotation_changed)
         header_box.pack_end(self.fav_rotation_switch, False, False, 0)
+
         vbox.pack_start(header_box, False, False, 0)
 
         self.favorites_container = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
@@ -115,7 +124,7 @@ class FavoritesSection:
         self.presets_tree.connect("button-press-event", self._on_preset_tree_click)
 
         self.scrolled_left = Gtk.ScrolledWindow()
-        self.scrolled_left.set_min_content_height(150)
+        # self.scrolled_left.set_min_content_height(150)
         self.scrolled_left.add(self.presets_tree)
         left_box.pack_start(self.scrolled_left, True, True, 0)
 
@@ -152,7 +161,7 @@ class FavoritesSection:
         self.bookmarks_single_tree.connect("button-press-event", self._on_single_tree_click)
 
         self.scrolled_right = Gtk.ScrolledWindow()
-        self.scrolled_right.set_min_content_height(150)
+        # self.scrolled_right.set_min_content_height(150)
         self.scrolled_right.add(self.bookmarks_single_tree)
         right_box.pack_start(self.scrolled_right, True, True, 0)
 
@@ -167,8 +176,35 @@ class FavoritesSection:
 
         self.favorites_container.pack_start(self.paned, True, True, 0)
         vbox.pack_start(self.favorites_container, True, True, 0)
+        vbox.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
 
         return vbox
+
+    def _on_favorites_toggle(self, widget, event):
+        """Pliega o despliega el contenido de Favoritos."""
+        expanded = not self.favorites_container.get_visible()
+
+        if expanded:
+            self._parent_window._preserve_window_position_on_expand()
+
+        self.set_expanded(expanded)
+        self._parent_window._save_section_state("favorites", expanded)
+
+        if not expanded:
+            GLib.timeout_add(50, self._parent_window._fit_collapsed)
+
+    def set_expanded(self, expanded):
+        """Aplica el estado de despliegue de Favoritos sin persistirlo."""
+        self.favorites_container.set_visible(expanded)
+        arrow = "▼ " if expanded else "▶ "
+        self.favorites_label.set_markup(f"<span weight='bold' size='large'>{arrow}{_('Favorites')}</span>")
+
+        parent = self.widget.get_parent()
+        if parent:
+            parent.child_set_property(self.widget, "expand", expanded)
+            parent.child_set_property(self.widget, "fill", expanded)
+
+        self.widget.queue_resize()
 
     # ==========================================================
     # ALTERNANCIA DE PANELES

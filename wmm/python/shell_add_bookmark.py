@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM
-----------------------------
-shell_add_bookmark.py – Añade una imagen a favoritos desde file_manager.
+WMM - Wallpaper Multi-Monitor Manager
 
+shell_add_bookmark.py – Añade una imagen a favoritos desde file_manager.
+===============================
 Recibe la ruta de una imagen desde el menú contextual de file_manager,
 la procesa y la añade a la lista plana de favoritos de WMM.
 """

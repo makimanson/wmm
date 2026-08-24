@@ -1,7 +1,9 @@
 #!/bin/bash
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 # ==========================================================
-# WMM - Wallpaper Master Manager
+# WMM - Wallpaper Multi-Monitor Manager
 # Interactive installer and dependency checker
 # ==========================================================
 
@@ -65,7 +67,17 @@ case "$DESKTOP" in
         command -v gnome-shell >/dev/null 2>&1 || DESKTOP="unknown"
         ;;
     kde)
-        command -v kwriteconfig6 >/dev/null 2>&1 || DESKTOP="unknown"
+        if ! command -v plasmashell >/dev/null 2>&1; then
+            DESKTOP="unknown"
+        else
+            PLASMA_VERSION=$(plasmashell --version 2>/dev/null | awk '{print $2}')
+            PLASMA_MAJOR=${PLASMA_VERSION%%.*}
+
+            if [ -z "$PLASMA_MAJOR" ] || [ "$PLASMA_MAJOR" -lt 6 ] 2>/dev/null; then
+                echo -e "${RED}ERROR: WMM requires KDE Plasma 6 or newer. Detected: ${PLASMA_VERSION:-unknown}${NC}"
+                exit 1
+            fi
+        fi
         ;;
     *)
         DESKTOP="unknown"
@@ -114,7 +126,6 @@ case "$DESKTOP" in
         APP_DOMAIN="org.maki.wmm"
         APP_DIR="$DATA_BASE/plasma/$APP_DOMAIN"                     # Engine compartido
         PLASMOID_DIR="$DATA_BASE/plasma/plasmoids/$APP_DOMAIN"      # Plasmoide
-        WALLPAPER_DIR="$DATA_BASE/plasma/wallpapers/$APP_DOMAIN"    # Plugin wallpaper
         ;;
     *)
         echo -e "${RED}ERROR: Unsupported desktop: $DESKTOP${NC}"
@@ -167,22 +178,21 @@ if [ "$DESKTOP" = "gnome" ]; then
 fi
 
 # Dependencias específicas de KDE
+declare -A KDE_DEPENDENCIES
 if [ "$DESKTOP" = "kde" ]; then
-    declare -A KDE_DEPENDENCIES
     KDE_DEPENDENCIES=(
         ["KDialog"]="command -v kdialog|kdialog"
     )
 fi
 
 # ----------------------------------------------------------
-# 8. DEPENDENCIAS COMUNES A ESCRITORIOS GTK (CINNAMON / GNOME)
+# 8. DEPENDENCIAS GTK COMUNES A TODOS LOS ESCRITORIOS
 # ----------------------------------------------------------
 declare -A GTK_DEPENDENCIES
 GTK_DEPENDENCIES=(
-    ["PyGObject (GTK bindings)"]="python3 -c 'import gi; gi.require_version(\"Gtk\", \"3.0\")'"
-    ["GTK 3.0 Introspection"]="python3 -c 'import gi; gi.require_version(\"Gtk\", \"3.0\")'"
-    ["GLib 2.0 Introspection"]="python3 -c 'import gi; gi.require_version(\"GLib\", \"2.0\")'"
-    ["pkill (signals)"]="command -v pkill"
+    ["PyGObject (GTK bindings)"]="python3 -c 'import gi'|python3-gi"
+    ["GTK 3.0 Introspection"]="python3 -c 'import gi; gi.require_version(\"Gtk\", \"3.0\"); from gi.repository import Gtk'|gir1.2-gtk-3.0"
+    ["GLib 2.0 Introspection"]="python3 -c 'import gi; gi.require_version(\"GLib\", \"2.0\"); from gi.repository import GLib'|gir1.2-glib-2.0"
 )
 
 # ----------------------------------------------------------
@@ -209,20 +219,19 @@ print_checklist() {
     local missing_count=0
 
     # --- Bloque 1: Dependencias de escritorios GTK (solo si no es KDE) ---
-    if [ "$DESKTOP" != "kde" ]; then
-        echo -e "${GREEN}[System dependencies]${NC}"
+        echo -e "${GREEN}[GTK dependencies]${NC}"
         for dep_name in "${!GTK_DEPENDENCIES[@]}"; do
-            test_cmd="${GTK_DEPENDENCIES[$dep_name]}"
+            test_cmd="${GTK_DEPENDENCIES[$dep_name]%%|*}"
             status=$(check_dep "$test_cmd")
+
             if [ "$status" -eq 1 ]; then
                 echo -e "  ${GREEN}[✔]${NC} $dep_name"
                 ((installed_count++))
             else
-                echo -e "  ${RED}[✘]${NC} $dep_name (required for $DESKTOP)"
+                echo -e "  ${RED}[✘]${NC} $dep_name"
                 ((missing_count++))
             fi
         done
-    fi
 
     # --- Bloque 2: Dependencias de GNOME (solo si estamos en GNOME) ---
     if [ "$DESKTOP" = "gnome" ]; then
@@ -287,6 +296,7 @@ install_template() {
     sed \
         -e "s|@APP_DIR@|$APP_DIR|g" \
         -e "s|@PYTHON3@|$PYTHON3_BIN|g" \
+        -e "s|@DBUS_SEND@|$DBUS_SEND_BIN|g" \
         "$template" > "$destination"
 }
 
@@ -304,6 +314,17 @@ install_files() {
     if [ -z "$PYTHON3_BIN" ]; then
         echo -e "${RED}ERROR: python3 not found after dependency verification.${NC}"
         exit 1
+    fi
+
+    DBUS_SEND_BIN=""
+
+    if [ "$DESKTOP" = "kde" ]; then
+        DBUS_SEND_BIN="$(command -v dbus-send)"
+
+        if [ -z "$DBUS_SEND_BIN" ]; then
+            echo -e "${RED}ERROR: dbus-send not found.${NC}"
+            exit 1
+        fi
     fi
 
     # Generar .ini (si no se hizo antes, se asegura)
@@ -362,11 +383,12 @@ EOF
             ;;
         kde)
             if [ ! -f "$PROJECT_DIR/wmm_platform/shell/kde/plasmoid_contents/metadata.kde_plasmoid.json" ]; then
-                echo "ERROR: Missing KDE plasmo id metadata"
+                echo "ERROR: Missing KDE plasmoid metadata"
                 MISSING=1
             fi
-            if [ ! -f "$PROJECT_DIR/wmm_platform/shell/kde/plugin_contents/metadata.kde_plugin.json" ]; then
-                echo "ERROR: Missing KDE wallpaper plugin metadata"
+
+            if [ ! -f "$PROJECT_DIR/wmm_platform/shell/kde/org.maki.wmm.desktop" ]; then
+                echo "ERROR: Missing KDE launcher"
                 MISSING=1
             fi
             ;;
@@ -410,6 +432,10 @@ EOF
 
         chmod 644 "$DBUS_SERVICE_FILE"
 
+        if command -v busctl &>/dev/null; then
+            busctl --user call org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus ReloadConfig >/dev/null 2>&1
+        fi
+
         progress_msg "D-Bus activation service installed."
     else
         echo -e "${RED}Warning: D-Bus service template not found.${NC}"
@@ -424,35 +450,54 @@ EOF
     # Copiar el metadata.json y los archivos específicos del escritorio
     case "$DESKTOP" in
         cinnamon)
+            mkdir -p "$HOME/.local/share/applications"
+
             cp -f "$PROJECT_DIR/wmm_platform/shell/cinnamon/metadata.cinnamon.json" "$APP_DIR/metadata.json"
             cp -f "$PROJECT_DIR/wmm_platform/shell/cinnamon/applet.cinnamon.js" "$APP_DIR/applet.js"
-            progress_msg "Cinnamon files copied to $APP_DIR."
+
+            install_template \
+                "$PROJECT_DIR/wmm_platform/shell/cinnamon/org.maki.wmm.cinnamon.desktop" \
+                "$HOME/.local/share/applications/org.maki.wmm.cinnamon.desktop"
+
+            progress_msg "Cinnamon files and application launcher installed."
             ;;
-        gnome)
-            cp -f "$PROJECT_DIR/wmm_platform/shell/gnome/metadata.gnome.json" "$APP_DIR/metadata.json"
-            cp -f "$PROJECT_DIR/wmm_platform/shell/gnome/extension.gnome.js" "$APP_DIR/extension.js"
-            progress_msg "GNOME files copied to $APP_DIR."
-            ;;
+		gnome)
+			mkdir -p "$HOME/.local/share/applications"
+
+			cp -f "$PROJECT_DIR/wmm_platform/shell/gnome/metadata.gnome.json" "$APP_DIR/metadata.json"
+			cp -f "$PROJECT_DIR/wmm_platform/shell/gnome/extension.gnome.js" "$APP_DIR/extension.js"
+			cp -f "$PROJECT_DIR/wmm_platform/shell/gnome/org.maki.wmm.gnome.desktop" "$HOME/.local/share/applications/org.maki.wmm.gnome.desktop"
+			progress_msg "GNOME files and application launcher installed."
+			;;
         kde)
-            # 1. Copiar el plasmoide
+            # 1. Crear destinos
             mkdir -p "$PLASMOID_DIR/contents/ui"
+            mkdir -p "$HOME/.local/share/applications"
+            mkdir -p "$HOME/.config/autostart"
+            progress_msg "WMM: Destination folders created"
+            # 2. Copiar el plasmoide
             cp -r "$PROJECT_DIR/wmm_platform/shell/kde/plasmoid_contents/contents" "$PLASMOID_DIR/"
             cp -f "$PROJECT_DIR/wmm_platform/shell/kde/plasmoid_contents/metadata.kde_plasmoid.json" "$PLASMOID_DIR/metadata.json"
             progress_msg "KDE Plasmoid copied to $PLASMOID_DIR"
-
-            # 2. Copiar el plugin de wallpaper
-            mkdir -p "$WALLPAPER_DIR/contents/ui"
-            cp -r "$PROJECT_DIR/wmm_platform/shell/kde/plugin_contents/contents" "$WALLPAPER_DIR/"
-            cp -f "$PROJECT_DIR/wmm_platform/shell/kde/plugin_contents/metadata.kde_plugin.json" "$WALLPAPER_DIR/metadata.json"
-            progress_msg "KDE Wallpaper Plugin copied to $WALLPAPER_DIR"
-
-            # 3. Registrar paquetes
+            # 3. Instalar lanzador y autoarranque
+            install_template \
+                "$PROJECT_DIR/wmm_platform/shell/kde/org.maki.wmm.desktop" \
+                "$HOME/.local/share/applications/org.maki.wmm.desktop"
+            install_template \
+                "$PROJECT_DIR/wmm_platform/shell/kde/org.maki.wmm.desktop" \
+                "$HOME/.config/autostart/org.maki.wmm.desktop"
+            progress_msg "KDE launcher and autostart entry installed."
+            # 4. Registrar paquetes
             if command -v kpackagetool6 &>/dev/null; then
                 kpackagetool6 -t Plasma/Applet --install "$PLASMOID_DIR" 2>/dev/null
-                kpackagetool6 -t Plasma/Wallpaper --install "$WALLPAPER_DIR" 2>/dev/null
                 progress_msg "Components registered with kpackagetool6"
             else
                 echo -e "${RED}Warning: kpackagetool6 not found. Components will not be automatically registered.${NC}"
+            fi
+            # 5. Refrescar menú de aplicaciones
+            if command -v kbuildsycoca6 &>/dev/null; then
+                kbuildsycoca6 >/dev/null 2>&1
+                progress_msg "KDE application database refreshed."
             fi
             ;;
     esac
@@ -491,7 +536,8 @@ EOF
         cinnamon)
             echo ""
             echo "To enable the applet, go to Cinnamon Applets settings"
-            echo "and activate 'WMM Manager'."
+            echo "and activate 'WMM Manager',"
+            echo "or click the WMM icon in Menu > Graphics."
             ;;
         gnome)
             echo ""
@@ -500,15 +546,13 @@ EOF
             ;;
         kde)
             echo ""
-            echo "To start WMM, launch the engine manually:"
-            echo "  python3 $APP_DIR/python/main.py &"
-            echo "Then open the Control Panel:"
-            echo "  python3 $APP_DIR/python/panel.py"
-            echo "(A Plasma widget for the system tray will be available soon.)"
+            echo "WMM will start automatically with your next KDE Plasma session."
+            echo "You can also start it manually from the application menu."
             ;;
         *)
             echo ""
-            echo "Restart your session to load the applet/extension."
+            echo "WMM has been installed successfully."
+            echo "Restart your desktop session to load applet/extension/plasmoid."
             ;;
     esac
 }
@@ -561,6 +605,13 @@ main() {
     elif command -v dnf &> /dev/null; then
         PKG_MANAGER="dnf"
         INSTALL_CMD="sudo dnf install -y"
+        # Package name mapping for Fedora
+        declare -A DNF_MAP
+        DNF_MAP=(
+            ["python3-gi"]="python3-gobject"
+            ["gir1.2-gtk-3.0"]="gtk3"
+            ["gir1.2-glib-2.0"]="glib2"
+        )
     elif command -v pacman &> /dev/null; then
         PKG_MANAGER="pacman"
         INSTALL_CMD="sudo pacman -Sy --noconfirm"
@@ -572,6 +623,9 @@ main() {
             ["python3-numpy"]="python-numpy"
             ["libnotify-bin"]="libnotify"
             ["gnome-shell-extension-prefs"]="gnome-shell-extensions"
+            ["python3-gi"]="python-gobject"
+            ["gir1.2-gtk-3.0"]="gtk3"
+            ["gir1.2-glib-2.0"]="glib2"
         )
     else
         echo "Could not detect package manager."
@@ -581,7 +635,7 @@ main() {
 
     # Build list of missing packages
     MISSING_PKGS=""
-    for dep_name in "${!WMM_DEPENDENCIES[@]}" "${!GNOME_DEPENDENCIES[@]}" "${!KDE_DEPENDENCIES[@]}"; do
+    for dep_name in "${!WMM_DEPENDENCIES[@]}" "${!GTK_DEPENDENCIES[@]}" "${!GNOME_DEPENDENCIES[@]}" "${!KDE_DEPENDENCIES[@]}"; do
         if [ -n "${WMM_DEPENDENCIES[$dep_name]}" ]; then
             test_cmd="${WMM_DEPENDENCIES[$dep_name]%%|*}"
             packages="${WMM_DEPENDENCIES[$dep_name]##*|}"
@@ -591,11 +645,18 @@ main() {
         elif [ -n "${KDE_DEPENDENCIES[$dep_name]}" ]; then
             test_cmd="${KDE_DEPENDENCIES[$dep_name]%%|*}"
             packages="${KDE_DEPENDENCIES[$dep_name]##*|}"
+        elif [ -n "${GTK_DEPENDENCIES[$dep_name]}" ]; then
+            test_cmd="${GTK_DEPENDENCIES[$dep_name]%%|*}"
+            packages="${GTK_DEPENDENCIES[$dep_name]##*|}"
         fi
 
         status=$(check_dep "$test_cmd")
         if [ "$status" -eq 0 ]; then
-            if [ "$PKG_MANAGER" = "pacman" ]; then
+            if [ "$PKG_MANAGER" = "dnf" ]; then
+                for pkg in $packages; do
+                    MISSING_PKGS="$MISSING_PKGS ${DNF_MAP[$pkg]:-$pkg}"
+                done
+            elif [ "$PKG_MANAGER" = "pacman" ]; then
                 for pkg in $packages; do
                     MISSING_PKGS="$MISSING_PKGS ${PACMAN_MAP[$pkg]:-$pkg}"
                 done

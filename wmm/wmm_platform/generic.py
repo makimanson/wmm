@@ -1,5 +1,13 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """
-Módulo de plataforma genérico (fallback).
+WMM - Wallpaper Multi-Monitor Manager
+
+generic.py - Módulo de plataforma genérico (fallback).
+==========================================================
 Se usa cuando no se detecta un SO específico (Linux, Windows, macOS).
 Proporciona implementaciones vacías o seguras de todas las funciones
 que el motor y el logger esperan de una plataforma.

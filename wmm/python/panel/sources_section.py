@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM
-----------------------------
-sources_section.py – Sección de fuentes de imagen del panel de control.
+WMM - Wallpaper Multi-Monitor Manager
 
+sources_section.py – Sección de fuentes de imagen del panel de control.
+==========================================================
 Gestiona el treeview de carpetas, la adición/eliminación de fuentes,
 la sincronización de la biblioteca y el escaneado de imágenes.
 """
@@ -47,22 +49,38 @@ class SourcesSection:
         self._callbacks = callbacks or {}
 
     # ==========================================================
+    # PROPIEDADES DE ACCESO RÁPIDO A CALLBACKS
+    # ==========================================================
+    @property
+    def _parent_window(self):
+        """Devuelve la ventana principal del panel."""
+        cb = self._callbacks.get('get_parent_window')
+        return cb() if cb else None
+
+    # ==========================================================
     # CONSTRUCCIÓN DE LA INTERFAZ
     # ==========================================================
     def _build(self):
         """Construye y devuelve el widget principal de la sección."""
         vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
 
-        # Etiqueta de la sección
-        label = Gtk.Label()
-        text = _("Image Sources")
-        label.set_markup(f"<span weight='bold' size='large'>{text}</span>")
-        label.set_halign(Gtk.Align.START)
-        vbox.pack_start(label, False, False, 0)
+        # --- Cabecera ---
+        self.sources_toggle = Gtk.EventBox()
+        self.sources_toggle.set_events(Gdk.EventMask.BUTTON_PRESS_MASK)
+        self.sources_label = Gtk.Label()
+        self.sources_label.set_markup(f"<span weight='bold' size='large'>▼ {_('Image Sources')}</span>")
+        self.sources_label.set_halign(Gtk.Align.START)
+        self.sources_toggle.add(self.sources_label)
+        self.sources_toggle.connect("button-press-event", self._on_sources_toggle)
+        vbox.pack_start(self.sources_toggle, False, False, 0)
+
+        # --- Contenido ---
+        self.sources_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        vbox.pack_start(self.sources_content, True, True, 0)
 
         # ScrolledWindow para el treeview
         scrolled = Gtk.ScrolledWindow()
-        scrolled.set_min_content_height(150)
+        # scrolled.set_min_content_height(150)
         self.scrolled_sources = scrolled
 
         # Modelo: [icono, nombre, ruta, active, recursive, is_raiz]
@@ -94,7 +112,7 @@ class SourcesSection:
 
         self.sources_tree.connect("button-press-event", self.on_tree_button_press)
         scrolled.add(self.sources_tree)
-        vbox.pack_start(scrolled, True, True, 0)
+        self.sources_content.pack_start(scrolled, True, True, 0)
 
         # Barra de botones inferior
         btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
@@ -119,9 +137,36 @@ class SourcesSection:
         btn_box.pack_end(self.del_btn, False, False, 0)
         btn_box.pack_end(self.add_btn, False, False, 5)
 
-        vbox.pack_start(btn_box, False, False, 0)
+        self.sources_content.pack_start(btn_box, False, False, 0)
 
         return vbox
+
+    def _on_sources_toggle(self, widget, event):
+        """Pliega o despliega el contenido de Fuentes de imágenes."""
+        expanded = not self.sources_content.get_visible()
+
+        if expanded:
+            self._parent_window._preserve_window_position_on_expand()
+
+        self.set_expanded(expanded)
+        self._parent_window._save_section_state("sources", expanded)
+
+        if not expanded:
+            GLib.idle_add(self._parent_window._fit_collapsed)
+
+    def set_expanded(self, expanded):
+        """Aplica el estado de despliegue de Fuentes de imágenes sin persistirlo."""
+        self.sources_content.set_visible(expanded)
+
+        parent = self.widget.get_parent()
+        if parent:
+            parent.queue_resize()
+            parent.child_set_property(self.widget, "expand", expanded)
+            parent.child_set_property(self.widget, "fill", expanded)
+
+        arrow = "▼ " if expanded else "▶ "
+        self.sources_label.set_markup(f"<span weight='bold' size='large'>{arrow}{_('Image Sources')}</span>")
+        self.widget.queue_resize()
 
     # ==========================================================
     # CARGA Y EXPANSIÓN DEL TREEVIEW

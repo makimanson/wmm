@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """
-WMM
-----------------------------
+WMM - Wallpaper Multi-Monitor Manager
+
 i18n.py – Módulo centralizado de traducciones.
+===============================
 Inicializa y proporciona el acceso a las traducciones propias de WMM.
 """
 import gettext

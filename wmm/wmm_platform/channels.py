@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM
-----------------------------
-channels.py – Gestor central de canales de comunicación.
+WMM - Wallpaper Multi-Monitor Manager
 
+channels.py – Gestor central de canales de comunicación.
+==========================================================
 Centraliza los distintos mecanismos de intercambio de comandos entre los
 componentes de WMM.
 Cada canal implementa una interfaz común basada en dos operaciones:
@@ -208,9 +210,7 @@ class DBusChannel:
     def __init__(self):
         from dbus.mainloop.glib import DBusGMainLoop
 
-        DBusGMainLoop(set_as_default=True)
-
-        self._bus = dbus.SessionBus()
+        self._bus = dbus.SessionBus(private=True, mainloop=DBusGMainLoop())
         self._bus_name = dbus.service.BusName("org.maki.wmm", self._bus)
         self._object = _DBusObject(self._bus_name)
 
@@ -234,13 +234,63 @@ class _DBusObject(dbus.service.Object):
     callback del motor.
     """
 
+    # ----------------------------------------------------------
+    # SEÑALES
+    # ----------------------------------------------------------
+
+    @dbus.service.signal('org.maki.wmm', signature='s')
+    def SettingsChanged(self, json_data):
+        """Emitida cuando cambia settings.json."""
+        pass
+
+    @dbus.service.signal('org.maki.wmm', signature='s')
+    def BookmarksChanged(self, json_data):
+        """Emitida cuando cambia bookmarks.json."""
+        pass
+
     def __init__(self, bus_name):
         super().__init__(bus_name, "/org/maki/wmm")
         self._callback = None
 
+        # Rutas de los archivos a monitorizar
+        data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data')
+        self._settings_path = os.path.join(data_dir, 'settings.json')
+        self._bookmarks_path = os.path.join(data_dir, 'bookmarks.json')
+
+        # Monitores de archivos para emitir señales automáticamente
+        self._monitor_settings = Gio.File.new_for_path(self._settings_path).monitor_file(
+            Gio.FileMonitorFlags.NONE, None
+        )
+        self._monitor_bookmarks = Gio.File.new_for_path(self._bookmarks_path).monitor_file(
+            Gio.FileMonitorFlags.NONE, None
+        )
+
+        self._monitor_settings.connect('changed', self._on_settings_changed)
+        self._monitor_bookmarks.connect('changed', self._on_bookmarks_changed)
+
     def set_callback(self, callback):
         self._callback = callback
         log_event("Callback D-Bus registrado", origin="DBUS", level="DEBUG", reason="COMMAND")
+
+    def _on_settings_changed(self, monitor, file, other_file, event_type):
+        """Emite SettingsChanged cuando settings.json termina de modificarse."""
+        if event_type == Gio.FileMonitorEvent.CHANGES_DONE_HINT:
+            try:
+                with open(self._settings_path, 'r') as f:
+                    content = f.read()
+                self.SettingsChanged(content)
+            except Exception as e:
+                log_event(f"Error al emitir SettingsChanged: {e}", origin="DBUS", level="ERROR", reason="COMMAND")
+
+    def _on_bookmarks_changed(self, monitor, file, other_file, event_type):
+        """Emite BookmarksChanged cuando bookmarks.json termina de modificarse."""
+        if event_type == Gio.FileMonitorEvent.CHANGES_DONE_HINT:
+            try:
+                with open(self._bookmarks_path, 'r') as f:
+                    content = f.read()
+                self.BookmarksChanged(content)
+            except Exception as e:
+                log_event(f"Error al emitir BookmarksChanged: {e}", origin="DBUS", level="ERROR", reason="COMMAND")
 
     def _dispatch(self, action, json_data):
         """

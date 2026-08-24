@@ -1,0 +1,22 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=WMM - Wallpaper Multi-Monitor Manager
+Name[es]=WMM - Administrador de Fondos de Pantalla
+Name[ca]=WMM - Administrador de Fons de Pantalla
+Comment=Start WMM
+Comment[es]=Inicia WMM
+Comment[ca]=Inicia WMM
+Exec=@DBUS_SEND@ --session --type=method_call --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.StartServiceByName string:org.maki.wmm uint32:0
+Icon=video-display
+Terminal=false
+Categories=Graphics;
+StartupNotify=false
+Actions=next-background;
+X-KDE-GlobalShortcutType=Service
+
+[Desktop Action next-background]
+Name=Next Background
+Name[es]=Siguiente fondo
+Name[ca]=Fons següent
+Exec=@PYTHON3@ @APP_DIR@/python/send_command.py "{\\"action\\":\\"force_rotation\\"}" HOTKEY

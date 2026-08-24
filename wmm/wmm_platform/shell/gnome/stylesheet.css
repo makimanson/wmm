@@ -1,9 +1,27 @@
+/*
+ * SPDX-FileCopyrightText: 2026 makimanson
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * WMM - Wallpaper Multi-Monitor Manager
+ *
+ * stylesheet.css - Stylesheet para extension.js
+ */
+
 .wmm-preset-button {
-    color: inherit !important;
+    padding: 0 4px;
 }
-.wmm-preset-button:hover {
-    background-color: rgba(255, 255, 255, 0.2) !important;
+.wmm-preset-idle {
+    background-color: transparent;
 }
-.wmm-preset-button:active {
-    background-color: rgba(255, 255, 255, 0.4) !important;
+.wmm-submenu {
+    background-color: transparent;
+    background-image: none;
+    box-shadow: none;
+    border: none;
+}
+.wmm-flat-row {
+    background-color: transparent;
+}
+.wmm-menu-idle {
+    background-color: transparent;
 }

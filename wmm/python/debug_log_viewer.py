@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM
-----------------------------
+WMM - Wallpaper Multi-Monitor Manager
+
 debug_log_viewer.py – Visor independiente del log de depuración.
+===============================
 
 Muestra el contenido de debug.log en tiempo real, con actualización
 automática cada segundo.
@@ -68,6 +71,7 @@ FILTER_REASONS = [
     "GENERIC",
     "HARDWARE",
     "INIT",
+    "LAYOUT",
     "LIBRARY",
     "MODULE",
     "NOTIFY",

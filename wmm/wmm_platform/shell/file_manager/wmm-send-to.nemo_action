@@ -1,3 +1,9 @@
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
+#################################
+# wmm-send-to.nemo_action: lanzador Nemo para wmm-send-to-monitor.sh
+#################################
+
 [Nemo Action]
 Name=WMM: Send to Monitor
 Name[es]=WMM: Enviar al monitor

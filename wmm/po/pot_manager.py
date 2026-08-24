@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM - Translation Manager (POT Manager)
+WMM - Wallpaper Multi-Monitor Manager
+
+pot_manager.py - Translation Manager (POT Manager)
 ========================================
 Graphical tool to analyze, compare and update
 the project's wmm.pot file.

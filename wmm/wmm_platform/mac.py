@@ -1,5 +1,13 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """
-Módulo de plataforma para macOS.
+WMM - Wallpaper Multi-Monitor Manager
+
+mac.py - Módulo de plataforma para macOS.
+==========================================================
 Contiene funciones comunes a macOS (independientes del escritorio).
 """
 import os

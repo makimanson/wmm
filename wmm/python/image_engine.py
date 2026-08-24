@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM
-----------------------------
-image_engine.py – Motor gráfico para la generación del lienzo maestro.
+WMM - Wallpaper Multi-Monitor Manager
 
+image_engine.py – Motor gráfico para la generación del lienzo maestro.
+=============================
 Renderiza el fondo de pantalla componiendo las imágenes seleccionadas
 sobre un lienzo único, aplicando modos de aspecto, efectos visuales
 y fondos de relleno.
@@ -27,13 +29,13 @@ from PIL import Image, ImageFilter, ImageDraw, ImageOps
 
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gdk, GdkPixbuf
+from gi.repository import Gtk, Gdk, GdkPixbuf, GLib
 
 # ==========================================================
 # IMPORTS DE MÓDULOS DEL PROYECTO
 # ==========================================================
+from monitor_manager import get_spanned_reference_hash, get_total_canvas_geometry
 from debug_logger import log_event
-
 
 class ImageEngine:
     def __init__(self, config_handler, monitor_manager):
@@ -106,125 +108,125 @@ class ImageEngine:
             img = img.convert('RGBA')
         return img
 
-    def render_master_wallpaper(self, selection, full_canvas=False, solid_color="#000000", color_mode="solid_color", gradient_h=None, gradient_v=None, wallpaper_effect_scope="blur", wallpaper_mode="fit", image_effect="none"):
+    def _process_single_image(self, selection, monitors_map, spanned_enabled,
+                             solid_color, color_mode, gradient_h, gradient_v,
+                             wallpaper_effect_scope, wallpaper_mode, image_effect):
         """
-        Genera el lienzo maestro (master_canvas.jpg) pegando cada selección en su coordenada.
-        Si full_canvas=True, ignora geometrías y pinta una única imagen en todo el lienzo.
-        Si una entrada de selección es una tupla ("color", ...), pinta el color indicado.
+        Procesa las imágenes de selection y devuelve un diccionario
+        {hash: PIL.Image} con cada imagen ya procesada para su monitor.
+
+        Esta función contiene TODA la lógica de procesamiento:
+        - Modo spanned (real): la misma imagen se procesa para cada monitor
+          con sus dimensiones, creando una imagen continua.
+        - Modo normal: cada monitor tiene su propia imagen.
+        - Colores sólidos y degradados.
+        - Modos de aspecto (fit, zoom, stretched).
+        - Efectos de imagen (sepia, bw, none).
+        - Fondo de relleno (blur o color).
         """
-        if gradient_h is None:
-            gradient_h = ["#000000", "#8D9797"]
-        if gradient_v is None:
-            gradient_v = ["#000000", "#8D9797"]
-        geo = self.ch.load_json("geometry")
-        if not geo:
-            log_event("No existe mapa de geometría. Abortando renderizado.", origin="IMG_ENG", level="ERROR", reason="LIBRARY")
-            return None
+        processed_images = {}
 
-        canvas_size = (geo["canvas"]["w"], geo["canvas"]["h"])
-        monitors_map = geo["monitors"]
-
-        master_canvas = Image.new('RGB', canvas_size, (0, 0, 0))
-        log_event(f"Generando lienzo maestro de {canvas_size[0]}x{canvas_size[1]}", origin="IMG_ENG", level="INFO", reason="LIBRARY")
-
-        if full_canvas:
+        if spanned_enabled:
+            # --- Spanned: usar la imagen que ya viene en selection (build_selection ya decidió cuál es) ---
             if not selection:
-                return None
-            # Obtener la ruta de la imagen maestra (la primera del diccionario)
-            img_path = list(selection.values())[0]
-            if isinstance(img_path, tuple) and img_path[0] == "color":
-                # Si es color, generar un lienzo de color y devolverlo
-                _, cm, sc, gh, gv = img_path
-                processed = ImageEngine._create_color_surface(
-                    canvas_size[0], canvas_size[1], cm, sc, gh, gv
-                )
-                output_path = os.path.join(self.ch.cache_dir, "wallpaper_master.jpg")
-                processed.save(output_path, "JPEG", quality=95)
-                return output_path
-            else:
-                # Procesar la imagen maestra según el modo real sobre el canvas completo
-                with ImageEngine._open_image_safe(img_path) as img_obj:
-                    if wallpaper_mode == "fit":
-                        processed_img = ImageEngine.apply_fit(
-                            img_obj, canvas_size[0], canvas_size[1],
-                            wallpaper_effect_scope=wallpaper_effect_scope,
-                            solid_color=solid_color,
-                            gradient_h=gradient_h, gradient_v=gradient_v,
-                            color_mode=color_mode,
-                            image_effect=image_effect
-                        )
-                    elif wallpaper_mode == "zoom":
-                        processed_img = ImageEngine.apply_zoom(
-                            img_obj, canvas_size[0], canvas_size[1],
-                            image_effect=image_effect
-                        )
-                    elif wallpaper_mode == "stretched":
-                        processed_img = ImageEngine.apply_stretched(
-                            img_obj, canvas_size[0], canvas_size[1],
-                            image_effect=image_effect
-                        )
-                    else:
-                        # Fallback a fit
-                        processed_img = ImageEngine.apply_fit(
-                            img_obj, canvas_size[0], canvas_size[1],
-                            wallpaper_effect_scope=wallpaper_effect_scope,
-                            solid_color=solid_color,
-                            gradient_h=gradient_h, gradient_v=gradient_v,
-                            color_mode=color_mode,
-                            image_effect=image_effect
-                        )
-                # Pegar la imagen procesada en el canvas maestro
-                master_canvas.paste(processed_img, (0, 0))
-                output_path = os.path.join(self.ch.cache_dir, "wallpaper_master.jpg")
-                master_canvas.save(output_path, "JPEG", quality=95)
-                return output_path
-        else:
-            for m_hash, img_path in selection.items():
-                if m_hash not in monitors_map:
-                    continue
-                m_geo = monitors_map[m_hash]
-                x, y = m_geo['x'], m_geo['y']
-                w, h = m_geo['width'], m_geo['height']
+                log_event("Selection vacía para spanned", origin="IMG_ENG", level="ERROR", reason="LIBRARY")
+                return {}
 
-                if isinstance(img_path, tuple) and img_path[0] == "color":
-                    # Pintar color o degradado en este monitor
-                    _, color_mode, solid_color, gradient_h, gradient_v = img_path
-                    processed_img = ImageEngine._create_color_surface(
-                        w, h, color_mode, solid_color, gradient_h, gradient_v
-                    )
-                else:
-                    # Imagen normal: elegir el método según el modo real
-                    with ImageEngine._open_image_safe(img_path) as img_obj:
+            # 1. Tomar la primera imagen de selection (sin más lógica)
+            img_path = next(iter(selection.values()))
+
+            # 2. Calcular el tamaño total del canvas
+            canvas_w = max(mon['x'] + mon['width'] for mon in monitors_map.values())
+            canvas_h = max(mon['y'] + mon['height'] for mon in monitors_map.values())
+
+            # 3. Procesar la imagen UNA SOLA VEZ para el canvas completo
+            if isinstance(img_path, tuple) and img_path[0] == "color":
+                _, cm, sc, gh, gv = img_path
+                canvas_image = self._create_color_surface(canvas_w, canvas_h, cm, sc, gh, gv)
+            else:
+                try:
+                    with self._open_image_safe(img_path) as img:
                         if wallpaper_mode == "fit":
-                            processed_img = ImageEngine.apply_fit(
-                                img_obj, w, h,
+                            canvas_image = self.apply_fit(
+                                img, canvas_w, canvas_h,
                                 wallpaper_effect_scope=wallpaper_effect_scope,
                                 solid_color=solid_color,
-                                gradient_h=gradient_h, gradient_v=gradient_v,
+                                gradient_h=gradient_h,
+                                gradient_v=gradient_v,
                                 color_mode=color_mode,
                                 image_effect=image_effect
                             )
                         elif wallpaper_mode == "zoom":
-                            processed_img = ImageEngine.apply_zoom(img_obj, w, h, image_effect=image_effect)
+                            canvas_image = self.apply_zoom(img, canvas_w, canvas_h, image_effect=image_effect)
                         elif wallpaper_mode == "stretched":
-                            processed_img = ImageEngine.apply_stretched(img_obj, w, h, image_effect=image_effect)
+                            canvas_image = self.apply_stretched(img, canvas_w, canvas_h, image_effect=image_effect)
                         else:
-                            # Fallback a fit
-                            processed_img = ImageEngine.apply_fit(
-                                img_obj, w, h,
+                            canvas_image = self.apply_fit(
+                                img, canvas_w, canvas_h,
                                 wallpaper_effect_scope=wallpaper_effect_scope,
                                 solid_color=solid_color,
-                                gradient_h=gradient_h, gradient_v=gradient_v,
+                                gradient_h=gradient_h,
+                                gradient_v=gradient_v,
                                 color_mode=color_mode,
                                 image_effect=image_effect
                             )
+                except Exception as e:
+                    log_event(f"Error procesando imagen base para spanned: {e}", origin="IMG_ENG", level="ERROR", reason="LIBRARY")
+                    canvas_image = self._create_color_surface(canvas_w, canvas_h, color_mode, solid_color, gradient_h, gradient_v)
 
-                master_canvas.paste(processed_img, (x, y))
+            # 4. Recortar fragmentos para cada monitor
+            for m_hash, mon in monitors_map.items():
+                box = (mon['x'], mon['y'], mon['x'] + mon['width'], mon['y'] + mon['height'])
+                fragment = canvas_image.crop(box)
+                processed_images[m_hash] = fragment
 
-        output_path = os.path.join(self.ch.cache_dir, "wallpaper_master.jpg")
-        master_canvas.save(output_path, "JPEG", quality=95)
-        log_event(f"Lienzo maestro guardado en {output_path}", origin="IMG_ENG", level="DEBUG", reason="LIBRARY")
-        return output_path
+        else:
+            # --- Modo normal: cada monitor tiene su propia imagen ---
+            for m_hash, img_path in selection.items():
+                if m_hash not in monitors_map:
+                    continue
+                mon = monitors_map[m_hash]
+                target_w = mon['width']
+                target_h = mon['height']
+
+                if isinstance(img_path, tuple) and img_path[0] == "color":
+                    _, cm, sc, gh, gv = img_path
+                    processed = self._create_color_surface(target_w, target_h, cm, sc, gh, gv)
+                else:
+                    try:
+                        with self._open_image_safe(img_path) as img:
+                            if wallpaper_mode == "fit":
+                                processed = self.apply_fit(
+                                    img, target_w, target_h,
+                                    wallpaper_effect_scope=wallpaper_effect_scope,
+                                    solid_color=solid_color,
+                                    gradient_h=gradient_h,
+                                    gradient_v=gradient_v,
+                                    color_mode=color_mode,
+                                    image_effect=image_effect
+                                )
+                            elif wallpaper_mode == "zoom":
+                                processed = self.apply_zoom(img, target_w, target_h, image_effect=image_effect)
+                            elif wallpaper_mode == "stretched":
+                                processed = self.apply_stretched(img, target_w, target_h, image_effect=image_effect)
+                            else:
+                                processed = self.apply_fit(
+                                    img, target_w, target_h,
+                                    wallpaper_effect_scope=wallpaper_effect_scope,
+                                    solid_color=solid_color,
+                                    gradient_h=gradient_h,
+                                    gradient_v=gradient_v,
+                                    color_mode=color_mode,
+                                    image_effect=image_effect
+                                )
+                    except Exception as e:
+                        log_event(f"Error procesando imagen para {m_hash}: {e}", origin="IMG_ENG", level="ERROR", reason="LIBRARY")
+                        processed = self._create_color_surface(target_w, target_h, color_mode, solid_color, gradient_h, gradient_v)
+
+                processed_images[m_hash] = processed
+
+        log_event(f"Imágenes procesadas: {len(processed_images)}", origin="IMG_ENG", level="DEBUG", reason="LIBRARY")
+        return processed_images
 
     # --- NUEVOS MÉTODOS ESTÁTICOS DE PROCESAMIENTO DE IMÁGENES ---
 
@@ -248,7 +250,7 @@ class ImageEngine:
             return None, 0, 0
 
     @staticmethod
-    def generate_thumbnail(img_path, max_height=160, max_width=250, thumb_dir=None):
+    def generate_thumbnail(img_path, max_height, max_width, thumb_dir=None):
         """
         Genera una miniatura proporcional de la imagen en formato JPEG.
 
@@ -352,6 +354,45 @@ class ImageEngine:
             return None
 
     @staticmethod
+    def _calculate_fit_size(img_w, img_h, target_w, target_h):
+        """
+        Calcula el tamaño de una imagen para encajar completamente dentro
+        del área destino manteniendo su proporción.
+        """
+        img_ratio = img_w / img_h
+        target_ratio = target_w / target_h
+
+        if img_ratio > target_ratio:
+            new_w = target_w
+            new_h = math.ceil(target_w / img_ratio)
+        else:
+            new_h = target_h
+            new_w = math.ceil(target_h * img_ratio)
+
+        new_w = min(new_w, target_w)
+        new_h = min(new_h, target_h)
+
+        return new_w, new_h
+
+    @staticmethod
+    def _calculate_cover_size(img_w, img_h, target_w, target_h):
+        """
+        Calcula el tamaño de una imagen para cubrir completamente
+        el área destino manteniendo su proporción.
+        """
+        img_ratio = img_w / img_h
+        target_ratio = target_w / target_h
+
+        if img_ratio > target_ratio:
+            new_h = target_h
+            new_w = int(target_h * img_ratio)
+        else:
+            new_w = target_w
+            new_h = int(target_w / img_ratio)
+
+        return new_w, new_h
+
+    @staticmethod
     def _create_blur_background(img, target_w, target_h):
         """
         Genera una capa de fondo desenfocada a partir de la propia imagen.
@@ -359,15 +400,7 @@ class ImageEngine:
         Devuelve la imagen desenfocada y su posición de pegado (bg_x, bg_y).
         """
         img_w, img_h = img.size
-        img_ratio = img_w / img_h
-        target_ratio = target_w / target_h
-
-        if img_ratio > target_ratio:
-            bg_h = target_h
-            bg_w = int(target_h * img_ratio)
-        else:
-            bg_w = target_w
-            bg_h = int(target_w / img_ratio)
+        bg_w, bg_h = ImageEngine._calculate_cover_size(img_w, img_h, target_w, target_h)
 
         bg_img = img.resize((bg_w, bg_h), Image.Resampling.NEAREST)
         bg_img = bg_img.filter(ImageFilter.GaussianBlur(radius=40))
@@ -389,27 +422,14 @@ class ImageEngine:
         """
         if img.mode != 'RGB':
             img = img.convert('RGB')
-        # Aplicar efecto de imagen (sepia, bw) antes de redimensionar
-        img = ImageEngine.apply_image_effect(img, image_effect)
 
         # Aplicar efecto de imagen (sepia, bw, none) a la imagen original
         img_effected = ImageEngine.apply_image_effect(img, image_effect)
 
         img_w, img_h = img_effected.size
-        img_ratio = img_w / img_h
-        target_ratio = target_w / target_h
 
         # Calcular dimensiones de la imagen nítida (manteniendo proporción)
-        if img_ratio > target_ratio:
-            new_w = target_w
-            new_h = math.ceil(target_w / img_ratio)
-        else:
-            new_h = target_h
-            new_w = math.ceil(target_h * img_ratio)
-
-        # Limitar para que no exceda el contenedor
-        new_w = min(new_w, target_w)
-        new_h = min(new_h, target_h)
+        new_w, new_h = ImageEngine._calculate_fit_size(img_w, img_h, target_w, target_h)
 
         # Determinar si hay huecos (la imagen no llena completamente)
         has_gaps = (new_w < target_w) or (new_h < target_h)
@@ -452,15 +472,7 @@ class ImageEngine:
             img = img.convert('RGB')
         img = ImageEngine.apply_image_effect(img, image_effect)
         img_w, img_h = img.size
-        img_ratio = img_w / img_h
-        target_ratio = target_w / target_h
-
-        if img_ratio > target_ratio:
-            new_h = target_h
-            new_w = int(target_h * img_ratio)
-        else:
-            new_w = target_w
-            new_h = int(target_w / img_ratio)
+        new_w, new_h = ImageEngine._calculate_cover_size(img_w, img_h, target_w, target_h)
 
         img_scaled = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
@@ -501,19 +513,85 @@ class ImageEngine:
                 return Image.blend(img, bw_img, intensity / 100.0)
             return bw_img
         elif effect == "sepia":
-            # Fórmula de sepia genuino usando NumPy para rendimiento
-            original = img.copy()
-            arr = np.array(original, dtype=np.float64)
-            sepia = np.zeros_like(arr)
-            sepia[:,:,0] = 0.393*arr[:,:,0] + 0.769*arr[:,:,1] + 0.189*arr[:,:,2]
-            sepia[:,:,1] = 0.349*arr[:,:,0] + 0.686*arr[:,:,1] + 0.168*arr[:,:,2]
-            sepia[:,:,2] = 0.272*arr[:,:,0] + 0.534*arr[:,:,1] + 0.131*arr[:,:,2]
-            sepia_img = Image.fromarray(sepia.clip(0, 255).astype('uint8'))
+            # Fórmula de sepia genuino optimizada con NumPy
+            original = img.copy() if intensity < 100 else None
+            arr = np.array(img, dtype=np.float64)
+            sepia = np.empty(arr.shape, dtype=np.uint8)
+
+            sepia[:,:,0] = np.clip(0.393*arr[:,:,0] + 0.769*arr[:,:,1] + 0.189*arr[:,:,2], 0, 255)
+            sepia[:,:,1] = np.clip(0.349*arr[:,:,0] + 0.686*arr[:,:,1] + 0.168*arr[:,:,2], 0, 255)
+            sepia[:,:,2] = np.clip(0.272*arr[:,:,0] + 0.534*arr[:,:,1] + 0.131*arr[:,:,2], 0, 255)
+
+            sepia_img = Image.fromarray(sepia)
+
             if intensity < 100:
                 return Image.blend(original, sepia_img, intensity / 100.0)
             return sepia_img
         else:
             return img
+
+    @staticmethod
+    def _process_preview_image(img, target_w, target_h, mode, wallpaper_effect_scope="blur", solid_color="#000000", gradient_h=None, gradient_v=None, color_mode="solid_color", image_effect="none"):
+        """
+        Procesa una imagen para preview reduciendo primero a la geometría
+        necesaria y aplicando después los efectos visuales.
+        """
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+
+        img_w, img_h = img.size
+
+        if mode == "zoom":
+            new_w, new_h = ImageEngine._calculate_cover_size(img_w, img_h, target_w, target_h)
+
+            img_scaled = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+
+            left = (new_w - target_w) // 2
+            top = (new_h - target_h) // 2
+            right = left + target_w
+            bottom = top + target_h
+
+            img_cropped = img_scaled.crop((left, top, right, bottom))
+
+            return ImageEngine.apply_image_effect(img_cropped, image_effect)
+
+        if mode == "stretched":
+            img_scaled = img.resize((target_w, target_h), Image.Resampling.LANCZOS)
+            return ImageEngine.apply_image_effect(img_scaled, image_effect)
+
+        # FIT y fallback
+        new_w, new_h = ImageEngine._calculate_fit_size(img_w, img_h, target_w, target_h)
+        has_gaps = (new_w < target_w) or (new_h < target_h)
+
+        container = Image.new('RGB', (target_w, target_h), (0, 0, 0))
+
+        if has_gaps:
+            if wallpaper_effect_scope == "blur":
+                bg_w, bg_h = ImageEngine._calculate_cover_size(img_w, img_h, target_w, target_h)
+                bg_img = img.resize((bg_w, bg_h), Image.Resampling.NEAREST)
+                bg_img = ImageEngine.apply_image_effect(bg_img, image_effect)
+                bg_img = bg_img.filter(ImageFilter.GaussianBlur(radius=40))
+
+                bg_x = (target_w - bg_w) // 2
+                bg_y = (target_h - bg_h) // 2
+                container.paste(bg_img, (bg_x, bg_y))
+
+            elif wallpaper_effect_scope == "color":
+                bg_surface = ImageEngine._create_color_surface(
+                    target_w, target_h,
+                    color_mode, solid_color,
+                    gradient_h, gradient_v
+                )
+                container.paste(bg_surface, (0, 0))
+
+        img_fit = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
+        img_fit = ImageEngine.apply_image_effect(img_fit, image_effect)
+
+        fit_x = (target_w - new_w) // 2
+        fit_y = (target_h - new_h) // 2
+        container.paste(img_fit, (fit_x, fit_y))
+
+        return container
 
     def apply_spanned(self, img_path, canvas_w, canvas_h, mode, color_mode="blur", solid_color="#000000", gradient_h=None, gradient_v=None, wallpaper_effect_scope="blur", image_effect="none"):
         """
@@ -531,52 +609,45 @@ class ImageEngine:
             gradient_v (list):    Degradado vertical [inicio, fin] (solo si color_mode == "gradient_v").
 
         Returns:
-            str: Ruta del thumbnail maestro generado, o None si falla.
+            tuple: (ruta del thumbnail maestro, imagen PIL procesada).
+                   La imagen PIL es None si se reutiliza la caché.
+                   Devuelve None si falla.
         """
         if canvas_w <= 0 or canvas_h <= 0:
             return None
 
-        with ImageEngine._open_image_safe(img_path) as img:
-            if mode == "fit":
-                processed = ImageEngine.apply_fit(img, canvas_w, canvas_h, wallpaper_effect_scope=wallpaper_effect_scope, solid_color=solid_color, gradient_h=gradient_h, gradient_v=gradient_v, color_mode=color_mode, image_effect=image_effect)
-            elif mode == "zoom":
-                processed = ImageEngine.apply_zoom(img, canvas_w, canvas_h, image_effect=image_effect)
-            elif mode == "stretched":
-                processed = ImageEngine.apply_stretched(img, canvas_w, canvas_h, image_effect=image_effect)
-            else:
-                return None
-
         thumb_dir = self.ch.thumbnails_dir
         os.makedirs(thumb_dir, exist_ok=True)
-        m = hashlib.md5(f"{img_path}_{canvas_w}x{canvas_h}_spanned_{mode}".encode()).hexdigest()
+        m = hashlib.md5(f"{img_path}_{canvas_w}x{canvas_h}_spanned_{mode}_{wallpaper_effect_scope}_{image_effect}_{color_mode}_{solid_color}_{gradient_h}_{gradient_v}".encode()).hexdigest()
         output_path = os.path.join(thumb_dir, f"spanned_{m}.jpg")
-        processed.save(output_path, "JPEG", quality=85)
-        return output_path
 
-    def paint_monitors_thumbnails(self, fixed_widget, layout_data, img_source, wallpaper_mode, spanned_enabled, color_tuple, wallpaper_effect_scope="blur", image_effect="none", layout_info=None, settings=None):
+        if os.path.exists(output_path):
+            return output_path, None
+
+        with ImageEngine._open_image_safe(img_path) as img:
+            processed = ImageEngine._process_preview_image(
+                img, canvas_w, canvas_h,
+                mode=mode,
+                wallpaper_effect_scope=wallpaper_effect_scope,
+                solid_color=solid_color,
+                gradient_h=gradient_h,
+                gradient_v=gradient_v,
+                color_mode=color_mode,
+                image_effect=image_effect
+            )
+
+        processed.save(output_path, "JPEG", quality=85)
+        return output_path, processed
+
+    def paint_monitors_thumbnails(self, fixed_widget, layout_data, img_source, wallpaper_mode, spanned_enabled, color_tuple, wallpaper_effect_scope="blur", image_effect="none", layout_info=None):
         """
         Pinta las miniaturas dentro de los EventBox existentes en fixed_widget.
         NO añade nuevos widgets si ya existe uno (modifica el existente).
         """
         if spanned_enabled:
             # --- MODO DISTRIBUIDO (SPANNED) ---
-            # 1. Buscar la imagen maestra en img_source
-            master_path = None
-            for entry in img_source.values():
-                path = entry.get("path", "") if isinstance(entry, dict) else entry
-                if path and os.path.exists(path):
-                    master_path = path
-                    break
-            if not master_path:
-                # Sin imagen maestra: limpiar todos los EventBox
-                for eb in fixed_widget.get_children():
-                    if isinstance(eb, Gtk.EventBox):
-                        child = eb.get_child()
-                        if child is not None:
-                            eb.remove(child)
-                return
 
-            # 2. Calcular el bounding box del layout escalado
+            # 1. Calcular el bounding box del layout escalado
             canvas_min_x = min(d['x'] for d in layout_data)
             canvas_min_y = min(d['y'] for d in layout_data)
             canvas_w = max(d['x'] + d['w'] for d in layout_data) - canvas_min_x
@@ -585,69 +656,100 @@ class ImageEngine:
             if canvas_w <= 0 or canvas_h <= 0:
                 return
 
-            # Priorizar la imagen del monitor primario, validando con min_area_coverage
+            # 2. Resolver el monitor de referencia Spanned mediante
+            #    la misma regla geométrica utilizada por ImageSelectionEngine.
+            spanned_hash = get_spanned_reference_hash(layout_info) if layout_info else None
             master_path = None
-            min_coverage = settings.get("min_area_coverage", 0.6) if settings else 0.6
 
-            if layout_info:
-                primary_hash = None
+            # Prioridad absoluta al monitor de referencia Spanned.
+            if spanned_hash:
+                entry = img_source.get(spanned_hash, {})
+
+                if isinstance(entry, dict):
+                    path = entry.get("path", "")
+                    active = entry.get("active", True)
+                else:
+                    path = entry if entry else ""
+                    active = True
+
+                if active and path and os.path.exists(path):
+                    master_path = path
+
+            # En activación reactiva, el monitor de referencia puede no tener
+            # imagen válida y ImageSelectionEngine haber reutilizado la de otro
+            # monitor compatible. Reproducir exactamente ese desempate.
+            if not master_path and layout_info:
+                physical_w, physical_h = get_total_canvas_geometry(layout_info)
+                canvas_orientation = "horizontal" if physical_w >= physical_h else "vertical"
+                compatible_hashes = []
+
                 for m_hash, info in layout_info.items():
-                    if info.get("primary"):
-                        primary_hash = m_hash
+                    if m_hash == spanned_hash:
+                        continue
+
+                    monitor_orientation = info.get("orientation")
+                    if monitor_orientation not in ("horizontal", "vertical"):
+                        monitor_orientation = "horizontal" if info.get("width", 0) >= info.get("height", 0) else "vertical"
+
+                    if monitor_orientation == canvas_orientation:
+                        compatible_hashes.append(m_hash)
+
+                for m_hash in sorted(compatible_hashes):
+                    entry = img_source.get(m_hash, {})
+
+                    if isinstance(entry, dict):
+                        path = entry.get("path", "")
+                        active = entry.get("active", True)
+                    else:
+                        path = entry if entry else ""
+                        active = True
+
+                    if active and path and os.path.exists(path):
+                        master_path = path
                         break
-                if primary_hash and primary_hash in img_source:
-                    primary_entry = img_source[primary_hash]
-                    primary_path = primary_entry.get("path", "") if isinstance(primary_entry, dict) else primary_entry
-                    if primary_path and os.path.exists(primary_path):
-                        from PIL import Image as PILImage
-                        with PILImage.open(primary_path) as img:
-                            img_w, img_h = img.size
-                        img_area = img_w * img_h
-                        canvas_area = canvas_w * canvas_h
-                        coverage = img_area / canvas_area if canvas_area > 0 else 0
-                        if coverage >= min_coverage:
-                            master_path = primary_path
 
-            # Si el primario no cumple, buscar otra imagen que sí cumpla
+            # Fallback defensivo: usar la primera imagen activa disponible.
             if not master_path:
                 for entry in img_source.values():
-                    path = entry.get("path", "") if isinstance(entry, dict) else entry
-                    if path and os.path.exists(path):
-                        from PIL import Image as PILImage
-                        with PILImage.open(path) as img:
-                            img_w, img_h = img.size
-                        img_area = img_w * img_h
-                        canvas_area = canvas_w * canvas_h
-                        coverage = img_area / canvas_area if canvas_area > 0 else 0
-                        if coverage >= min_coverage:
-                            master_path = path
-                            break
+                    if isinstance(entry, dict):
+                        path = entry.get("path", "")
+                        active = entry.get("active", True)
+                    else:
+                        path = entry if entry else ""
+                        active = True
 
-            # Fallback: si ninguna cumple, usar la primera disponible
-            if not master_path:
-                for entry in img_source.values():
-                    path = entry.get("path", "") if isinstance(entry, dict) else entry
-                    if path and os.path.exists(path):
+                    if active and path and os.path.exists(path):
                         master_path = path
                         break
 
             if not master_path:
-                return  # Sin imagen maestra, no se puede pintar
+                # Sin imagen maestra: limpiar todos los EventBox.
+                for eb in fixed_widget.get_children():
+                    if isinstance(eb, Gtk.EventBox):
+                        child = eb.get_child()
+                        if child is not None:
+                            eb.remove(child)
+                return
 
             # 3. Generar el thumbnail maestro spanned usando apply_spanned
-            thumb_dir = self.ch.thumbnails_dir
-            spanned_thumb = self.apply_spanned(
+            spanned_result = self.apply_spanned(
                 master_path, canvas_w, canvas_h, mode=wallpaper_mode,
                 color_mode=color_tuple[1], solid_color=color_tuple[2],
                 gradient_h=color_tuple[3], gradient_v=color_tuple[4],
                 wallpaper_effect_scope=wallpaper_effect_scope,
                 image_effect=image_effect
             )
-            if not spanned_thumb:
+            if not spanned_result:
                 return
 
-            # 4. Cargar el thumbnail maestro como pixbuf
-            full_pixbuf = GdkPixbuf.Pixbuf.new_from_file(spanned_thumb)
+            spanned_thumb, processed = spanned_result
+
+            # 4. Usar la imagen en memoria si acaba de generarse;
+            #    cargar el thumbnail solo si procede de caché.
+            if processed is not None:
+                full_pixbuf = self._pil_to_pixbuf(processed)
+            else:
+                full_pixbuf = GdkPixbuf.Pixbuf.new_from_file(spanned_thumb)
 
             # 5. Recortar la porción correspondiente a cada monitor
             for eb in fixed_widget.get_children():
@@ -714,45 +816,45 @@ class ImageEngine:
                     img_path = entry["path"]
                     inner_w = w - 2
                     inner_h = h - 2
-                    with ImageEngine._open_image_safe(img_path) as img_obj:
-                        # img_obj = ImageEngine.apply_image_effect(img_obj, image_effect)
-                        if wallpaper_mode == "fit":
-                            processed = ImageEngine.apply_fit(
-                                img_obj, inner_w, inner_h,
-                                wallpaper_effect_scope=wallpaper_effect_scope,
-                                solid_color=color_tuple[2],
-                                gradient_h=color_tuple[3],
-                                gradient_v=color_tuple[4],
-                                color_mode=color_tuple[1],
-                                image_effect=image_effect
-                            )
-                        elif wallpaper_mode == "zoom":
-                            processed = ImageEngine.apply_zoom(img_obj, inner_w, inner_h, image_effect=image_effect)
-                        elif wallpaper_mode == "stretched":
-                            processed = ImageEngine.apply_stretched(img_obj, inner_w, inner_h, image_effect=image_effect)
-                        else:
-                            processed = ImageEngine.apply_fit(
-                                img_obj, inner_w, inner_h,
-                                wallpaper_effect_scope=wallpaper_effect_scope,
-                                solid_color=color_tuple[2],
-                                gradient_h=color_tuple[3],
-                                gradient_v=color_tuple[4],
-                                color_mode=color_tuple[1],
-                                image_effect=image_effect
-                            )
-                    # Guardar miniatura con dimensiones reducidas
+
                     thumb_dir = self.ch.thumbnails_dir
                     os.makedirs(thumb_dir, exist_ok=True)
                     intensity = 100  # Valor temporal hasta implementar el slider
-                    m = hashlib.md5(f"{img_path}_{inner_w}x{inner_h}_{wallpaper_mode}_{wallpaper_effect_scope}_{image_effect}_{intensity}_{color_tuple[1]}_{color_tuple[2]}".encode()).hexdigest()
+                    m = hashlib.md5(f"{img_path}_{inner_w}x{inner_h}_{wallpaper_mode}_{wallpaper_effect_scope}_{image_effect}_{intensity}_{color_tuple[1]}_{color_tuple[2]}_{color_tuple[3]}_{color_tuple[4]}".encode()).hexdigest()
                     blurred_path = os.path.join(thumb_dir, f"blur_{m}.jpg")
+
+                    if os.path.exists(blurred_path):
+                        if child is None:
+                            child = Gtk.Image()
+                            eb.add(child)
+                        if not child.get_style_context().has_class("monitor-image"):
+                            child.get_style_context().add_class("monitor-image")
+                        child.set_from_file(blurred_path)
+                        child.queue_resize()
+                        child.show()
+                        continue
+
+                    with ImageEngine._open_image_safe(img_path) as img_obj:
+                        processed = ImageEngine._process_preview_image(
+                            img_obj, inner_w, inner_h,
+                            mode=wallpaper_mode,
+                            wallpaper_effect_scope=wallpaper_effect_scope,
+                            solid_color=color_tuple[2],
+                            gradient_h=color_tuple[3],
+                            gradient_v=color_tuple[4],
+                            color_mode=color_tuple[1],
+                            image_effect=image_effect
+                        )
+                    # Guardar miniatura con dimensiones reducidas
                     processed.save(blurred_path, "JPEG", quality=85)
+                    pixbuf = self._pil_to_pixbuf(processed)
+
                     if child is None:
                         child = Gtk.Image()
                         eb.add(child)
                     if not child.get_style_context().has_class("monitor-image"):
                         child.get_style_context().add_class("monitor-image")
-                    child.set_from_file(blurred_path)
+                    child.set_from_pixbuf(pixbuf)
                     child.queue_resize()
                     child.show()
                 else:
@@ -763,11 +865,21 @@ class ImageEngine:
         fixed_widget.queue_draw()
 
     def _pil_to_pixbuf(self, pil_image):
-        """Convierte una imagen PIL a GdkPixbuf.Pixbuf."""
-        buf = io.BytesIO()
-        pil_image.save(buf, 'png')
-        buf.seek(0)
-        loader = GdkPixbuf.PixbufLoader.new_with_type('png')
-        loader.write(buf.read())
-        loader.close()
-        return loader.get_pixbuf()
+        """Convierte una imagen PIL directamente a GdkPixbuf.Pixbuf en memoria."""
+        if pil_image.mode not in ('RGB', 'RGBA'):
+            pil_image = pil_image.convert('RGB')
+
+        width, height = pil_image.size
+        has_alpha = pil_image.mode == 'RGBA'
+        channels = 4 if has_alpha else 3
+        pixels = GLib.Bytes.new(pil_image.tobytes())
+
+        return GdkPixbuf.Pixbuf.new_from_bytes(
+            pixels,
+            GdkPixbuf.Colorspace.RGB,
+            has_alpha,
+            8,
+            width,
+            height,
+            width * channels
+        )

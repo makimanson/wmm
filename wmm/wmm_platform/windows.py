@@ -1,5 +1,13 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """
-Módulo de plataforma para Windows.
+WMM - Wallpaper Multi-Monitor Manager
+
+windows.py - Módulo de plataforma para Windows.
+==========================================================
 Contiene funciones comunes a Windows (independientes del escritorio).
 """
 import os

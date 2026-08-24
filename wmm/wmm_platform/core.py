@@ -1,11 +1,21 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """
-WMM - Platform Core
+WMM - Wallpaper Multi-Monitor Manager
+
+core.py - Platform Core
+==========================================================
 Lee settings_core.json, carga el módulo de plataforma adecuado
 y expone sus funciones como propias.
 """
+
 import os
 import json
 import importlib
+import types
 
 from debug_logger import log_event
 
@@ -146,6 +156,16 @@ class PlatformManager:
         if not hasattr(so_module, "init_channels"):
             self.init_channels = lambda: None
 
+        # Área útil disponible para una ventana.
+        # Cada escritorio puede implementar su cálculo según su compositor.
+        self.get_window_available_area = lambda pid: None
+
+        # Conservación opcional de la posición al expandir secciones del panel.
+        # Por defecto no hace nada; solo los escritorios que necesiten corregir
+        # el comportamiento de su gestor de ventanas la implementan.
+        self.preserve_window_position_on_expand = lambda pid: None
+        self.correct_initial_window_position = lambda pid: None
+
         # ----------------------------------------------------------
         # 4. CARGA DEL MÓDULO DEL ESCRITORIO (si existe)
         # ----------------------------------------------------------
@@ -164,9 +184,9 @@ class PlatformManager:
                 elif hasattr(desktop_module, 'get_monitors'):
                     self.get_monitors = desktop_module.get_monitors
 
-                # Aplicar el fondo de pantalla (gsettings, plasma-apply-wallpaperimage...)
-                if hasattr(desktop_module, 'set_wallpaper'):
-                    self.set_wallpaper = desktop_module.set_wallpaper
+                # Envio y montaje de imagenes renderizadas
+                if hasattr(desktop_module, 'render_master_wallpaper'):
+                    self.render_master_wallpaper = types.MethodType(desktop_module.render_master_wallpaper, desktop_module)
 
                 # El escritorio puede definir su propio dominio de traducciones
                 # (ej: 'cinnamon' vs 'gnome-shell'). Sobrescribe el del SO.
@@ -180,6 +200,15 @@ class PlatformManager:
                 # --- CREAR ATAJO EN PRIMERA INSTALACIÓN ---
                 if hasattr(desktop_module, 'ensure_keybindings'):
                     self.ensure_keybindings = desktop_module.ensure_keybindings
+                # Área útil de la ventana según el compositor del escritorio
+                if hasattr(desktop_module, 'get_window_available_area'):
+                    self.get_window_available_area = desktop_module.get_window_available_area
+                # Correcciones específicas del gestor de ventanas durante
+                # expansiones del panel.
+                if hasattr(desktop_module, 'preserve_window_position_on_expand'):
+                    self.preserve_window_position_on_expand = desktop_module.preserve_window_position_on_expand
+                if hasattr(desktop_module, 'correct_initial_window_position'):
+                    self.correct_initial_window_position = desktop_module.correct_initial_window_position
                 # --- MONITORIZACIÓN DE CAMBIOS DE HARDWARE (delegado en monitor_events) ---
                 # Importamos el orquestador de eventos directamente
                 from python.monitor_events import init_monitor_events

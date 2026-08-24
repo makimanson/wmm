@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM Applet - Cinnamon Edition
-----------------------------
-add_bookmark.py – Diálogo independiente para añadir un favorito (preset).
+WMM - Wallpaper Multi-Monitor Manager
 
+add_bookmark.py – Diálogo independiente para añadir un favorito (preset).
+===============================
 FLUJO DE CONTROL:
     1. Se invoca directamente desde el applet (sin pasar por el motor).
     2. Lee la sesión activa de monitores desde vault.json.

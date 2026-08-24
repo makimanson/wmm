@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM - Monitor Detection Engine
+WMM - Wallpaper Multi-Monitor Manager
+
+monitor_detection.py - Monitor Detection Engine
 ===============================
 Centraliza todas las estrategias de detección de monitores para WMM.
 
@@ -18,13 +22,13 @@ Flujo típico:
     1. main.py llama a monitor_detection.detect_monitors().
     2. El módulo decide qué estrategia usar (X11, GNOME D-Bus, GDK fallback).
     3. Devuelve el diccionario de monitores (mismo formato que get_x11_monitors).
-
-Autor: WMM Project
-Fecha: 2026-08-02 (Refactorización desde linux.py y gnome.py)
 """
 
 import os
 import sys
+import glob
+import json
+import subprocess
 import hashlib
 import ctypes
 import ctypes.util
@@ -381,9 +385,188 @@ def get_gdk_wayland_monitors():
         }
     return monitors_data
 
+# ------------------------------------------------------------
+# 4. KDE Plasma 6 detection (kscreen-doctor + EDID)
+# ------------------------------------------------------------
+
+def _parse_edid_base(edid_bytes):
+    """Extrae fabricante, modelo y serial del EDID base."""
+    if len(edid_bytes) < 128:
+        return None
+
+    # Fabricante (bytes 8-9)
+    b8 = edid_bytes[8]
+    b9 = edid_bytes[9]
+    char1 = chr(((b8 & 0x7C) >> 2) + 64)
+    char2 = chr((((b8 & 0x03) << 3) | ((b9 & 0xE0) >> 5)) + 64)
+    char3 = chr((b9 & 0x1F) + 64)
+    manufacturer = f"{char1}{char2}{char3}"
+
+    model_name = None
+    serial_number = None
+
+    # Descriptores de texto (offsets 54, 72, 90, 108)
+    for offset in [54, 72, 90, 108]:
+        desc = edid_bytes[offset:offset+18]
+        if desc[0] == 0 and desc[1] == 0:
+            tag = desc[3]
+            raw_text = desc[5:].decode('ascii', errors='ignore').replace('\r', '').replace('\n', '').strip()
+            if tag == 0xFF and raw_text:  # Serial number (ASCII)
+                serial_number = raw_text
+            elif tag == 0xFC and raw_text:  # Model name
+                model_name = raw_text
+            elif tag == 0xFE and raw_text and not serial_number:  # Free text
+                if any(c.isdigit() for c in raw_text) and len(raw_text) >= 4:
+                    serial_number = raw_text
+
+    # Fallback: serial binario de 32 bits
+    if not serial_number:
+        serial_raw = int.from_bytes(edid_bytes[12:16], byteorder='little')
+        if serial_raw != 0:
+            serial_number = str(serial_raw)
+        else:
+            serial_number = "Unknown"
+
+    return {
+        "manufacturer": manufacturer,
+        "model": model_name,
+        "serial_number": serial_number
+    }
+
+def _get_edids_from_sysfs():
+    """Lee EDID de /sys/class/drm/*/edid y devuelve dict {connector: info}."""
+    edid_map = {}
+    for path in glob.glob('/sys/class/drm/card*-*'):
+        connector_name = "-".join(path.split('-')[1:])
+        edid_file = os.path.join(path, 'edid')
+        if os.path.exists(edid_file):
+            try:
+                with open(edid_file, 'rb') as f:
+                    edid_bytes = f.read()
+                if edid_bytes:
+                    parsed = _parse_edid_base(edid_bytes)
+                    if parsed:
+                        edid_map[connector_name] = parsed
+            except Exception:
+                # Si no se puede leer, loguear WARN y continuar
+                log_event(f"No se pudo leer EDID para {connector_name}", origin="MON_DETECT", level="WARN", reason="HARDWARE")
+                continue
+    return edid_map
+
+def _get_kscreen_info():
+    """Ejecuta kscreen-doctor -j y extrae geometría, posición, mm y prioridad."""
+    try:
+        log_event("Ejecutando kscreen-doctor -j", origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
+        result = subprocess.run(['kscreen-doctor', '-j'], capture_output=True, text=True, check=True)
+        data = json.loads(result.stdout)
+    except Exception as e:
+        log_event(f"Error al ejecutar kscreen-doctor: {e}", origin="MON_DETECT", level="ERROR", reason="HARDWARE")
+        log_event(f"Excepción en kscreen-doctor: {e}", origin="MON_DETECT", level="ERROR", reason="HARDWARE")
+        return {}
+
+    outputs = data.get("outputs", [])
+    kscreen_map = {}
+    for out in outputs:
+        connector = out.get("name")
+        if not connector or not out.get("connected", False):
+            continue
+
+        # Geometría en píxeles
+        size = out.get("size", {})
+        width = size.get("width")
+        height = size.get("height")
+        if width is None or height is None:
+            # Intentar obtener del modo activo
+            current_mode = str(out.get("currentModeId", ""))
+            for mode in out.get("modes", []):
+                if str(mode.get("id")) == current_mode:
+                    mode_size = mode.get("size", {})
+                    width = mode_size.get("width")
+                    height = mode_size.get("height")
+                    break
+
+        # Dimensiones físicas (mm)
+        size_mm = out.get("sizeMM", {})
+        width_mm = size_mm.get("width", 0)
+        height_mm = size_mm.get("height", 0)
+
+        pos = out.get("pos", {})
+
+        kscreen_map[connector] = {
+            "x": pos.get("x", 0),
+            "y": pos.get("y", 0),
+            "width": width,
+            "height": height,
+            "width_mm": width_mm,
+            "height_mm": height_mm,
+            "primary": (out.get("priority") == 1),
+        }
+
+    return kscreen_map
+
+def get_kde_monitors():
+    """Obtiene monitores en KDE Plasma 6 usando kscreen-doctor + EDID desde sysfs."""
+    # 1. Obtener EDID
+    edid_map = _get_edids_from_sysfs()
+
+    # 2. Obtener información de KScreen
+    kscreen_map = _get_kscreen_info()
+    log_event(f"kscreen_map tiene {len(kscreen_map)} monitores", origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
+    if not kscreen_map:
+        return {}
+
+    monitors = {}
+    for connector, display in kscreen_map.items():
+        # Datos de EDID (o valores por defecto)
+        edid_info = edid_map.get(connector, {
+            "manufacturer": "Unknown",
+            "model": "",
+            "serial_number": "Unknown"
+        })
+
+        manufacturer = edid_info["manufacturer"]
+        model = edid_info["model"]
+        serial = edid_info["serial_number"]
+
+        # Orientación
+        orientation = "horizontal" if display["width"] >= display["height"] else "vertical"
+
+        # Pulgadas
+        w_mm = display["width_mm"]
+        h_mm = display["height_mm"]
+        if w_mm > 0 and h_mm > 0:
+            inches = calculate_inches(w_mm, h_mm)
+        else:
+            inches = 0
+
+        # Hash
+        if serial != "Unknown":
+            hash_base = f"{manufacturer}_{model}_{serial}"
+        else:
+            hash_base = f"{manufacturer}_{model}_{connector}"
+        monitor_hash = hashlib.shake_128(hash_base.encode()).hexdigest(4)
+
+        monitors[monitor_hash] = {
+            "connector": connector,
+            "manufacturer": manufacturer,
+            "model": model,
+            "x": display["x"],
+            "y": display["y"],
+            "width": display["width"],
+            "height": display["height"],
+            "width_mm": display["width_mm"],
+            "height_mm": display["height_mm"],
+            "inches": inches,
+            "orientation": orientation,
+            "primary": display["primary"],
+        }
+
+    log_event(f"Monitores obtenidos con kscreen-doctor + EDID: {len(monitors)}", origin="MON_DETECT", level="INFO", reason="HARDWARE")
+    log_event(f"monitores finales: {len(monitors)}", origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
+    return monitors
 
 # ==========================================================
-# 4. Orquestador principal
+# 5. Orquestador principal
 # ==========================================================
 def detect_monitors():
     """
@@ -413,6 +596,15 @@ def detect_monitors():
         else:
             log_event("D-Bus falló, usando fallback GDK", origin="MON_DETECT", level="WARN", reason="HARDWARE")
 
-    # 3. Fallback GDK para cualquier otro caso
+    # 3. KDE Wayland
+    if graphics_engine == 'wayland' and desktop == 'kde':
+        log_event("Detección KDE Wayland usando kscreen-doctor + EDID", origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
+        monitors = get_kde_monitors()
+        if monitors:
+            return monitors
+        else:
+            log_event("kscreen-doctor falló, usando fallback GDK", origin="MON_DETECT", level="WARN", reason="HARDWARE")
+
+    # 4. Fallback GDK para cualquier otro caso
     log_event("Detección genérica Wayland usando GDK", origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
     return get_gdk_wayland_monitors()

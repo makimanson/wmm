@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM - Monitor Events Engine
+WMM - Wallpaper Multi-Monitor Manager
+
+monitor_events.py - Monitor Events Engine
 ============================
 Centraliza la monitorización de cambios de hardware (conexión/desconexión de monitores).
 
@@ -19,12 +23,12 @@ Flujo típico:
     2. El módulo decide qué estrategia usar (GNOME D-Bus, fallback Gdk).
     3. Inicia la escucha y llama al callback cuando se detecta un cambio.
 
-Autor: WMM Project
-Fecha: 2026-08-02
 """
 
 from debug_logger import log_event
 
+_gnome_bus = None
+_gnome_signal_match = None
 
 # ==========================================================
 # 1. Estrategia para GNOME (D-Bus)
@@ -33,11 +37,23 @@ def init_gnome_events(callback):
     """
     Inicia la monitorización de hardware en GNOME usando D-Bus
     (org.gnome.Mutter.DisplayConfig).
+
+    La conexión D-Bus es privada y dispone de su propio DBusGMainLoop,
+    evitando depender de un main loop global compartido con otros
+    componentes de WMM.
     """
+    global _gnome_bus, _gnome_signal_match
+
     try:
         import dbus
-        bus = dbus.SessionBus()
-        display_config = bus.get_object(
+        from dbus.mainloop.glib import DBusGMainLoop
+
+        _gnome_bus = dbus.SessionBus(
+            private=True,
+            mainloop=DBusGMainLoop()
+        )
+
+        display_config = _gnome_bus.get_object(
             "org.gnome.Mutter.DisplayConfig",
             "/org/gnome/Mutter/DisplayConfig"
         )
@@ -46,13 +62,17 @@ def init_gnome_events(callback):
             log_event("Señal MonitorsChanged recibida desde D-Bus", origin="MON_EVENT", level="DEBUG", reason="HARDWARE")
             callback("hardware_changed")
 
-        display_config.connect_to_signal("MonitorsChanged", on_monitors_changed)
+        _gnome_signal_match = display_config.connect_to_signal(
+            "MonitorsChanged",
+            on_monitors_changed
+        )
+
         log_event("Monitor D-Bus de GNOME iniciado correctamente", origin="MON_EVENT", level="INFO", reason="D-BUS")
         return True
+
     except Exception as e:
         log_event(f"Error al iniciar monitor D-Bus de GNOME: {e}", origin="MON_EVENT", level="ERROR", reason="D-BUS")
         return False
-
 
 # ==========================================================
 # 2. Estrategia de fallback (Gdk signals)
@@ -84,7 +104,6 @@ def init_gdk_events(callback):
     except Exception as e:
         log_event(f"Error al iniciar monitorización Gdk: {e}", origin="MON_EVENT", level="ERROR", reason="HARDWARE")
         return False
-
 
 # ==========================================================
 # 3. Orquestador principal

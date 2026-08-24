@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM
-----------------------------
-panel.py – Panel de control de WMM (Ajustes). ORQUESTADOR.
+WMM - Wallpaper Multi-Monitor Manager
 
+panel.py – Panel de control de WMM (Ajustes). ORQUESTADOR.
+===============================
 Instancia las secciones (Opciones, Favoritos, Fuentes, Monitores,
 Thumbnails) y las empaqueta en la ventana principal.
 Gestiona la comunicación entre secciones mediante callbacks.
@@ -50,6 +52,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
     """
     Ventana principal de configuración de WMM.
     """
+    _WORKAREA_MARGIN = 34
 
     def __init__(self, app):
 
@@ -57,17 +60,17 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         # INICIALIZACIÓN DE DEPENDENCIAS
         # ----------------------------------------------------------
         # Obtener la ruta de caché de la plataforma
-        platform = PlatformManager()
+        self.platform = PlatformManager()
         cache_base = None
-        if hasattr(platform, 'get_cache_dir') and platform.get_cache_dir:
-            cache_base = platform.get_cache_dir()
-        log_event(f"Cache dir desde PlatformManager: {platform.cache_dir}", origin="PANEL", level="DEBUG", reason="SETTINGS")
-        self.handler = ConfigHandler(cache_base_dir=platform.cache_dir)
+        if hasattr(self.platform, 'get_cache_dir') and self.platform.get_cache_dir:
+            cache_base = self.platform.get_cache_dir()
+        log_event(f"Cache dir desde PlatformManager: {self.platform.cache_dir}", origin="PANEL", level="DEBUG", reason="SETTINGS")
+        self.handler = ConfigHandler(cache_base_dir=self.platform.cache_dir)
         self.backend = WMMBackend(self.handler)
         self.ie = ImageEngine(self.handler, None)
 
         # Configurar el sistema de traducciones
-        initialize(platform)
+        initialize(self.platform)
 
         # ----------------------------------------------------------
         # VARIABLES DE ESTADO DEL PANEL
@@ -125,17 +128,36 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         # ----------------------------------------------------------
         super().__init__(application=app, title="WMM - " + _("Control Center"))
         self.set_icon_name("preferences-system")
-        self.set_size_request(1205, 925)
         self.set_position(Gtk.WindowPosition.CENTER)
-
+        self.connect("map-event", self._on_initial_map)
         self.main_layout = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         self.main_layout.set_border_width(10)
         self.add(self.main_layout)
 
-        # COLUMNA IZQUIERDA
+        # BLOQUE IZQUIERDO
+        self.left_wrapper = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.main_layout.pack_start(self.left_wrapper, False, False, 0)
+
+        self.expanded_wrapper = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+
         self.left_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         self.left_col.set_size_request(350, -1)
-        self.main_layout.pack_start(self.left_col, False, False, 0)
+        self.expanded_wrapper.pack_start(self.left_col, True, True, 0)
+
+        separator = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
+        self.expanded_wrapper.pack_start(separator, False, False, 4)
+
+        self.left_wrapper.pack_start(self.expanded_wrapper, True, True, 0)
+
+        self.collapsed_wrapper = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+
+        self.collapsed_bar = self._build_collapsed_bar()
+        self.collapsed_wrapper.pack_start(self.collapsed_bar, False, False, 0)
+
+        separator = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
+        self.collapsed_wrapper.pack_start(separator, False, False, 4)
+
+        self.left_wrapper.pack_start(self.collapsed_wrapper, True, True, 0)
 
         # COLUMNA DERECHA
         self.right_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
@@ -175,6 +197,9 @@ class WMMControlPanel(Gtk.ApplicationWindow):
             accept_btn=self.accept_btn,
             spanned_switch=None
         )
+
+        self.right_separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
+        self.right_col.pack_start(self.right_separator, False, False, 0)
 
         # 2. Opciones
         self.options_section = OptionsSection(
@@ -235,8 +260,93 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         log_event("Registro de PID completado.", origin="PANEL", level="DEBUG", reason="NOTIFY")
         self.connect("delete-event", self._on_delete_event)
         self.show_all()
+        self._restore_section_states()
+        self._restore_left_panel_state()
         # Activar el flag de monitores tras el primer layout completo
         GLib.timeout_add(300, lambda: setattr(self.monitors_section, '_panel_realized', True) or False)
+
+    # ==========================================================
+    # ESTADO VISUAL DE LAS SECCIONES
+    # ==========================================================
+    def _save_section_state(self, section, expanded):
+        """Guarda el estado de despliegue de una sección del panel."""
+        settings = self.backend.load_json("settings")
+        panel_state = settings.setdefault("panel", {})
+        sections = panel_state.setdefault("sections", {})
+        sections[section] = bool(expanded)
+        self.backend.save_json("settings", settings)
+        log_event(f"Estado de sección guardado: {section}={expanded}", origin="PANEL", level="DEBUG", reason="SETTINGS")
+
+    def _restore_section_states(self):
+        """Restaura el último estado de despliegue de las secciones del bloque izquierdo."""
+        settings = self.backend.load_json("settings")
+        sections = settings.get("panel", {}).get("sections", {})
+
+        self.options_section.set_expanded(sections.get("options", True))
+        self.favorites_section.set_expanded(sections.get("favorites", True))
+        self.sources_section.set_expanded(sections.get("sources", True))
+
+        GLib.idle_add(self._fit_collapsed)
+
+    def _save_left_panel_state(self, collapsed):
+        """Guarda el estado de plegado del bloque izquierdo."""
+        settings = self.backend.load_json("settings")
+        panel_state = settings.setdefault("panel", {})
+        panel_state["collapsed"] = bool(collapsed)
+        self.backend.save_json("settings", settings)
+        log_event(f"Estado del bloque izquierdo guardado: collapsed={collapsed}", origin="PANEL", level="DEBUG", reason="SETTINGS")
+
+    def _set_left_panel_collapsed(self, collapsed, persist=True):
+        """Alterna entre el bloque izquierdo completo y la barra lateral compacta."""
+        if collapsed:
+            self.expanded_wrapper.hide()
+            self.collapsed_wrapper.show()
+        else:
+            self.collapsed_wrapper.hide()
+            self.expanded_wrapper.show()
+
+        if persist:
+            self._save_left_panel_state(collapsed)
+
+        self.main_layout.queue_resize()
+        log_event(f"Bloque izquierdo {'plegado' if collapsed else 'desplegado'}", origin="PANEL", level="DEBUG", reason="SETTINGS")
+
+    def _restore_left_panel_state(self):
+        """Restaura el estado persistido del bloque izquierdo."""
+        settings = self.backend.load_json("settings")
+        collapsed = settings.get("panel", {}).get("collapsed", False)
+        self._set_left_panel_collapsed(collapsed, persist=False)
+
+    def _build_collapsed_bar(self):
+        """Construye la barra lateral mostrada cuando el bloque izquierdo está plegado."""
+        bar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        bar.set_size_request(40, -1)
+        bar.set_margin_start(0)
+        bar.set_margin_end(6)
+
+        expand_btn = Gtk.Button(label="▶")
+        expand_btn.set_tooltip_text(_("Expand side panel"))
+        expand_btn.connect("clicked", lambda *_: self._set_left_panel_collapsed(False))
+        bar.pack_start(expand_btn, False, False, 0)
+
+        help_btn = Gtk.Button.new_from_icon_name("help-contents", Gtk.IconSize.BUTTON)
+        help_btn.set_tooltip_text(_("Open Help"))
+        help_btn.set_margin_top(10)
+        help_btn.connect("clicked", self._on_open_help)
+        bar.pack_start(help_btn, False, False, 0)
+
+        debug_log_btn = Gtk.Button.new_from_icon_name("text-x-generic", Gtk.IconSize.BUTTON)
+        debug_log_btn.set_tooltip_text(_("Open Debug Log Viewer"))
+        debug_log_btn.connect("clicked", self._on_open_debug_log)
+        bar.pack_start(debug_log_btn, False, False, 0)
+
+        restart_btn = Gtk.Button.new_from_icon_name("view-refresh-symbolic", Gtk.IconSize.BUTTON)
+        restart_btn.set_tooltip_text(_("Restart engine and panel"))
+        restart_btn.set_margin_top(10)
+        restart_btn.connect("clicked", lambda widget: self.options_section._on_restart_clicked(widget))
+        bar.pack_start(restart_btn, False, False, 0)
+
+        return bar
 
     # ==========================================================
     # CALLBACKS PARA OPTIONS SECTION
@@ -255,6 +365,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
             'get_application': lambda: self.get_application(),
             'on_open_debug_log': self._on_open_debug_log,
             'on_open_help': self._on_open_help,
+            'collapse_left_panel': lambda: self._set_left_panel_collapsed(True),
         }
 
     # ==========================================================
@@ -311,6 +422,36 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         label.set_markup(f"<span weight='bold' size='large'>{text}</span>")
         label.set_halign(Gtk.Align.START)
         return label
+
+    def _preserve_window_position_on_expand(self):
+        """Delega en la plataforma cualquier corrección previa a una expansión."""
+        self.platform.preserve_window_position_on_expand(os.getpid())
+
+    def _on_initial_map(self, widget, event):
+        """Aplica una corrección específica de plataforma tras el primer mapeo."""
+        self.disconnect_by_func(self._on_initial_map)
+        GLib.timeout_add(50, self._correct_initial_window_position)
+        return False
+
+    def _correct_initial_window_position(self):
+        self.platform.correct_initial_window_position(os.getpid())
+        return False
+
+    def _fit_collapsed(self):
+        """Limita la ventana al alto disponible de su área de trabajo."""
+        area = self.platform.get_window_available_area(os.getpid())
+
+        if not area:
+            return False
+
+        window_w, window_h = self.get_size()
+        available_height = area["height"] - self._WORKAREA_MARGIN
+
+        if window_h > available_height:
+            log_event(f"Panel reajustado: alto {window_h} -> {available_height} (área útil={area['height']}, margen={self._WORKAREA_MARGIN})", origin="PANEL", level="DEBUG", reason="LAYOUT")
+            self.resize(window_w, available_height)
+
+        return False
 
     def _notify_engine(self, action=None):
         if action is None:
@@ -599,6 +740,9 @@ class WMMControlPanel(Gtk.ApplicationWindow):
                 GLib.idle_add(self.favorites_section._load_bookmarks_single)
             elif action == "hardware_changed":
                 GLib.idle_add(self.monitors_section._load_monitors_normal)
+            elif action == "shutdown":
+                log_event("Cierre solicitado por el engine", origin="PANEL", level="INFO", reason="COMMAND")
+                self._on_delete_event(None, None)
             else:
                 log_event(f"Acción desconocida recibida del motor: {action}", origin="PANEL", level="WARN", reason="COMMAND")
 

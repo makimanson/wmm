@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 
 """
-WMM
-----------------------------
-shell_send_to_monitor.py – Acción "Enviar a monitor" desde file_manager.
+WMM - Wallpaper Multi-Monitor Manager
 
+shell_send_to_monitor.py – Acción "Enviar a monitor" desde file_manager.
+===============================
 Recibe la ruta de una imagen, muestra un diálogo nativo con los monitores activos
 y asigna la imagen al monitor seleccionado.
 

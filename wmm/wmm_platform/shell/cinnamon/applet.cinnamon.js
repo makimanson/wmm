@@ -1,12 +1,16 @@
-/**
- * WMM Applet - Cinnamon Edition
- * ----------------------------
- * DESCRIPCIÓN:
- * Gestión de fondos multi-monitor con soporte para temporizadores y favoritos.
- * * FLUJO DE CONTROL:
- * 1. UI (JS) -> Escribe comandos.json -> Envía SIGUSR1 al motor.
- * 2. Motor (Python) -> Lee comandos.json -> Ejecuta -> Actualiza settings.json.
- * 3. UI (JS) -> Lee settings.json al abrir el menú para sincronizar estados.
+/*
+ * SPDX-FileCopyrightText: 2026 makimanson
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * applet.js: WMM Applet - Cinnamon Edition
+ * -----------------------------------------
+ * Gestión de fondos multi-monitor con soporte para temporizador, favoritos,
+ * modos SYNC/ASYNC y Spanned.
+ *
+ * FLUJO DE CONTROL:
+ * 1. UI (JS) -> send_command.py -> commands.json / canal del engine.
+ * 2. Engine (Python) -> ejecuta la acción -> actualiza settings/bookmarks/estado.
+ * 3. UI (JS) -> sincroniza settings/bookmarks al abrir el menú.
  */
 
 const Applet = imports.ui.applet;
@@ -19,11 +23,11 @@ const Gtk = imports.gi.Gtk;
 
 const Gettext = imports.gettext;
 
+// Cinnamon 5.4+ expone St.PolicyType; versiones anteriores utilizan Gtk.PolicyType.
+const PolicyType = St.PolicyType || Gtk.PolicyType;
+
 // Dominio de traducciones propio del applet.
-Gettext.bindtextdomain(
-    'wmm@maki',
-    GLib.get_user_data_dir() + '/locale'
-);
+Gettext.bindtextdomain('wmm@maki', GLib.get_user_data_dir() + '/locale');
 
 function _(text) {
     return Gettext.dgettext('wmm@maki', text);
@@ -33,7 +37,7 @@ class WMMApplet extends Applet.IconApplet {
 
     /**
      * BLOQUE 1: CONSTRUCTOR
-     * Configuración de rutas y arranque del motor.
+     * Configuración de rutas, UI inicial y arranque del engine.
      */
     constructor(metadata, orientation, panel_height, instance_id) {
         super(orientation, panel_height, instance_id);
@@ -45,6 +49,7 @@ class WMMApplet extends Applet.IconApplet {
                 _("Click action") + ": " + _("Next Background") + "\n" +
                 _("Secondary Click") + ": " + _("Context Menu")
             );
+
             this.appletPath = metadata.path;
             this.enginePath = this.appletPath + "/python/main.py";
             this.commandsPath = this.appletPath + "/data/commands.json";
@@ -52,21 +57,22 @@ class WMMApplet extends Applet.IconApplet {
             this.bookmarksPath = this.appletPath + "/data/bookmarks.json";
 
             this._currentMaxInterval = 60;
-            this.favItems = []; // Array para trackear y destruir items de favoritos (Gestión de RAM)
+            this.favItems = [];
+            this._motorBusy = false;
+            this._ignoreNextBusy = false;
+            this._cachedSettings = null;
+            this._cachedBookmarks = null;
 
             this._populateMenu();
 
-            // LECTURA ÚNICA: Solo accedemos al disco al abrir el menú principal
+            // Lectura de settings/bookmarks únicamente al abrir el menú principal.
             this._applet_context_menu.connect('open-state-changed', (menu, open) => {
                 if (open) this._refreshSettingsFromDisk();
             });
 
             Util.spawn(["python3", this.enginePath]);
 
-            this._motorBusy = false;
-            this._ignoreNextBusy = false;
-            this._cachedSettings = null;
-            this._cachedBookmarks = null;
+            // Estado operativo del engine para reflejar busy en el icono del applet.
             let statusPath = GLib.get_user_cache_dir() + "/wmm/engine_status.json";
             let statusFile = Gio.File.new_for_path(statusPath);
             this._statusMonitor = statusFile.monitor_file(Gio.FileMonitorFlags.NONE, null);
@@ -80,7 +86,7 @@ class WMMApplet extends Applet.IconApplet {
 
     /**
      * BLOQUE 2: CONSTRUCCIÓN DE LA INTERFAZ
-     * Diseño del esqueleto del menú contextual.
+     * Esqueleto del menú contextual del applet.
      */
     _populateMenu() {
         try {
@@ -89,49 +95,35 @@ class WMMApplet extends Applet.IconApplet {
 
             // --- 2.1 AJUSTES GENERALES ---
             this.settingsMenuItem = new PopupMenu.PopupMenuItem("WMM " + _("Settings"));
-            this.settingsMenuItem.connect('activate', () => {
-                this._openSettingsPanel();
-            });
+            this.settingsMenuItem.connect('activate', () => this._openSettingsPanel());
             this._applet_context_menu.addMenuItem(this.settingsMenuItem);
 
-            // --- Separador ---
             this._applet_context_menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
             // --- 2.2 SUBMENÚ FAVORITOS ---
             this.menuBookmarks = new PopupMenu.PopupSubMenuMenuItem(_("Favorites"));
             this._applet_context_menu.addMenuItem(this.menuBookmarks);
 
-            // Switch: Solo rotar favoritos (Slideshow Bookmark)
             this.favRotationSwitch = new PopupMenu.PopupSwitchMenuItem(_("Favorites Only"), false);
             this.favRotationSwitch.connect('toggled', (item, state) => {
-                // LÓGICA REACTIVA: Si activamos rotación de favoritos, el motor debe estar ON
-                if (state && !this.masterItem.state) {
-                    this._syncTimerUI(true); // Sincronización en caliente (Vista)
-                }
-                this._updateTimerSettings(); // Notificación al Motor (Realidad)
+                if (state && !this.masterItem.state) this._syncTimerUI(true);
+                this._updateTimerSettings();
             });
             this.menuBookmarks.menu.addMenuItem(this.favRotationSwitch);
             this.menuBookmarks.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
-            // Botón añadir favorito
             let itemAddBookmark = new PopupMenu.PopupMenuItem(_("Add Preset Favorite"));
-            itemAddBookmark.connect('activate', () => {
-                this._sendActionToEngine({ action: "add_bookmark" });
-            });
-
+            itemAddBookmark.connect('activate', () => this._sendActionToEngine({ action: "add_bookmark" }));
             this.menuBookmarks.menu.addMenuItem(itemAddBookmark);
             this.menuBookmarks.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
             // --- 2.3 SUBMENÚ TEMPORIZADOR ---
             this.menuTimer = new PopupMenu.PopupSubMenuMenuItem(_("Slideshow"));
-            //this.menuTimer.menu.actor.width_request = 210;
             this._applet_context_menu.addMenuItem(this.menuTimer);
 
-            // Interruptor Maestro (Dentro del Submenú)
             this.masterItem = new PopupMenu.PopupSwitchMenuItem(_("Disabled"), false);
             this.menuTimer.menu.addMenuItem(this.masterItem);
 
-            // Información de tiempo (Dentro del Submenú)
             let infoItem = new PopupMenu.PopupBaseMenuItem({ reactive: false });
             let infoBox = new St.BoxLayout({ style: "margin-left: 110px;" });
             this.labelMin = new St.Label();
@@ -139,69 +131,53 @@ class WMMApplet extends Applet.IconApplet {
             infoItem.addActor(infoBox);
             this.menuTimer.menu.addMenuItem(infoItem);
 
-            // Slider (Dentro del Submenú)
             this.slider = new PopupMenu.PopupSliderMenuItem(0.25);
             this.menuTimer.menu.addMenuItem(this.slider);
 
-            // --- 2.4 MODO SYNC/ASYNC (Ahora en la Raíz) ---
-            // Lo añadimos justo debajo del Submenú Temporizador
+            // --- 2.4 MODO SYNC/ASYNC ---
             this.modeSwitch = new PopupMenu.PopupSwitchMenuItem(_("Displays") + ": " + _("ASYNC (One)"), false);
             this._applet_context_menu.addMenuItem(this.modeSwitch);
 
-            // --- 2.4b MODO DISTRIBUIDO (SPANNED) ---
+            // --- 2.4b MODO SPANNED ---
             this.spannedSwitch = new PopupMenu.PopupSwitchMenuItem(_("Spanned Mode"), false);
+            this.spannedSwitch.connect('toggled', () => this._updateTimerSettings());
             this._applet_context_menu.addMenuItem(this.spannedSwitch);
 
-            this.spannedSwitch.connect('toggled', (item, state) => {
-                this._updateTimerSettings(); // Envía spanned_enabled al motor
-            });
-
             // --- 2.5 EVENTOS Y LÓGICA ---
-
-            // Slider: Solo responde si el temporizador está ON
             this.slider.connect('value-changed', () => {
                 if (!this.masterItem || !this.masterItem.state) {
-                    // Si está OFF, refrescamos para evitar que el slider se mueva visualmente
                     if (this.masterItem) this._refreshSettingsFromDisk();
                     return;
                 }
+
                 let mins = Math.max(1, Math.round(this.slider.value * this._currentMaxInterval));
                 this.labelMin.set_text(mins + " " + _("minutes"));
             });
 
             this.slider.connect('drag-end', () => {
-                // Solo guardamos si el temporizador está activo
                 if (this.masterItem && this.masterItem.state) this._updateTimerSettings();
             });
 
             this.masterItem.connect('toggled', (item, state) => {
-                // El texto del interruptor maestro
                 item.label.set_text(state ? _("Enabled") : _("Disabled"));
-
-                // IMPORTANTE: _syncTimerUI debe bloquear el slider pero NO el modeSwitch
                 this._syncTimerUI(state);
                 this._updateTimerSettings();
             });
 
             this.modeSwitch.connect('toggled', (item, state) => {
                 item.label.set_text(state ? _("Displays") + ": " + _("SYNC (All)") : _("Displays") + ": " + _("ASYNC (One)"));
-                // Ahora se guarda SIEMPRE, independientemente de si el timer está ON o OFF
                 this._updateTimerSettings();
             });
 
             // --- 2.6 PIE DE MENÚ ---
             this._applet_context_menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
             let itemSync = new PopupMenu.PopupMenuItem(_("Sync Library"));
-            itemSync.connect('activate', () => {
-                this._sendActionToEngine({ "action": "sync_library" });
-            });
+            itemSync.connect('activate', () => this._sendActionToEngine({ action: "sync_library" }));
             this._applet_context_menu.addMenuItem(itemSync);
 
-            // --- 2.6 AYUDA ---
             let itemHelp = new PopupMenu.PopupMenuItem(_("Help"));
-            itemHelp.connect('activate', () => {
-                this._sendActionToEngine({ action: "open_help" });
-            });
+            itemHelp.connect('activate', () => this._sendActionToEngine({ action: "open_help" }));
             this._applet_context_menu.addMenuItem(itemHelp);
 
         } catch (e) {
@@ -210,186 +186,198 @@ class WMMApplet extends Applet.IconApplet {
     }
 
     /**
-     * BLOQUE 3: SINCRONIZACIÓN EN CALIENTE (HOT-SYNC)
-     * Modifica la UI visualmente sin realizar lecturas de disco.
+     * BLOQUE 3: SINCRONIZACIÓN EN CALIENTE
+     * Actualiza la UI sin realizar lecturas de disco.
      */
     _syncTimerUI(enabled) {
         if (!this.masterItem) return;
+
         this.masterItem.setToggleState(enabled);
         this.masterItem.label.set_text(enabled ? _("Enabled") : _("Disabled"));
         this.slider.setSensitive(enabled);
         this.slider.actor.reactive = enabled;
-        //this.labelMin.set_opacity(enabled ? 255 : 255);
     }
 
     _applySettingsToUI(config) {
         if (!this.masterItem || !this.slider) return;
+
         this._currentMaxInterval = config.slideshow_max_interval || 60;
+
         let isEnabled = config.slideshow_enabled;
-        let isSync = (config.slideshow_mode === "sync");
+        let isSync = config.slideshow_mode === "sync";
         let isFavSlideshow = config.slideshow_bookmark || false;
+        let isSpanned = config.spanned_enabled || false;
 
         this._syncTimerUI(isEnabled);
+
         this.modeSwitch.setToggleState(isSync);
         this.modeSwitch.label.set_text(isSync ? _("Displays") + ": " + _("SYNC (All)") : _("Displays") + ": " + _("ASYNC (One)"));
+
         this.favRotationSwitch.setToggleState(isFavSlideshow);
 
         let ratio = config.slideshow_interval / this._currentMaxInterval;
         this.slider.setValue(ratio);
         this.labelMin.set_text(config.slideshow_interval + " " + _("minutes"));
 
-        let isSpanned = config.spanned_enabled || false;
         this.spannedSwitch.setToggleState(isSpanned);
 
         this._debug_mode = config.debug_mode || false;
-        if (this.settingsMenuItem) {
-            this.settingsMenuItem.label.set_text(
-                "WMM " + _("Settings") + (this._debug_mode ? " (Debug)" : "")
-            );
-        }
+        if (this.settingsMenuItem) this.settingsMenuItem.label.set_text("WMM " + _("Settings") + (this._debug_mode ? " (Debug)" : ""));
     }
 
+    /**
+     * Destruye únicamente los items dinámicos creados por _paintBookmarks().
+     */
     _clearBookmarksUI() {
         this.favItems.forEach(item => item.destroy());
         this.favItems = [];
     }
 
-  _paintBookmarks(bookmarks) {
-      // Limpieza de memoria: destruir widgets previos
-      this.favItems.forEach(item => item.destroy());
-      this.favItems = [];
+    /**
+     * Pinta la lista dinámica de presets favoritos.
+     *
+     * - El ScrollView crece de forma natural hasta 115 px.
+     * - A partir del máximo aparece scroll vertical.
+     * - Nombre y papelera son items independientes con hover propio.
+     * - Las filas no expanden verticalmente: cada una conserva su altura natural.
+     */
+    _paintBookmarks(bookmarks) {
+        this._clearBookmarksUI();
 
-      let keys = Object.keys(bookmarks);
-      if (keys.length === 0) {
-          let info = new PopupMenu.PopupMenuItem(_("No saved favorites"), { reactive: false });
-          this.menuBookmarks.menu.addMenuItem(info);
-          this.favItems.push(info);
-          return;
-      }
+        let keys = Object.keys(bookmarks);
 
-      // Contenedor del scroll
-      let scrollItem = new PopupMenu.PopupBaseMenuItem({ reactive: false, activate: false });
-      scrollItem.actor.style = 'padding: 0; margin: 0; background-color: transparent;';
-      scrollItem.actor.remove_all_children();
+        if (keys.length === 0) {
+            let info = new PopupMenu.PopupMenuItem(_("No saved favorites"), { reactive: false });
+            this.menuBookmarks.menu.addMenuItem(info);
+            this.favItems.push(info);
+            return;
+        }
 
-      // Caja vertical con margen izquierdo y sin expandir (para controlar el ancho)
-      let favBox = new St.BoxLayout({
-          vertical: true,
-          style: 'margin-left: 10px; padding: 0;'
-      });
+        // Item estructural neutro que aloja el ScrollView.
+        let scrollItem = new PopupMenu.PopupBaseMenuItem({ reactive: false, activate: false });
+        scrollItem.actor.style = 'padding: 0; margin: 0; background-color: transparent;';
+        scrollItem.actor.remove_all_children();
 
-      keys.forEach(name => {
-          let row = new St.BoxLayout({ style: 'padding: 3px 0px; spacing: 0px;' });
+        // Contenido vertical. El padding derecho da aire a la papelera respecto al borde.
+        let favBox = new St.BoxLayout({
+            vertical: true,
+            style: 'margin-left: 10px; padding: 0 6px 0 0; spacing: 3px;'
+        });
 
-          // Botón con el nombre del preset
-          let nameBtn = new St.Button({
-              reactive: true,
-              can_focus: true,
-              track_hover: true,
-              x_align: St.Align.START
-          });
-          let nameLabel = new St.Label({ text: name });
-          nameLabel.style = 'overflow: hidden; white-space: nowrap; text-overflow: ellipsis;';
-          nameBtn.set_child(nameLabel);
+        keys.forEach(name => {
+            let row = new St.BoxLayout({ style: 'padding: 0; spacing: 2px;' });
 
-          nameBtn.connect('clicked', () => {
-              this._syncTimerUI(false);
-              this._sendActionToEngine({ action: "load_bookmark", name: name, timer_force_off: true });
-              this._applet_context_menu.close();
-          });
+            // Nombre del preset: item de menú nativo con hover independiente.
+            let nameItem = new PopupMenu.PopupMenuItem(name, {
+                reactive: true,
+                activate: true,
+                focusOnHover: false
+            });
+            nameItem.actor.style = 'padding: 1px 6px; spacing: 0px;';
 
-          // Papelera
-          let deleteBtn = new St.Button({ reactive: true, can_focus: true, track_hover: true });
-          deleteBtn.set_width(28);
-          let deleteIcon = new St.Icon({
-              icon_name: 'user-trash-symbolic',
-              style_class: 'popup-menu-icon',
-              icon_size: 16,
-              reactive: false
-          });
-          deleteBtn.set_child(deleteIcon);
-          deleteBtn.connect('clicked', () => {
-              this._confirmDeleteBookmark(name);
-              this._applet_context_menu.close();
-          });
+            nameItem.connect('activate', () => {
+                this._syncTimerUI(false);
+                this._sendActionToEngine({ action: "load_bookmark", name: name, timer_force_off: true });
+                this._applet_context_menu.close();
+            });
 
-          row.add(nameBtn, { expand: true, x_fill: true, x_align: St.Align.START });
-          row.add(deleteBtn);
-          favBox.add(row, { expand: true, x_fill: true });
-      });
+            // Papelera: item independiente para disponer de hover y zona de clic propios.
+            let deleteItem = new PopupMenu.PopupBaseMenuItem({
+                reactive: true,
+                activate: true,
+                focusOnHover: false
+            });
+            deleteItem.actor.style = 'padding: 1px 6px; spacing: 0px;';
 
-      // ScrollView con tamaño fijo y sin expandir
-      let scrollView = new St.ScrollView({
-          hscrollbar_policy: St.PolicyType.AUTOMATIC,
-          vscrollbar_policy: St.PolicyType.AUTOMATIC,
-          style: 'border: none; background-color: transparent; padding: 0; margin: 0;'
-      });
-      scrollView.set_size(200, Math.min(keys.length * 38, 125));
-      scrollView.add_actor(favBox);
+            let deleteIcon = new St.Icon({
+                icon_name: 'user-trash-symbolic',
+                style_class: 'popup-menu-icon',
+                icon_size: 16,
+                reactive: false
+            });
 
-      scrollItem.addActor(scrollView, { expand: false });
-      this.menuBookmarks.menu.addMenuItem(scrollItem);
-      this.favItems.push(scrollItem);
-  }
+            deleteItem.addActor(deleteIcon, { expand: false, align: St.Align.MIDDLE });
+
+            deleteItem.connect('activate', () => {
+                this._confirmDeleteBookmark(name);
+                this._applet_context_menu.close();
+            });
+
+            row.add(nameItem.actor, { expand: true, x_fill: true, x_align: St.Align.START });
+            row.add(deleteItem.actor, { expand: false, x_fill: false });
+
+            // IMPORTANTE: false evita repartir artificialmente la altura del ScrollView entre filas.
+            favBox.add(row, { expand: false, x_fill: true });
+        });
+
+        // Altura natural hasta 115 px; después, scroll vertical automático.
+        let scrollView = new St.ScrollView({
+            style: 'border: none; background-color: transparent; padding: 0; margin: 0; max-height: 115px;'
+        });
+
+        scrollView.set_policy(PolicyType.NEVER, PolicyType.AUTOMATIC);
+        scrollView.add_actor(favBox);
+
+        scrollItem.addActor(scrollView, { expand: true, span: -1 });
+        this.menuBookmarks.menu.addMenuItem(scrollItem);
+        this.favItems.push(scrollItem);
+    }
 
     /**
      * BLOQUE 4: REFRESH DISCO -> UI
-     * Sincroniza el Applet con el estado real almacenado en JSON.
+     * Sincroniza el applet con el estado persistido.
      */
     _refreshSettingsFromDisk() {
-        // Declarar variables reutilizables una sola vez
-        let s, content;
-
         try {
             if (!this.masterItem || !this.slider) return;
 
-            // 1. Aplicar caché si existe (apertura instantánea)
-            if (this._cachedSettings) {
-                this._applySettingsToUI(this._cachedSettings);
-            }
-            if (this._cachedBookmarks) {
-                this._paintBookmarks(this._cachedBookmarks);
-            } else {
-                this._clearBookmarksUI();
-            }
+            // 1. Aplicar caché disponible para apertura instantánea.
+            if (this._cachedSettings) this._applySettingsToUI(this._cachedSettings);
 
-            // 2. Cargar Settings Globales de forma asíncrona
+            if (this._cachedBookmarks) this._paintBookmarks(this._cachedBookmarks);
+            else this._clearBookmarksUI();
+
+            // 2. Cargar settings globales de forma asíncrona.
             let settingsFile = Gio.File.new_for_path(this.settingsPath);
+
             if (!settingsFile.query_exists(null)) {
-                this._refreshBookmarks(); // intenta cargar bookmarks aunque settings no exista
+                this._refreshBookmarks();
                 return;
             }
+
             settingsFile.load_contents_async(null, (file, res) => {
                 try {
-                    let [s, content] = file.load_contents_finish(res);
-                    if (!s || content.length === 0) return;
+                    let [success, content] = file.load_contents_finish(res);
+                    if (!success || content.length === 0) return;
+
                     let config;
                     try {
                         config = JSON.parse(content).global;
                     } catch (e) {
                         return;
                     }
+
                     if (!config) return;
 
-                    // Comparar con caché: si no cambió, no tocamos la UI
                     let cached = this._cachedSettings;
-                    if (!cached ||
+                    if (
+                        !cached ||
                         cached.slideshow_enabled !== config.slideshow_enabled ||
                         cached.slideshow_interval !== config.slideshow_interval ||
                         cached.slideshow_mode !== config.slideshow_mode ||
                         cached.slideshow_bookmark !== config.slideshow_bookmark ||
                         cached.spanned_enabled !== config.spanned_enabled ||
-                        cached.debug_mode !== config.debug_mode) {
-
+                        cached.debug_mode !== config.debug_mode
+                    ) {
                         this._applySettingsToUI(config);
                         this._cachedSettings = config;
                     }
                 } catch (e) {
-                    // ignorar errores de parseo
+                    // Escritura parcial o JSON todavía incompleto: se ignora este evento.
                 }
             });
 
-            // 3. Cargar Favoritos Dinámicos (async)
+            // 3. Cargar favoritos dinámicos.
             this._refreshBookmarks();
 
         } catch (e) {
@@ -399,17 +387,21 @@ class WMMApplet extends Applet.IconApplet {
 
     _refreshBookmarks() {
         let bookmarksFile = Gio.File.new_for_path(this.bookmarksPath);
+
         if (!bookmarksFile.query_exists(null)) {
             this._clearBookmarksUI();
             return;
         }
+
         bookmarksFile.load_contents_async(null, (file, res) => {
             try {
-                let [s, content] = file.load_contents_finish(res);
-                if (!s || content.length === 0) {
+                let [success, content] = file.load_contents_finish(res);
+
+                if (!success || content.length === 0) {
                     this._clearBookmarksUI();
                     return;
                 }
+
                 let bookmarks;
                 try {
                     bookmarks = JSON.parse(content);
@@ -418,14 +410,12 @@ class WMMApplet extends Applet.IconApplet {
                     return;
                 }
 
-                // Comparar con caché: si no cambió, no repintar
                 let cached = this._cachedBookmarks;
-                if (cached && JSON.stringify(cached) === JSON.stringify(bookmarks)) {
-                    return; // sin cambios, no tocamos la UI
-                }
+                if (cached && JSON.stringify(cached) === JSON.stringify(bookmarks)) return;
 
                 this._cachedBookmarks = bookmarks;
                 this._paintBookmarks(bookmarks);
+
             } catch (e) {
                 this._clearBookmarksUI();
             }
@@ -436,7 +426,7 @@ class WMMApplet extends Applet.IconApplet {
         let args = [
             '--question',
             '--title=' + _("Delete favorite"),
-            '--text=' + _("Delete") + " \"" + name + "\"?",
+            '--text=' + _("Delete") + ' "' + name + '"?',
             '--width=200'
         ];
 
@@ -447,33 +437,32 @@ class WMMApplet extends Applet.IconApplet {
             });
 
             proc.init(null);
-            proc.wait_async(null, (proc, result) => {
+
+            proc.wait_async(null, (process, result) => {
                 try {
-                    proc.wait_finish(result);
-                    let status = proc.get_exit_status();
-                    if (status === 0) {
-                        this._sendActionToEngine({ action: "delete_bookmark", name: name });
-                    }
+                    process.wait_finish(result);
+                    if (process.get_exit_status() === 0) this._sendActionToEngine({ action: "delete_bookmark", name: name });
                 } catch (e) {
                     global.logError("WMM: Error en wait_finish del diálogo: " + e.message);
                 }
             });
+
         } catch (e) {
             global.logError("WMM: Error al lanzar zenity: " + e.message);
         }
     }
 
     /**
-     * BLOQUE 5: COMUNICACIÓN (JS -> MOTOR)
+     * BLOQUE 5: COMUNICACIÓN JS -> ENGINE
      */
     _updateTimerSettings() {
         this._sendActionToEngine({
-            "action": "update_timer_settings",
-            "enabled": this.masterItem.state,
-            "interval": Math.max(1, Math.round(this.slider.value * this._currentMaxInterval)),
-            "mode": this.modeSwitch.state ? "sync" : "async",
-            "slideshow_bookmark": this.favRotationSwitch.state,
-            "spanned_enabled": this.spannedSwitch.state
+            action: "update_timer_settings",
+            enabled: this.masterItem.state,
+            interval: Math.max(1, Math.round(this.slider.value * this._currentMaxInterval)),
+            mode: this.modeSwitch.state ? "sync" : "async",
+            slideshow_bookmark: this.favRotationSwitch.state,
+            spanned_enabled: this.spannedSwitch.state
         });
     }
 
@@ -487,66 +476,71 @@ class WMMApplet extends Applet.IconApplet {
     }
 
     _openSettingsPanel() {
-        this._sendActionToEngine({ "action": "open_panel" });
+        this._sendActionToEngine({ action: "open_panel" });
     }
 
     /**
-     * BLOQUE 6: EVENTOS SISTEMA
+     * BLOQUE 6: EVENTOS DEL SISTEMA
      */
     on_applet_clicked(event) {
         if (this._motorBusy) {
             this.set_applet_icon_name("view-refresh");
             return;
         }
+
         this._ignoreNextBusy = true;
-        this._sendActionToEngine({ "action": "force_rotation" });
+        this._sendActionToEngine({ action: "force_rotation" });
     }
 
     on_applet_removed_from_panel() {
-        try {
-            let pidPath = GLib.get_user_cache_dir() + "/wmm/pid_main.pid";
-            let file = Gio.File.new_for_path(pidPath);
-
-            file.load_contents_async(null, (file, res) => {
+        /*
+         * Quitar explícitamente el applet representa "Salir de WMM".
+         * Se solicita Shutdown por D-Bus sin terminar procesos ni manipular PIDs.
+         * NO_AUTO_START evita arrancar accidentalmente el engine si ya estaba detenido.
+         */
+        Gio.DBus.session.call(
+            "org.maki.wmm",
+            "/org/maki/wmm",
+            "org.maki.wmm",
+            "Shutdown",
+            null,
+            null,
+            Gio.DBusCallFlags.NO_AUTO_START,
+            1000,
+            null,
+            (connection, result) => {
                 try {
-                    let [success, content] = file.load_contents_finish(res);
-                    if (success && content.length > 0) {
-                        let pid = content.toString().trim();
-                        Util.spawn(["kill", "-9", pid]);
-                        Util.spawn(["rm", pidPath]);
-                    }
+                    connection.call_finish(result);
                 } catch (e) {
-                    // El archivo PID no existe o no se puede leer
+                    // El engine puede haber terminado ya; no requiere recuperación.
                 }
-            });
-        } catch (e) {
-            // error al construir Gio.File
-        }
+            }
+        );
     }
 
     _updateIconFromStatus() {
         let file = Gio.File.new_for_path(GLib.get_user_cache_dir() + "/wmm/engine_status.json");
         if (!file.query_exists(null)) return;
-        file.load_contents_async(null, (file, res) => {
+
+        file.load_contents_async(null, (statusFile, res) => {
             try {
-                let [success, contents] = file.load_contents_finish(res);
+                let [success, contents] = statusFile.load_contents_finish(res);
                 if (!success || contents.length === 0) return;
+
                 let status = JSON.parse(contents);
                 this._motorBusy = status.busy;
+
                 if (status.busy) {
-                    if (!this._ignoreNextBusy) {
-                        this.set_applet_icon_name("view-refresh");
-                    }
+                    if (!this._ignoreNextBusy) this.set_applet_icon_name("view-refresh");
                 } else {
                     this._ignoreNextBusy = false;
                     this.set_applet_icon_name("video-display");
                 }
             } catch (e) {
-                // JSON a medias, ignorar silenciosamente
+                // JSON a medias: ignorar hasta el siguiente evento.
             }
         });
     }
-
 }
 
 function main(metadata, orientation, panel_height, instance_id) {

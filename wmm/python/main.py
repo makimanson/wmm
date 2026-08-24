@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
 """
-WMM
+WMM - Wallpaper Multi-Monitor Manager
 ----------------------------
 main.py – Motor principal de WMM.
-
 """
 
 # ==========================================================
@@ -97,12 +97,22 @@ class WMMDaemon:
         Ejecuta el ciclo de rotación y, al terminar, notifica al panel.
         """
         log_event(f"Ejecutando ciclo: {reason}", origin="ENGINE", level="DEBUG", reason="COMMAND")
-        self.execute_full_cycle(
-            reason=reason,
-            target_hashes=target_hashes,
-            target_bookmark=target_bookmark,
-            temp_settings=temp_settings
-        )
+
+        was_busy = self._busy
+
+        try:
+            self.execute_full_cycle(
+                reason=reason,
+                target_hashes=target_hashes,
+                target_bookmark=target_bookmark,
+                temp_settings=temp_settings
+            )
+        except Exception as e:
+            if not was_busy and self._busy:
+                self._set_busy_state(False)
+            log_event(f"Error durante el ciclo '{reason}': {type(e).__name__}: {e}", origin="ENGINE", level="ERROR", reason="COMMAND")
+            raise
+
         self._notify_panel(event_dict)
         return False  # Para GLib.idle_add
 
@@ -378,8 +388,10 @@ class WMMDaemon:
             except Exception as e:
                 log_event(f"No se pudo abrir el asistente añadir a favoritos: {e}", origin="ENGINE", level="ERROR", reason="COMMAND")
 
-        # --- 10. Cerrar engine ---
+            # --- 10. Cerrar WMM ---
         elif order == "shutdown":
+            log_event("Cierre global de WMM solicitado", origin="ENGINE", level="INFO", reason="COMMAND")
+            self._notify_panel({"action": "shutdown"})
             raise SystemExit
 
         else:
@@ -504,12 +516,14 @@ class WMMDaemon:
         gradient_v = metadata.get("gradient_v", ["#000000", "#8D9797"])
 
         # 5. Renderizado y Aplicación final
+
         # Si todos los monitores están inactivos, pintar el color de fondo global
         if not valid_assets_found and selection:
             log_event("Sin imágenes válidas. Aplicando color de fondo global.", origin="ENGINE", level="DEBUG", reason="LIBRARY")
-            master_path = self.ie.render_master_wallpaper(
-                selection,
-                full_canvas=spanned_enabled,
+            processed_images = self.ie._process_single_image(
+                selection=selection,
+                monitors_map=monitors_map,
+                spanned_enabled=spanned_enabled,
                 solid_color=solid_color,
                 color_mode=color_mode,
                 gradient_h=gradient_h,
@@ -518,12 +532,17 @@ class WMMDaemon:
                 wallpaper_mode=wp_mode,
                 image_effect=wallpaper_effect
             )
-            self.platform.set_wallpaper(master_path, self.ch)
+            self.platform.render_master_wallpaper(
+                processed_images=processed_images,
+                monitors_map=monitors_map,
+                config_handler=self.ch
+            )
 
         elif valid_assets_found and selection:
-            master_path = self.ie.render_master_wallpaper(
-                selection,
-                full_canvas=spanned_enabled,
+            processed_images = self.ie._process_single_image(
+                selection=selection,
+                monitors_map=monitors_map,
+                spanned_enabled=spanned_enabled,
                 solid_color=solid_color,
                 color_mode=color_mode,
                 gradient_h=gradient_h,
@@ -532,7 +551,11 @@ class WMMDaemon:
                 wallpaper_mode=wp_mode,
                 image_effect=wallpaper_effect
             )
-            self.platform.set_wallpaper(master_path, self.ch)
+            self.platform.render_master_wallpaper(
+                processed_images=processed_images,
+                monitors_map=monitors_map,
+                config_handler=self.ch
+            )
             log_event(f"Fondo aplicado: {len(selection)} monitores, spanned={spanned_enabled}", origin="ENGINE", level="INFO", reason="LIBRARY")
 
             # Aseguramos que el temporizador esté corriendo si no lo está

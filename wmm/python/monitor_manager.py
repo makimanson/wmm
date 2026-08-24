@@ -1,5 +1,13 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
+
 """
-WMM - Monitor Manager (núcleo agnóstico)
+WMM - Wallpaper Multi-Monitor Manager
+
+monitor_manager.py - Monitor Manager (núcleo agnóstico)
+==========================================================
 Proporciona funciones de cálculo geométrico independientes del SO.
 """
 import math
@@ -67,3 +75,41 @@ def get_total_canvas_geometry(monitors_map):
         if current_bottom > max_y_edge:
             max_y_edge = current_bottom
     return max_x_edge, max_y_edge
+
+def get_spanned_reference_hash(monitors_map):
+    """
+    Devuelve el hash del monitor de referencia para Spanned.
+
+    Prioriza el monitor primario si su orientación coincide con la del canvas.
+    Si no coincide, devuelve de forma determinista uno de los monitores
+    cuya orientación coincide con la del canvas.
+    """
+    if not monitors_map:
+        return None
+
+    canvas_w, canvas_h = get_total_canvas_geometry(monitors_map)
+    if canvas_w <= 0 or canvas_h <= 0:
+        return None
+
+    canvas_orientation = "horizontal" if canvas_w >= canvas_h else "vertical"
+
+    primary_hash = None
+    compatible_hashes = []
+
+    for m_hash, monitor in monitors_map.items():
+        orientation = monitor.get("orientation")
+        if orientation not in ("horizontal", "vertical"):
+            orientation = "horizontal" if monitor["width"] >= monitor["height"] else "vertical"
+
+        if monitor.get("primary", False):
+            primary_hash = m_hash
+            if orientation == canvas_orientation:
+                return m_hash
+
+        if orientation == canvas_orientation:
+            compatible_hashes.append(m_hash)
+
+    if compatible_hashes:
+        return sorted(compatible_hashes)[0]
+
+    return primary_hash or sorted(monitors_map.keys())[0]
