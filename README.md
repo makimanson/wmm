@@ -17,8 +17,8 @@ Forget stretched, cropped or repeated wallpapers.
 With WMM, you're in full control.
 
 <p align="center">
-  <a href="wmm/screenshots/screenshot.png">
-    <img src="wmm/screenshots/screenshot.png" alt="WMM Screenshot" width="100%"/>
+  <a href="wmm/screenshots/screenshot.jpg">
+    <img src="wmm/screenshots/screenshot.jpg" alt="WMM Screenshot" width="100%"/>
   </a>
 </p>
 
