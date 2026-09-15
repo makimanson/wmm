@@ -74,7 +74,7 @@ class FavoritesSection:
     # ==========================================================
     def _build(self):
         """Construye y devuelve el widget principal de la sección."""
-        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
 
         # --- Cabecera con switch "Solo favoritos" ---
         header_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
@@ -124,6 +124,7 @@ class FavoritesSection:
         self.presets_tree.connect("button-press-event", self._on_preset_tree_click)
 
         self.scrolled_left = Gtk.ScrolledWindow()
+        self.scrolled_left.set_overlay_scrolling(False)  # La barra horizontal no cubre la última fila
         # self.scrolled_left.set_min_content_height(150)
         self.scrolled_left.add(self.presets_tree)
         left_box.pack_start(self.scrolled_left, True, True, 0)
@@ -161,6 +162,7 @@ class FavoritesSection:
         self.bookmarks_single_tree.connect("button-press-event", self._on_single_tree_click)
 
         self.scrolled_right = Gtk.ScrolledWindow()
+        self.scrolled_right.set_overlay_scrolling(False)  # La barra horizontal no cubre la última fila
         # self.scrolled_right.set_min_content_height(150)
         self.scrolled_right.add(self.bookmarks_single_tree)
         right_box.pack_start(self.scrolled_right, True, True, 0)
@@ -185,13 +187,14 @@ class FavoritesSection:
         expanded = not self.favorites_container.get_visible()
 
         if expanded:
-            self._parent_window._preserve_window_position_on_expand()
+            self._parent_window._expand_section_to_fit("favorites")
+        else:
+            self.set_expanded(False)
 
-        self.set_expanded(expanded)
         self._parent_window._save_section_state("favorites", expanded)
 
         if not expanded:
-            GLib.timeout_add(50, self._parent_window._fit_collapsed)
+            GLib.idle_add(self._parent_window._fit_collapsed)
 
     def set_expanded(self, expanded):
         """Aplica el estado de despliegue de Favoritos sin persistirlo."""
@@ -373,9 +376,10 @@ class FavoritesSection:
                 img_path = img_path.get("path", "")
             if img_path:
                 if os.path.exists(img_path):
-                    self.handler.open_in_file_manager(img_path)
+                    self.handler.open_file(img_path)
                 else:
-                    log_event(f"Imagen no existe en disco: {img_path}", origin="PANEL", level="WARN", reason="BOOKMARK")
+                    log_event(f"Imagen no existe en disco: {img_path}",
+                        origin="PANEL", level="WARN", reason="BOOKMARK")
 
     def _load_preset_to_monitors(self, widget, preset_name):
         """Carga un preset en los monitores virtuales para edición."""
@@ -397,14 +401,23 @@ class FavoritesSection:
     # ==========================================================
     # EVENTOS DE FAVORITOS INDIVIDUALES
     # ==========================================================
+    def _notify_single_favorites_changed(self):
+        """Notifica al Panel que bookmarks_single ha cambiado."""
+        cb = self._callbacks.get('on_single_favorites_changed')
+        if cb:
+            cb()
+        else:
+            self._load_bookmarks_single()
+
     def _on_bookmark_single_row_activated(self, treeview, path, column):
         model = treeview.get_model()
         tree_iter = model.get_iter(path)
         img_path = model.get_value(tree_iter, 1)
         if img_path and os.path.exists(img_path):
-            self.handler.open_in_file_manager(img_path)
+            self.handler.open_file(img_path)
         else:
-            log_event(f"Imagen no encontrada: {img_path}", origin="PANEL", level="WARN", reason="BOOKMARK")
+            log_event(f"Imagen no encontrada: {img_path}",
+                origin="PANEL", level="WARN", reason="BOOKMARK")
 
     def _on_single_tree_click(self, treeview, event):
         if event.button != 3:
@@ -433,10 +446,8 @@ class FavoritesSection:
         else:
             label = _("Delete") + " " + str(len(img_paths)) + " " + _("images")
         item = Gtk.MenuItem(label=label)
-        item.connect('activate', lambda w: (
-            [self._delete_bookmark_single(p) for p in img_paths],
-            self._load_bookmarks_single()
-        ))
+        item.connect('activate', lambda w: ([self._delete_bookmark_single(p) for p in img_paths],
+            self._notify_single_favorites_changed()))
         menu.append(item)
         menu.show_all()
         menu.popup_at_pointer(event)
@@ -455,7 +466,7 @@ class FavoritesSection:
             tree_iter = model.get_iter(path)
             img_path = model.get_value(tree_iter, 1)
             self._delete_bookmark_single(img_path)
-        self._load_bookmarks_single()
+        self._notify_single_favorites_changed()
 
     # ==========================================================
     # SWITCH DE ROTACIÓN DE FAVORITOS

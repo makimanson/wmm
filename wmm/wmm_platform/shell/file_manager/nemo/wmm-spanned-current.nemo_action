@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
+#################################
+# wmm-spanned-current.nemo_action: distribuye la imagen actual del monitor
+#################################
+
+[Nemo Action]
+Name=WMM: Span Current Image
+Name[es]=WMM: Extender la imagen actual
+Name[ca]=WMM: Estendre la imatge actual
+Comment=Span the image currently shown on this monitor across all monitors
+Comment[es]=Extiende la imagen mostrada actualmente en este monitor a todos los monitores.
+Comment[ca]=Amplia la imatge que es mostra actualment en aquest monitor a tots els monitors
+Exec=@PYTHON3@ @APP_DIR@/python/send_command.py '{"action":"shell_spanned_current","xid":%X}'
+Icon-Name=view-fullscreen
+Selection=none
+Extensions=any;
+Conditions=desktop;

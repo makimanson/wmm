@@ -30,6 +30,33 @@ def get_install_path(data_base, app_domain):
     """Devuelve la ruta de instalación para Cinnamon."""
     return os.path.join(data_base, 'cinnamon', 'applets', app_domain)
 
+def refresh_shell_after_translation_update():
+    """Reinicia Cinnamon en X11 para recargar las traducciones recién compiladas."""
+    if os.environ.get("XDG_SESSION_TYPE", "").lower() != "x11" or os.environ.get("WAYLAND_DISPLAY"):
+        return False
+
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+
+        bus.call_sync(
+            "org.Cinnamon",
+            "/org/Cinnamon",
+            "org.Cinnamon",
+            "RestartCinnamon",
+            GLib.Variant("(b)", (True,)),
+            None,
+            Gio.DBusCallFlags.NONE,
+            1500,
+            None
+        )
+
+        log_event("Reinicio de Cinnamon solicitado para recargar traducciones", origin="CINNAMON", level="INFO", reason="SETTINGS")
+        return True
+
+    except GLib.Error as e:
+        log_event(f"No se pudo reiniciar Cinnamon tras actualizar las traducciones: {e}", origin="CINNAMON", level="WARN", reason="D-BUS")
+        return False
+
 def get_window_available_area(pid):
     """
     Devuelve el área útil del monitor que contiene la ventana identificada

@@ -3,7 +3,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 ====================================================
  WMM - Wallpaper Multi-Monitor Manager
- Version 1.3.0
+ Version 1.4.0
 ====================================================
 
 ====================================================
@@ -13,8 +13,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 Thank you for downloading WMM!
 
 WMM is a wallpaper manager for multi-monitor systems
-with full support for Cinnamon, GNOME Shell and
-KDE Plasma 6.
+with full support for Cinnamon,
+GNOME Shell, KDE Plasma 6 and MATE.
 
 
 SUPPORTED DESKTOPS
@@ -22,8 +22,8 @@ SUPPORTED DESKTOPS
   - Cinnamon:       Complete (X11)
   - GNOME Shell:    Complete (versions 45-50)
   - KDE Plasma 6:   Complete
-  - MATE:           In development
-  - XFCE:           Planned
+  - MATE:           Complete
+  - XFCE:           In development
 
 
 QUICK INSTALLATION
@@ -32,8 +32,8 @@ QUICK INSTALLATION
 
 2. Run the installer:
 
-       chmod +x install.sh
-       ./install.sh
+       chmod +x wmm-install.sh
+       ./wmm-install.sh
 
    The installer will detect your desktop environment,
    check the required dependencies and offer to install
@@ -57,7 +57,11 @@ QUICK INSTALLATION
 
    - KDE Plasma 6:
      WMM starts automatically with the Plasma session.
-     You can also launch it from Menu > Graphics.
+     You can also launch it from Menu > Graphics > WMM.
+
+   - MATE:
+     Open Extensions and enable "WMM Manager",
+     or launch WMM from Menu > Graphics > WMM.
 
 
 MORE INFORMATION
@@ -67,6 +71,9 @@ MORE INFORMATION
 
   - Problems or suggestions:
     https://github.com/makimanson/wmm/issues
+
+  - Wiki:
+    https://github.com/makimanson/wmm/wiki
 
   - Full documentation:
     README.md
@@ -83,7 +90,7 @@ MORE INFORMATION
 
 WMM es un gestor de fondos de pantalla para sistemas
 multi-monitor con soporte completo para Cinnamon,
-GNOME Shell y KDE Plasma 6.
+GNOME Shell, KDE Plasma 6 y MATE.
 
 
 ENTORNOS SOPORTADOS
@@ -91,8 +98,8 @@ ENTORNOS SOPORTADOS
   - Cinnamon:       Completo (X11)
   - GNOME Shell:    Completo (versiones 45-50)
   - KDE Plasma 6:   Completo
-  - MATE:           En desarrollo
-  - XFCE:           Planeado
+  - MATE:           Completo
+  - XFCE:           En desarrollo
 
 
 INSTALACIÓN RÁPIDA
@@ -101,8 +108,8 @@ INSTALACIÓN RÁPIDA
 
 2. Ejecuta el instalador:
 
-       chmod +x install.sh
-       ./install.sh
+       chmod +x wmm-install.sh
+       ./wmm-install.sh
 
    El instalador detectará tu entorno de escritorio,
    comprobará las dependencias necesarias y ofrecerá
@@ -118,16 +125,20 @@ INSTALACIÓN RÁPIDA
 4. Activa o inicia WMM:
 
    - Cinnamon:
-     Abre Configuración > Miniaplicaciones y activa
-     "WMM Manager", o inicia WMM desde Menú > Gráficos.
+     Desde el Menu abre Preferencias > Miniaplicaciones y activa
+     "WMM Manager", o inicia WMM desde Menú > Gráficos > WMM.
 
    - GNOME Shell:
-     Abre Extensiones y activa "WMM Manager",
+     Desde Aplicacion Abre Extensiones y activa "WMM Manager",
      o inicia WMM desde Aplicaciones > WMM.
 
    - KDE Plasma 6:
      WMM se inicia automáticamente con la sesión de Plasma.
-     También puedes iniciarlo desde Menú > Gráficos.
+     También puedes iniciarlo desde Menú > Gráficos > WMM.
+
+   - MATE:
+     En la barra de tareas abre: Añadir al panel y activa "WMM Manager",
+     o inicia WMM desde Aplicaciones > Gráficos > WMM.
 
 
 MÁS INFORMACIÓN
@@ -137,6 +148,9 @@ MÁS INFORMACIÓN
 
   - Problemas o sugerencias:
     https://github.com/makimanson/wmm/issues
+
+  - Wiki:
+    https://github.com/makimanson/wmm/wiki
 
   - Documentación completa:
     README.md

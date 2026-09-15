@@ -1,0 +1,17 @@
+{
+    "name": "Wallpaper Multi-Monitor Manager",
+    "short_name": "WMM Manager",
+    "version": "@VERSION@",
+    "author": "makimanson",
+    "copyright_start_year": 2026,
+    "copyright_release_year": @RELEASE_YEAR@,
+    "license": {
+        "name": "GPL-3.0-or-later",
+        "document": "LICENSE"
+    },
+    "links": {
+        "github": "https://github.com/makimanson/wmm",
+        "changelog": "CHANGELOG.md",
+        "help": "help/HELP.md"
+    }
+}

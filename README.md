@@ -1,127 +1,146 @@
 <!--
 SPDX-FileCopyrightText: 2026 makimanson
 SPDX-License-Identifier: GPL-3.0-or-later
+
+WMM - Wallpaper Multi-Monitor Manager
+
+README.md -- README file in English
+
+WMM-Title: Readme
+WMM-Contents: Contents
 -->
 
 # WMM - Wallpaper Multi-Monitor Manager
 
-A wallpaper manager for multi-monitor setups on **Cinnamon**, **GNOME Shell**, and **KDE Plasma 6**.
-No more distorted, cropped, or repeated wallpapers.
-With WMM, you stay in full control.
+A wallpaper manager for multi-monitor setups on **Cinnamon**, **GNOME Shell**, **KDE Plasma 6** and **MATE**.
+Forget stretched, cropped or repeated wallpapers.
+With WMM, you're in full control.
 
 <p align="center">
-  <a href="wnn/screenshots/screenshot.png">
+  <a href="wmm/screenshots/screenshot.png">
     <img src="wmm/screenshots/screenshot.png" alt="WMM Screenshot" width="100%"/>
   </a>
 </p>
 
-## ✨ Main Features
+## ✨ Main features
 
 *   **True multi-monitor management**: Assign different wallpapers to each monitor or stretch (`Spanned`) a panoramic image across all of them.
-*   **Smart image selection**: Tries to select the most suitable image for each monitor based on its vertical or horizontal orientation.
-*   **Flexible aspect modes**: Control how images are fitted: `Scaled` (no distortion), `Zoom` (fill by cropping), or `Stretched` (fill with distortion).
-*   **Visual effects**: Apply `Sepia` or `Black & White` filters to images on a per-monitor basis.
-*   **Background effects**: Apply `Blur` or `Color` to the background when the image does not fill the entire monitor area.
-*   **Automatic rotation**: Configure a timer to change wallpapers synchronously (`SYNC`) or asynchronously (`ASYNC`).
-*   **Spanned Mode**: Compose a single logical image across all monitors while respecting their position and geometry.
-*   **Favorites**: Save individual images and complete wallpaper combinations as Presets for quick access.
-*   **Control Panel**: Manage sources, monitors, favorites, effects, thumbnails, and options from a common interface across all supported desktops.
-*   **Desktop integration**: Native applet for Cinnamon, extension for GNOME Shell, and plasmoid for KDE Plasma 6.
-*   **Internationalization**: Interface available in English, Spanish, and Catalan through WMM's own translation domain, independent of the desktop environment.
+*   **Smart image assignment**: Tries to pick the most suitable image for each monitor based on portrait or landscape orientation.
+*   **Flexible aspect modes**: Control how images fit: `Scaled` (no distortion), `Zoom` (fill by cropping) or `Stretched` (fill by stretching).
+*   **Visual effects**: Apply `Sepia` or `Black & White` filters per monitor.
+*   **Background effects**: Apply `Blur` or `Color` to background area when an image does not cover the whole monitor.
+*   **Automatic rotation**: Set a timer to change wallpapers synchronously (`SYNC`) or asynchronously (`ASYNC`).
+*   **Spanned mode**: Build one logical image across all monitors while respecting position and geometry.
+*   **Favorites**: Save individual images and complete wallpaper combinations as Presets for quick reuse.
+*   **Control Panel**: Manage sources, monitors, favorites, effects, thumbnails and options from one common interface across supported desktops.
+*   **Desktop integration**: Native applets for Cinnamon and MATE, GNOME Shell extension and KDE Plasma 6 plasmoid.
+*   **Native file manager integration**: Select an image to add it to favorites, send it to a specific monitor or span it across all monitors.
+*   **Install Manager**: Update, reinstall/repair or uninstall WMM from an integrated graphical interface.
+*   **Internationalization**: Interface available in English, Spanish and Catalan through WMM's own translation domain, independent from desktop environment translations.
 
-## 🖥️ Supported Desktop Environments
+## 🖥️ Supported desktops
 
 | Desktop             | Support        | Notes                                      |
 |---------------------|----------------|--------------------------------------------|
-| **Cinnamon**        | Complete       | Native applet. Current support on X11      |
-| **GNOME Shell**     | Complete       | Native extension. GNOME Shell 45–50        |
-| **KDE Plasma 6**    | Complete       | Native plasmoid. Requires Plasma 6         |
-| **MATE**            | In development | Next integration                           |
-| **XFCE**            | Planned        | Planned alongside MATE                     |
+| **Cinnamon**        | Full           | Native applet. Current support on X11      |
+| **GNOME Shell**     | Full           | Native extension. GNOME Shell 45–50        |
+| **KDE Plasma 6**    | Full           | Native plasmoid. Requires Plasma 6         |
+| **MATE**            | Full           | Native applet. Current support on X11      |
+| **XFCE**            | In development | Next planned integration                   |
 | **Windows / macOS** | Planned        | Future support                             |
 
-## ⚙️ Desktop Integration
+## ⚙️ Desktop integration
 
-WMM adapts wallpaper application to the capabilities of each desktop environment.
+WMM adapts wallpaper handling to capabilities provided by each desktop environment.
 
-*   **Cinnamon** and **GNOME Shell** use their own dedicated integration to apply the composition generated by WMM.
-*   **KDE Plasma 6** applies wallpapers per monitor through Plasma's native API while preserving its visual transitions.
-*   WMM automatically manages the settings required for normal operation; there is no need to manually prepare a common wallpaper mode across all desktops.
+*   **Cinnamon** and **GNOME Shell** use their own integration layer to apply compositions generated by WMM.
+*   **KDE Plasma 6** applies wallpapers per monitor through Plasma's native API while keeping native visual transitions.
+*   **MATE** uses its own wallpaper backend plus a native applet integrated into MATE Panel.
+*   **WMM** automatically manages settings required for normal operation; no manual setup of a common wallpaper mode is needed across desktops.
 
 ## 🚀 Installation
 
-1.  Download or clone this repository to your computer.
-2.  Open a terminal in the project's root directory.
+1.  Download latest available version from this repository.
+2.  Open a terminal in project root folder.
 3.  Run:
 
     ```bash
-    chmod +x install.sh
-    ./install.sh
+    chmod +x wmm-install.sh
+    ./wmm-install.sh
     ```
 
-The installer automatically detects **Cinnamon, GNOME Shell, or KDE Plasma 6**, checks the required dependencies, and can install any missing ones through your distribution's package manager.
+Installer automatically detects **Cinnamon, GNOME Shell, KDE Plasma 6 or MATE**, checks required dependencies and can install missing ones through distribution package manager.
 
-After installation:
+When an existing installation is found, same manager can update, reinstall/repair or uninstall it.
 
-*   **Cinnamon**: Restart your session, open the Applets settings and enable **WMM Manager**, or launch WMM from **Menu → Graphics**.
-*   **GNOME Shell**: Restart your session, open **Extensions** and enable **WMM Manager**, or launch WMM from **Applications → WMM**.
-*   **KDE Plasma 6**: WMM will start automatically in the next Plasma session. You can also launch it manually from **Menu → Graphics**.
+After a fresh install:
+
+*   **Cinnamon**: Restart session, open Applets settings and enable **WMM Manager**, or launch WMM from **Menu → Graphics**.
+*   **GNOME Shell**: Restart session, open **Extensions** and enable **WMM Manager**, or launch WMM from **Applications → WMM**.
+*   **KDE Plasma 6**: WMM starts automatically with Plasma session. You can also launch it from **Menu → Graphics**.
+*   **MATE**: Add **WMM Manager** to panel from **Add to Panel**, or launch WMM from **Menu → Graphics**.
 
 ## 📋 Dependencies
 
-Using `install.sh` is recommended instead of installing dependencies manually. The script checks both common and desktop-specific requirements and uses the appropriate package names for distributions based on `apt`, `dnf`, or `pacman`.
+Using `wmm-install.sh` is recommended instead of installing dependencies manually. Script checks both common and desktop-specific requirements and uses suitable package names for `apt`, `dnf` or `pacman` based distributions.
 
 Components used by WMM include:
 
 *   Python 3.
 *   Pillow and NumPy for image processing.
-*   GTK 3, GLib, and PyGObject for the Control Panel and common components.
+*   GTK 3, GLib and PyGObject for Control Panel and common components.
+*   **VTE 2.91** for embedded terminal used by Install Manager.
 *   `libnotify` for notifications.
 *   `gettext` for translations.
-*   `zenity` for certain dialogs.
-*   Additional GNOME- or KDE-specific tools when required by the desktop integration.
+*   `zenity` for selected dialogs.
+*   Extra GNOME, KDE or MATE tools when desktop integration needs them.
 
-The dependency list maintained by `install.sh` is the authoritative reference for each platform.
+Package list maintained by `wmm-install.sh` is authoritative reference for platform-specific dependencies.
 
 ## 🗑️ Uninstallation
 
-WMM 1.3.0 does not yet include an automatic uninstaller.
+**WMM** can be removed from **Install Manager** or by running included uninstaller directly:
 
-The installation is performed within the user's profile and does not modify system files outside the standard mechanisms used to install dependencies. Complete uninstallation and controlled reinstallation will be added in a future version.
+```bash
+chmod +x wmm-uninstall.sh
+./wmm-uninstall.sh
+```
 
-Automatically removing packages installed as WMM dependencies is not recommended, as they may also be used by other applications.
+You can also select **Uninstall** when running `wmm-install.sh` over an existing installation.
 
-## ⌨️ Keyboard Shortcuts
+Uninstaller removes WMM and desktop integrations, but does not automatically remove packages installed as dependencies, since other applications may still use them.
 
-WMM integrates the **Next Wallpaper** action with the shortcut mechanisms provided by Cinnamon, GNOME, and KDE.
+## ⌨️ Keyboard shortcuts
 
-The key combination can be assigned or changed from the desktop environment's own shortcut settings. The action calls WMM's command channel directly; the old `wmm-next.sh` scripts are no longer part of the installation.
+WMM integrates **Next Background** action with shortcut systems provided by Cinnamon, GNOME, KDE and MATE.
 
-## 🛠️ Debug Viewer / Event Log
+Key combination can be assigned or changed from desktop shortcut settings. Action calls WMM command channel directly.
 
-WMM includes an integrated logging system that records activity from the engine, Control Panel, and desktop integrations in real time.
+## 🛠️ Debug Log Viewer / Event log
 
-*   **Integrated viewer**: Can be opened from the Control Panel.
-*   **Real-time updates**: Allows filtering by origin, level, and reason, as well as text searches.
-*   **Manual inspection**: The log is stored at:
+WMM includes an integrated logging system showing engine, panel and desktop integration activity in real time.
+
+*   **Integrated viewer**: Can be opened from Control Panel.
+*   **Real-time updates**: Filter by origin, level and reason, plus free-text search.
+*   **Manual inspection**: Log is stored at:
 
     ```text
     ~/.cache/wmm/debug.log
     ```
 
-The file can be opened with any text editor or inspected through WMM's built-in viewer.
+File can be opened with any text editor or inspected through WMM's own viewer.
 
 ## 🌍 Translation
 
-WMM supports multiple languages, and translations are installed automatically by `install.sh`.
+WMM supports multiple languages and translations are installed automatically through `wmm-install.sh`.
 
-*   Source files are located in the project's `po/` directory.
-*   The interface automatically uses the available language matching the user's session. English is used by default when no translation is available.
-*   All translatable strings use WMM's own translation domain, independent of desktop-environment translations and designed to support future integrations.
+*   Source files are located under `wmm_platform/shell/po/`.
+*   Interface automatically uses available language matching user session. English is used by default when no translation is available.
+*   All translatable strings use WMM's own translation domain, independent from desktop environment translations and ready for future integrations.
 
-If you would like to help translate WMM into your language, you are more than welcome!
+If you'd like to help translate WMM into your language, you're more than welcome!
 
 ## 📜 License
 
-WMM is distributed under the [GPL-3.0](LICENSE) license.
-You are free to use, modify, and distribute this software, provided that you keep the same license and retain attribution to the original authors.
+WMM is distributed under [GPL-3.0](LICENSE).
+You're free to use, modify and distribute this software as long as you keep same license and attribution to original authors.

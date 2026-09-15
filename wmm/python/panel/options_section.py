@@ -17,6 +17,7 @@ import os
 import time
 import signal
 import subprocess
+import fcntl
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Gdk, GLib
@@ -116,7 +117,7 @@ class OptionsSection:
     # ==========================================================
     def _build(self):
         """Construye y devuelve el widget principal de la sección."""
-        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
 
         # ----------------------------------------------------------
         # CABECERA: Label + Botones de acción
@@ -132,6 +133,7 @@ class OptionsSection:
         hbox_header.pack_start(self.options_toggle, True, True, 0)
 
         action_block = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        action_block.set_valign(Gtk.Align.CENTER)
 
         self.help_btn = Gtk.Button.new_from_icon_name("help-contents", Gtk.IconSize.BUTTON)
         self.help_btn.set_tooltip_text(_("Open Help"))
@@ -163,7 +165,7 @@ class OptionsSection:
         # ----------------------------------------------------------
         # CONTENIDO PLEGABLE
         # ----------------------------------------------------------
-        self.options_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        self.options_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         vbox.pack_start(self.options_content, False, False, 0)
 
         # --- Cambiar fondo al inicio ---
@@ -267,7 +269,7 @@ class OptionsSection:
         hbox_max.pack_start(Gtk.Label(label=_("Max. Frequency") + ": " + "(" + _("minutes") + ")", halign=Gtk.Align.START), True, True, 0)
         self.max_interval_spin = Gtk.SpinButton.new_with_range(1, 999, 1)
         self.max_interval_spin.set_value(60)
-        self.max_interval_spin.connect("value-changed", self._on_max_interval_changed)
+        self._max_interval_changed_id = self.max_interval_spin.connect("value-changed", self._on_max_interval_changed)
         self.max_interval_spin.connect("activate", lambda w: self._parent_window.set_focus(None))
         hbox_max.pack_start(self.max_interval_spin, False, False, 0)
         self.options_content.pack_start(hbox_max, False, False, 0)
@@ -296,18 +298,19 @@ class OptionsSection:
 
         return vbox
 
-    def _on_options_toggle(self, widget, event=None):
+    def _on_options_toggle(self, widget, event):
         """Pliega o despliega el contenido de Opciones."""
         expanded = not self.options_content.get_visible()
 
         if expanded:
-            self._parent_window._preserve_window_position_on_expand()
+            self._parent_window._expand_section_to_fit("options")
+        else:
+            self.set_expanded(False)
 
-        self.set_expanded(expanded)
         self._parent_window._save_section_state("options", expanded)
 
         if not expanded:
-            GLib.timeout_add(50, self._parent_window._fit_collapsed)
+            GLib.idle_add(self._parent_window._fit_collapsed)
 
     def set_expanded(self, expanded):
         """Aplica el estado de despliegue de Opciones sin persistirlo."""
@@ -396,7 +399,7 @@ class OptionsSection:
     def _on_slideshow_changed(self, switch, param):
         if self._loading:
             return
-        self.backend.save_setting("slideshow_enabled", switch.get_active())
+        self._notify_engine({"action": ConfigHandler.CMD_UPDATE_TIMER, "enabled": switch.get_active()})
 
     def _on_mode_changed(self, switch, param):
         if self._loading:
@@ -454,16 +457,31 @@ class OptionsSection:
     def _on_rotation_changed(self, spin):
         if self._loading:
             return
-        settings = self.backend.load_settings()
+
         rot_val = spin.get_value_as_int()
-        max_val = settings.get("slideshow_max_interval", 60)
-        if rot_val > max_val:
-            max_val = rot_val
+
+        if rot_val > self.max_interval_spin.get_value_as_int():
+            self.max_interval_spin.handler_block(self._max_interval_changed_id)
+            self.max_interval_spin.set_value(rot_val)
+            self.max_interval_spin.handler_unblock(self._max_interval_changed_id)
+
+        if getattr(self, "_rotation_debounce_id", None):
+            GLib.source_remove(self._rotation_debounce_id)
+
+        self._rotation_debounce_id = GLib.timeout_add(800, self._commit_rotation_change)
+
+    def _commit_rotation_change(self):
+        self._rotation_debounce_id = None
+
+        settings = self.backend.load_settings()
+        rot_val = self.rotation_spin.get_value_as_int()
+        max_val = self.max_interval_spin.get_value_as_int()
+
+        if max_val != settings.get("slideshow_max_interval", 60):
             self.backend.save_setting("slideshow_max_interval", max_val)
-            self._loading = True
-            self.max_interval_spin.set_value(max_val)
-            self._loading = False
-        self.backend.save_setting("slideshow_interval", rot_val)
+
+        self._notify_engine({"action": ConfigHandler.CMD_UPDATE_TIMER, "interval": rot_val})
+        return False
 
     def _update_mode_info_label(self):
         sync_active = self.mode_switch.get_active()
@@ -491,15 +509,44 @@ class OptionsSection:
 
         pid_path = os.path.join(self.handler.cache_dir, "pid_main.pid")
 
-        # Matar el motor antiguo y eliminar su PID
+        # Detener únicamente una instancia que posea realmente el lock del engine.
+        # Un PID obsoleto reutilizado por otro proceso nunca debe recibir señales.
         if os.path.exists(pid_path):
             try:
-                with open(pid_path, "r") as f:
-                    old_pid = int(f.read().strip())
-                os.kill(old_pid, signal.SIGKILL)
-                time.sleep(0.3)  # Breve espera para que el proceso muera
-                os.remove(pid_path)
-                log_event("Motor antiguo detenido y PID eliminado", origin="PANEL", level="INFO", reason="COMMAND")
+                with open(pid_path, "r+") as pid_file:
+                    try:
+                        fcntl.flock(
+                            pid_file.fileno(),
+                            fcntl.LOCK_EX | fcntl.LOCK_NB
+                        )
+
+                    except BlockingIOError:
+                        # El archivo está bloqueado por el engine activo.
+                        pid_file.seek(0)
+                        old_pid = int(pid_file.read().strip())
+
+                        os.kill(old_pid, signal.SIGKILL)
+                        time.sleep(0.3)
+
+                        log_event(
+                            "Engine antiguo detenido",
+                            origin="PANEL",
+                            level="INFO",
+                            reason="COMMAND"
+                        )
+
+                    else:
+                        # Archivo presente pero sin owner:
+                        # es un resto de una instancia anterior.
+                        fcntl.flock(pid_file.fileno(), fcntl.LOCK_UN)
+
+                        log_event(
+                            "PID obsoleto detectado; no pertenece a un engine activo",
+                            origin="PANEL",
+                            level="DEBUG",
+                            reason="COMMAND"
+                        )
+
             except (OSError, ValueError, FileNotFoundError):
                 pass
 
@@ -511,7 +558,10 @@ class OptionsSection:
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
-
+        # Restart abandona la aplicación directamente y no pasa por delete-event.
+        save_window_size = self._callbacks.get('save_window_size')
+        if save_window_size:
+            save_window_size()
         # Cerrar el panel inmediatamente
         panel_pid_path = os.path.join(self.handler.cache_dir, "pid_panel.pid")
         if os.path.exists(panel_pid_path):

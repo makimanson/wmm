@@ -8,7 +8,7 @@
         "Description[es]": "Controla WMM desde la bandeja del sistema",
         "Description[ca]": "Controla WMM des de la safata del sistema",
         "Icon": "video-display",
-        "Version": "1.3.0",
+        "Version": "@VERSION@",
         "Authors": [
             {
                 "Name": "makimanson"

@@ -53,6 +53,8 @@ export default class WMMExtension {
         this.metadata = metadata;
         this.appletPath = metadata.path;
         this.enginePath = this.appletPath + '/python/main.py';
+        this.installManagerPath = this.appletPath + '/wmm_platform/shell/installer/wmm-install_manager.py';
+        this.debugLogViewerPath = this.appletPath + '/python/debug_log_viewer.py';
         this.commandsPath = this.appletPath + '/data/commands.json';
         this.settingsPath = this.appletPath + '/data/settings.json';
         this.bookmarksPath = this.appletPath + '/data/bookmarks.json';
@@ -60,10 +62,14 @@ export default class WMMExtension {
         this._cachedBookmarks = null;
         this._currentMaxInterval = 60;
         this.favItems = [];
+        this._syncingUI = false;
         this._keepMenuOpen = false;
         this._isForcedOpen = false;
         this._button = null;
         this._menu = null;
+        this._icon = null;
+        this._motorBusy = true;
+        this._busySignalId = 0;
         this._workareaDbus = null;
         this._workareaOwnerId = 0;
     }
@@ -75,12 +81,12 @@ export default class WMMExtension {
         // Panel button
         this._button = new PanelMenu.Button(0.0, 'WMM', false);
 
-        let icon = new St.Icon({
-            icon_name: 'video-display',
+        this._icon = new St.Icon({
+            icon_name: 'view-refresh',
             style_class: 'system-status-icon'
         });
 
-        this._button.add_child(icon);
+        this._button.add_child(this._icon);
         Main.panel.addToStatusArea('wmm-indicator', this._button);
 
         let cssFile = Gio.File.new_for_path(this.metadata.path + '/wmm_platform/shell/gnome/stylesheet.css');
@@ -99,6 +105,11 @@ export default class WMMExtension {
             null,
             null
         );
+
+        // Cubrir también una ventana About ya existente si la extensión
+        // se recarga mientras WMM continúa ejecutándose.
+        for (const window of global.display.list_all_windows())
+            this._keepAboutWindowAbove(window);
 
         /*
          * The engine compiles translations during its initial setup before
@@ -133,6 +144,9 @@ export default class WMMExtension {
         this._menu = this._button.menu;
         this._populateMenu();
 
+        this._subscribeBusyState();
+        this._refreshBusyState();
+
         this._menu.connect('open-state-changed', (menu, open) => {
             if (!open && this._keepMenuOpen) {
                 this._keepMenuOpen = false;
@@ -144,6 +158,62 @@ export default class WMMExtension {
                 });
             }
         });
+    }
+
+    _setMotorBusy(busy) {
+        this._motorBusy = Boolean(busy);
+
+        if (this._icon)
+            this._icon.icon_name = this._motorBusy ? 'view-refresh' : 'video-display';
+    }
+
+    _subscribeBusyState() {
+        if (this._busySignalId)
+            return;
+
+        this._busySignalId = Gio.DBus.session.signal_subscribe(
+            'org.maki.wmm',
+            'org.maki.wmm',
+            'BusyChanged',
+            '/org/maki/wmm',
+            null,
+            Gio.DBusSignalFlags.NONE,
+            (_connection, _sender, _path, _interface, _signal, parameters) => {
+                const [busy] = parameters.deepUnpack();
+                this._setMotorBusy(busy);
+            }
+        );
+    }
+
+    _refreshBusyState() {
+        Gio.DBus.session.call(
+            'org.maki.wmm',
+            '/org/maki/wmm',
+            'org.maki.wmm',
+            'GetBusy',
+            null,
+            GLib.VariantType.new('(b)'),
+            Gio.DBusCallFlags.NO_AUTO_START,
+            1000,
+            null,
+            (connection, result) => {
+                try {
+                    const reply = connection.call_finish(result);
+                    const [busy] = reply.deepUnpack();
+                    this._setMotorBusy(busy);
+                } catch (e) {
+                    log('WMM GetBusy: ' + e.message);
+                }
+            }
+        );
+    }
+
+    _keepAboutWindowAbove(window) {
+        if (!window || window.get_gtk_application_id() !== 'org.maki.wmm.About')
+            return;
+
+        if (!window.is_above())
+            window.make_above();
     }
 
     disable() {
@@ -158,6 +228,11 @@ export default class WMMExtension {
         if (this._engineWatchId) {
             Gio.bus_unwatch_name(this._engineWatchId);
             this._engineWatchId = 0;
+        }
+
+        if (this._busySignalId) {
+            Gio.DBus.session.signal_unsubscribe(this._busySignalId);
+            this._busySignalId = 0;
         }
 
         // Remove the workarea bridge together with the GNOME Shell integration.
@@ -244,15 +319,16 @@ export default class WMMExtension {
         let rotateItem = new PopupMenu.PopupMenuItem(_('Next Background'));
         rotateItem.connect('activate', () => {
             this._keepMenuOpen = true;
-            this._sendActionToEngine({ action: 'force_rotation' });
+
+            if (this._motorBusy)
+                return;
+
+            this._setMotorBusy(true);
+
+            if (!this._sendActionToEngine({ action: 'force_rotation' }))
+                this._refreshBusyState();
         });
         this._menu.addMenuItem(rotateItem);
-        this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-
-        // Settings
-        let settingsItem = new PopupMenu.PopupMenuItem('WMM ' + _('Settings'));
-        settingsItem.connect('activate', () => this._openSettingsPanel());
-        this._menu.addMenuItem(settingsItem);
         this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         // Bookmarks
@@ -271,6 +347,8 @@ export default class WMMExtension {
         });
 
         this.favRotationSwitch.connect('toggled', (item, state) => {
+            if (this._syncingUI) return;
+
             this._keepMenuOpen = true;
             if (state && !this.masterItem.state) this._syncTimerUI(true);
             this._updateTimerSettings();
@@ -288,6 +366,8 @@ export default class WMMExtension {
             track_hover: true
         });
         addBookmarkButton.connect('clicked', () => {
+            this._keepMenuOpen = false;
+            this._menu.close();
             this._sendActionToEngine({ action: "add_bookmark" });
         });
         addBookmarkItem.add_child(addBookmarkButton);
@@ -311,6 +391,8 @@ export default class WMMExtension {
         });
 
         this.masterItem.connect('toggled', (item, state) => {
+            if (this._syncingUI) return;
+
             this._keepMenuOpen = true;
             item.label.set_text(state ? _('Enabled') : _('Disabled'));
             this._syncTimerUI(state);
@@ -348,6 +430,8 @@ export default class WMMExtension {
         // Switch modo sync/async
         this.modeSwitch = new PopupMenu.PopupSwitchMenuItem(_('Displays') + ': ' + _('ASYNC (One)'), false);
         this.modeSwitch.connect('toggled', (item, state) => {
+            if (this._syncingUI) return;
+
             this._keepMenuOpen = true;
             item.label.set_text(state ? _('Displays') + ': ' + _('SYNC (All)') : _('Displays') + ': ' + _('ASYNC (One)'));
             this._updateTimerSettings();
@@ -357,23 +441,44 @@ export default class WMMExtension {
         // Switch spanned
         this.spannedSwitch = new PopupMenu.PopupSwitchMenuItem(_('Spanned Mode'), false);
         this.spannedSwitch.connect('toggled', () => {
+            if (this._syncingUI) return;
+
             this._keepMenuOpen = true;
             this._updateTimerSettings();
         });
         this._menu.addMenuItem(this.spannedSwitch);
 
-        // Footer
+        // Tools: utilidades auxiliares separadas del bloque de uso directo.
         this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+        this.menuTools = new PopupMenu.PopupSubMenuMenuItem(_('Tools'));
+        this.menuTools.menu.actor.add_style_class_name('wmm-submenu');
+        this._menu.addMenuItem(this.menuTools);
+
+        let settingsItem = new PopupMenu.PopupMenuItem(_('Settings'));
+        settingsItem.connect('activate', () => this._openSettingsPanel());
+        this.menuTools.menu.addMenuItem(settingsItem);
 
         let syncItem = new PopupMenu.PopupMenuItem(_('Sync Library'));
         syncItem.connect('activate', () => this._sendActionToEngine({ action: 'sync_library' }));
-        this._menu.addMenuItem(syncItem);
+        this.menuTools.menu.addMenuItem(syncItem);
+
+        let installManagerItem = new PopupMenu.PopupMenuItem(_('Install Manager'));
+        installManagerItem.connect('activate', () => this._launchTool(this.installManagerPath));
+        this.menuTools.menu.addMenuItem(installManagerItem);
+
+        let debugLogItem = new PopupMenu.PopupMenuItem(_('Debug Log Viewer'));
+        debugLogItem.connect('activate', () => this._launchTool(this.debugLogViewerPath));
+        this.menuTools.menu.addMenuItem(debugLogItem);
 
         let helpItem = new PopupMenu.PopupMenuItem(_('Help'));
-        helpItem.connect('activate', () => {
-            this._sendActionToEngine({ action: "open_help" });
-        });
-        this._menu.addMenuItem(helpItem);
+        helpItem.connect('activate', () => this._sendActionToEngine({ action: 'open_help' }));
+        this.menuTools.menu.addMenuItem(helpItem);
+
+        // About permanece fuera de Tools dentro de la estructura común de WMM.
+        let aboutItem = new PopupMenu.PopupMenuItem(_('About') + ' WMM Manager');
+        aboutItem.connect('activate', () => this._sendActionToEngine({ action: 'open_about' }));
+        this._menu.addMenuItem(aboutItem);
 
         // Exit WMM
         //
@@ -424,23 +529,29 @@ export default class WMMExtension {
 
     _applySettingsToUI(config) {
         if (!this.masterItem || !this.intervalLabel || !this.intervalSlider) return;
+
         this._currentMaxInterval = config.slideshow_max_interval || 60;
         let isEnabled = config.slideshow_enabled;
         let isSync = (config.slideshow_mode === 'sync');
         let isFavSlideshow = config.slideshow_bookmark || false;
+        let isSpanned = config.spanned_enabled || false;
 
-        this._syncTimerUI(isEnabled);
-        this.modeSwitch.setToggleState(isSync);
-        this.modeSwitch.label.set_text(isSync ? _('Displays') + ': ' + _('SYNC (All)') : _('Displays') + ': ' + _('ASYNC (One)'));
-        this.favRotationSwitch.setToggleState(isFavSlideshow);
+        this._syncingUI = true;
+
+        try {
+            this._syncTimerUI(isEnabled);
+            this.modeSwitch.setToggleState(isSync);
+            this.modeSwitch.label.set_text(isSync ? _('Displays') + ': ' + _('SYNC (All)') : _('Displays') + ': ' + _('ASYNC (One)'));
+            this.favRotationSwitch.setToggleState(isFavSlideshow);
+            this.spannedSwitch.setToggleState(isSpanned);
+        } finally {
+            this._syncingUI = false;
+        }
 
         this._currentInterval = config.slideshow_interval || 15;
         let ratio = (this._currentInterval - 1) / (this._currentMaxInterval - 1);
         this.intervalSlider.value = ratio;
         this.intervalLabel.set_text(this._currentInterval + ' ' + _('minutes'));
-
-        let isSpanned = config.spanned_enabled || false;
-        this.spannedSwitch.setToggleState(isSpanned);
     }
 
     _clearBookmarksUI() {
@@ -537,8 +648,9 @@ export default class WMMExtension {
             deleteBtn.set_child(deleteIcon);
 
             deleteBtn.connect('clicked', () => {
-                this._confirmDeleteBookmark(name);
+                this._keepMenuOpen = false;
                 this._button.menu.close();
+                this._confirmDeleteBookmark(name);
             });
 
             row.add_child(nameBtn);
@@ -597,14 +709,14 @@ export default class WMMExtension {
 
                     // Comparar con caché: si no cambió, no tocamos la UI
                     let cached = this._cachedSettings;
-                    if (!cached ||
+                    if (
+                        !cached ||
                         cached.slideshow_enabled !== config.slideshow_enabled ||
                         cached.slideshow_interval !== config.slideshow_interval ||
                         cached.slideshow_mode !== config.slideshow_mode ||
                         cached.slideshow_bookmark !== config.slideshow_bookmark ||
-                        cached.spanned_enabled !== config.spanned_enabled ||
-                        cached.debug_mode !== config.debug_mode) {
-
+                        cached.spanned_enabled !== config.spanned_enabled
+                    ) {
                         this._applySettingsToUI(config);
                         this._cachedSettings = config;
                     }
@@ -691,12 +803,25 @@ export default class WMMExtension {
         });
     }
 
+    _launchTool(path) {
+        this._keepMenuOpen = false;
+        this._menu.close();
+
+        try {
+            GLib.spawn_async(null, ['python3', path], null, GLib.SpawnFlags.SEARCH_PATH, null);
+        } catch (e) {
+            log('WMM tool launch: ' + path + ': ' + e.message);
+        }
+    }
+
     _sendActionToEngine(command) {
         try {
             let cmd = JSON.stringify(command);
             GLib.spawn_async(null, ["python3", this.appletPath + "/python/send_command.py", cmd], null, GLib.SpawnFlags.SEARCH_PATH, null);
+            return true;
         } catch (e) {
             log('WMM send: ' + e.message);
+            return false;
         }
     }
 
@@ -738,6 +863,10 @@ export default class WMMExtension {
         if (this.menuTimer) {
             this.menuTimer.destroy();
             this.menuTimer = null;
+        }
+        if (this.menuTools) {
+            this.menuTools.destroy();
+            this.menuTools = null;
         }
 
         // Destruir etiquetas y otros widgets

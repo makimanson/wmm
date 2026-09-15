@@ -15,6 +15,7 @@ Gestiona la comunicación entre secciones mediante callbacks.
 
 import os
 import sys
+import traceback
 import json
 import subprocess
 import time
@@ -47,12 +48,12 @@ from panel.sources_section import SourcesSection
 from panel.monitors_section import MonitorsSection
 from panel.thumbnails_section import ThumbnailsSection
 
-
 class WMMControlPanel(Gtk.ApplicationWindow):
     """
     Ventana principal de configuración de WMM.
     """
-    _WORKAREA_MARGIN = 34
+    _WORKAREA_MARGIN = 40
+    _LEFT_PANEL_TRANSITION_MS = 220
 
     def __init__(self, app):
 
@@ -61,6 +62,8 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         # ----------------------------------------------------------
         # Obtener la ruta de caché de la plataforma
         self.platform = PlatformManager()
+        if hasattr(self.platform, "set_process_name"):
+            self.platform.set_process_name("WMM Panel")
         cache_base = None
         if hasattr(self.platform, 'get_cache_dir') and self.platform.get_cache_dir:
             cache_base = self.platform.get_cache_dir()
@@ -76,7 +79,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         # VARIABLES DE ESTADO DEL PANEL
         # ----------------------------------------------------------
         self._loading = False
-        self._busy_counter = 0
+        self._sources_operation_active = False
         self._debug_log_viewer = None
         self._help_viewer = None
         self._sources_need_refresh = False
@@ -135,19 +138,25 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         self.add(self.main_layout)
 
         # BLOQUE IZQUIERDO
-        self.left_wrapper = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.left_wrapper = Gtk.Stack()
+        self.left_wrapper.set_transition_type(Gtk.StackTransitionType.OVER_LEFT_RIGHT)
+        self.left_wrapper.set_transition_duration(self._LEFT_PANEL_TRANSITION_MS)
+        self.left_wrapper.set_hhomogeneous(False)
+        self.left_wrapper.set_vhomogeneous(False)
+        self.left_wrapper.set_interpolate_size(True)
+        self.left_wrapper.connect("notify::transition-running", self._on_left_panel_transition_running)
         self.main_layout.pack_start(self.left_wrapper, False, False, 0)
 
         self.expanded_wrapper = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
 
-        self.left_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        self.left_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         self.left_col.set_size_request(350, -1)
         self.expanded_wrapper.pack_start(self.left_col, True, True, 0)
 
         separator = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
         self.expanded_wrapper.pack_start(separator, False, False, 4)
 
-        self.left_wrapper.pack_start(self.expanded_wrapper, True, True, 0)
+        self.left_wrapper.add_named(self.expanded_wrapper, "expanded")
 
         self.collapsed_wrapper = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
 
@@ -157,10 +166,10 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         separator = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
         self.collapsed_wrapper.pack_start(separator, False, False, 4)
 
-        self.left_wrapper.pack_start(self.collapsed_wrapper, True, True, 0)
+        self.left_wrapper.add_named(self.collapsed_wrapper, "collapsed")
 
         # COLUMNA DERECHA
-        self.right_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        self.right_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         self.main_layout.pack_start(self.right_col, True, True, 0)
 
         # ----------------------------------------------------------
@@ -178,7 +187,8 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         self.accept_btn.set_tooltip_text(_("Save composition as preset"))
         self.accept_btn.set_sensitive(False)
 
-        # Barra de progreso y espaciador (compartidos entre Sources y Thumbnails)
+        # Recurso visual único para las fases secuenciales Sources → Thumbnails:
+        # progress, resync_notice y spacer comparten el mismo espacio visual.
         self.scan_progress = Gtk.ProgressBar()
         self.scan_progress.set_no_show_all(True)
         self.scan_progress.hide()
@@ -222,11 +232,14 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         # 6. Fuentes (independiente)
         self.sources_section = SourcesSection(
             self.handler, self.backend, self.ie, self.left_col,
-            scan_progress=self.scan_progress, btn_spacer=self.btn_spacer
-        )
+            scan_progress=self.scan_progress, btn_spacer=self.btn_spacer)
+
+        # El Panel conserva la autoridad de la operación global de Sources.
+        # Progress representa visualmente sus fases, pero no gobierna su interactividad.
         self.sources_section.set_callbacks({
-            'increment_busy': self._increment_busy,
-            'decrement_busy': self._decrement_busy,
+            'begin_sources_operation': self._begin_sources_operation,
+            'finish_sources_operation': self._finish_sources_operation,
+            'is_sources_operation_active': self._is_sources_operation_active,
             'set_progress_active': self._set_progress_active,
             'get_parent_window': lambda: self,
         })
@@ -240,7 +253,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         # Ahora que existe, le asignamos sus callbacks
         self.thumbnails_section.set_callbacks(self._build_thumbnails_callbacks())
 
-        # Conectar SourcesSection con ThumbnailsSection para refrescar miniaturas
+        # Puente explícito entre fases: al terminar Sources, continuar con Thumbnails.
         self.sources_section._callbacks['load_thumbnails'] = self.thumbnails_section._load_thumbnails
 
         # ----------------------------------------------------------
@@ -249,6 +262,8 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         self.sources_section.load_sources_into_treeview()
         self._load_settings()
         self.favorites_section._load_presets()
+        # Una única mutación de bookmarks_single debe reflejarse en sus tres vistas:
+        # lista de Favorites, marcas de thumbnails y vista filtrada de favoritos.
         self.favorites_section._load_bookmarks_single()
         self.thumbnails_section._load_thumbnails()
         GLib.idle_add(self.monitors_section._load_monitors_normal)
@@ -259,9 +274,15 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         self._setup_panel_communications()
         log_event("Registro de PID completado.", origin="PANEL", level="DEBUG", reason="NOTIFY")
         self.connect("delete-event", self._on_delete_event)
+        # El tamaño persistido es sólo la petición inicial; tras el primer map,
+        # la plataforma vuelve a imponer los límites de la workarea actual.
+        self._restore_window_size()
+
         self.show_all()
+        self.sources_section._update_resync_notice()
         self._restore_section_states()
         self._restore_left_panel_state()
+
         # Activar el flag de monitores tras el primer layout completo
         GLib.timeout_add(300, lambda: setattr(self.monitors_section, '_panel_realized', True) or False)
 
@@ -275,7 +296,56 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         sections = panel_state.setdefault("sections", {})
         sections[section] = bool(expanded)
         self.backend.save_json("settings", settings)
-        log_event(f"Estado de sección guardado: {section}={expanded}", origin="PANEL", level="DEBUG", reason="SETTINGS")
+        log_event(f"Estado de sección guardado: {section}={expanded}",
+            origin="PANEL", level="DEBUG", reason="SETTINGS")
+
+    def _expand_section_to_fit(self, requested):
+        """Abre una sección cerrando antes otras si la altura disponible lo exige."""
+        sections = {
+            "options": (self.options_section, self.options_section.options_content),
+            "favorites": (self.favorites_section, self.favorites_section.favorites_container),
+            "sources": (self.sources_section, self.sources_section.sources_content),
+        }
+
+        section, _ = sections[requested]
+
+        self._preserve_window_position_on_expand()
+        section.set_expanded(True)
+
+        area = self.platform.get_window_available_area(os.getpid())
+        if not area:
+            return
+
+        available_height = area["height"] - self._WORKAREA_MARGIN
+        border = self.main_layout.get_border_width()
+
+        def required_height():
+            left_minimum, _ = self.left_col.get_preferred_size()
+            right_minimum, _ = self.right_col.get_preferred_size()
+            return max(left_minimum.height, right_minimum.height) + (border * 2)
+
+        required = required_height()
+
+        for candidate in ("sources", "favorites"):
+            if required <= available_height:
+                break
+            if candidate == requested:
+                continue
+
+            candidate_section, candidate_content = sections[candidate]
+            if not candidate_content.get_visible():
+                continue
+
+            candidate_section.set_expanded(False)
+            required = required_height()
+            log_event(f"{candidate.capitalize()} plegada automáticamente al abrir {requested}: requerido={required}, disponible={available_height}",
+                origin="PANEL", level="DEBUG", reason="LAYOUT")
+
+        if required > available_height:
+            log_event(f"El panel sigue excediendo el área disponible al abrir {requested}: requerido={required}, disponible={available_height}",
+                origin="PANEL", level="WARN", reason="LAYOUT")
+
+        self.main_layout.queue_resize()
 
     def _restore_section_states(self):
         """Restaura el último estado de despliegue de las secciones del bloque izquierdo."""
@@ -294,32 +364,114 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         panel_state = settings.setdefault("panel", {})
         panel_state["collapsed"] = bool(collapsed)
         self.backend.save_json("settings", settings)
-        log_event(f"Estado del bloque izquierdo guardado: collapsed={collapsed}", origin="PANEL", level="DEBUG", reason="SETTINGS")
+        log_event(f"Estado del bloque izquierdo guardado: collapsed={collapsed}",
+            origin="PANEL", level="DEBUG", reason="SETTINGS")
 
-    def _set_left_panel_collapsed(self, collapsed, persist=True):
+
+    def _set_left_panel_collapsed(self, collapsed, persist=True, animate=True):
         """Alterna entre el bloque izquierdo completo y la barra lateral compacta."""
-        if collapsed:
-            self.expanded_wrapper.hide()
-            self.collapsed_wrapper.show()
-        else:
-            self.collapsed_wrapper.hide()
-            self.expanded_wrapper.show()
+        if not collapsed:
+            area = self.platform.get_window_available_area(os.getpid())
+
+            if area:
+                available_height = area["height"] - self._WORKAREA_MARGIN
+                border = self.main_layout.get_border_width()
+
+                def required_height():
+                    left_minimum, _ = self.left_col.get_preferred_size()
+                    right_minimum, _ = self.right_col.get_preferred_size()
+                    return max(left_minimum.height, right_minimum.height) + (border * 2)
+
+                required = required_height()
+
+                if required > available_height and self.sources_section.sources_content.get_visible():
+                    self.sources_section.set_expanded(False)
+                    required = required_height()
+                    log_event(
+                        f"Fuentes plegada automáticamente para ajustar el panel: "
+                        f"requerido={required}, disponible={available_height}",
+                        origin="PANEL", level="DEBUG", reason="LAYOUT")
+
+                if required > available_height and self.favorites_section.favorites_container.get_visible():
+                    self.favorites_section.set_expanded(False)
+                    required = required_height()
+                    log_event(
+                        f"Favoritos plegada automáticamente para ajustar el panel: "
+                        f"requerido={required}, disponible={available_height}",
+                        origin="PANEL", level="DEBUG", reason="LAYOUT")
+
+                if required > available_height:
+                    log_event(
+                        f"El panel sigue excediendo el área disponible tras el ajuste: "
+                        f"requerido={required}, disponible={available_height}",
+                        origin="PANEL", level="WARN", reason="LAYOUT")
+
+        duration = self._LEFT_PANEL_TRANSITION_MS if animate else 0
+        self.left_wrapper.set_transition_duration(duration)
 
         if persist:
             self._save_left_panel_state(collapsed)
 
+        log_event(f"Bloque izquierdo {'plegado' if collapsed else 'desplegado'}",
+            origin="PANEL", level="DEBUG", reason="SETTINGS")
+
+        # Al plegar, desvanecer primero el contenido mientras todavía dispone
+        # de todo su ancho. Sólo después comienza la reducción del Gtk.Stack,
+        # evitando que los textos lleguen a refluir.
+        if collapsed and animate:
+            fade_values = (
+                0.94, 0.88, 0.82, 0.76,
+                0.70, 0.64, 0.58, 0.52,
+                0.46, 0.40, 0.34, 0.28,
+                0.22, 0.16, 0.08, 0.0
+            )
+            self.left_col.set_opacity(fade_values[0])
+            fade_index = 1
+
+            def fade_before_collapse():
+                nonlocal fade_index
+
+                self.left_col.set_opacity(fade_values[fade_index])
+                fade_index += 1
+
+                if fade_index < len(fade_values):
+                    return GLib.SOURCE_CONTINUE
+
+                self.left_wrapper.set_visible_child_name("collapsed")
+
+                # Si GTK no ejecuta animaciones, no habrá transición posterior
+                # que restaure la opacidad mediante notify::transition-running.
+                if not self.left_wrapper.get_transition_running():
+                    self.left_col.set_opacity(1.0)
+
+                self.main_layout.queue_resize()
+                return GLib.SOURCE_REMOVE
+
+            GLib.timeout_add(16, fade_before_collapse)
+            return
+
+        # Desplegado y restauraciones de estado sin animación.
+        self.left_col.set_opacity(1.0)
+        self.left_wrapper.set_visible_child_name(
+            "collapsed" if collapsed else "expanded"
+        )
+
         self.main_layout.queue_resize()
-        log_event(f"Bloque izquierdo {'plegado' if collapsed else 'desplegado'}", origin="PANEL", level="DEBUG", reason="SETTINGS")
+
+    def _on_left_panel_transition_running(self, stack, _param):
+        """Restaura el contenido expandido al terminar la transición."""
+        if not stack.get_transition_running():
+            self.left_col.set_opacity(1.0)
 
     def _restore_left_panel_state(self):
-        """Restaura el estado persistido del bloque izquierdo."""
+        """Prepara el bloque izquierdo plegado antes del primer mapeo."""
         settings = self.backend.load_json("settings")
-        collapsed = settings.get("panel", {}).get("collapsed", False)
-        self._set_left_panel_collapsed(collapsed, persist=False)
+        self._initial_left_panel_collapsed = settings.get("panel", {}).get("collapsed", False)
+        self._set_left_panel_collapsed(True, persist=False, animate=False)
 
     def _build_collapsed_bar(self):
         """Construye la barra lateral mostrada cuando el bloque izquierdo está plegado."""
-        bar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
+        bar = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         bar.set_size_request(40, -1)
         bar.set_margin_start(0)
         bar.set_margin_end(6)
@@ -363,6 +515,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
             'get_fav_rotation_switch': lambda: self.favorites_section.fav_rotation_switch,
             'get_parent_window': lambda: self,
             'get_application': lambda: self.get_application(),
+            'save_window_size': self._save_window_size,
             'on_open_debug_log': self._on_open_debug_log,
             'on_open_help': self._on_open_help,
             'collapse_left_panel': lambda: self._set_left_panel_collapsed(True),
@@ -394,6 +547,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
             'on_load_preset_to_edit': self._on_load_preset_to_edit,
             'on_update_mode_info_label': self.options_section._update_mode_info_label,
             'on_show_warning_dialog': self._show_warning_dialog,
+            'on_single_favorites_changed': self._refresh_single_favorites,
             'get_loading_state': lambda: self._loading,
             'get_parent_window': lambda: self,
         }
@@ -403,19 +557,27 @@ class WMMControlPanel(Gtk.ApplicationWindow):
     # ==========================================================
     def _build_thumbnails_callbacks(self):
         """Construye el diccionario de callbacks para ThumbnailsSection."""
-        log_event(f"Decrement busy: contador={self._busy_counter}", origin="PANEL", level="DEBUG", reason="LIBRARY"),
         return {
-            'increment_busy': self._increment_busy,
-            'decrement_busy': self._decrement_busy,
+            'begin_sources_operation': self._begin_sources_operation,
+            'finish_sources_operation': self._finish_sources_operation,
+            'is_sources_operation_active': self._is_sources_operation_active,
             'set_progress_active': self._set_progress_active,
             'load_bookmarks_single': self.favorites_section._load_bookmarks_single,
             'load_thumbnails': self.thumbnails_section._load_thumbnails,
             'get_parent_window': lambda: self,
+            'on_single_favorites_changed': self._refresh_single_favorites,
         }
 
     # ==========================================================
     # MÉTODOS AUXILIARES DEL PANEL
     # ==========================================================
+    def _refresh_single_favorites(self):
+        """Sincroniza las vistas que representan bookmarks_single."""
+        self.favorites_section._load_bookmarks_single()
+        self.thumbnails_section._refresh_favorite_state()
+        self.thumbnails_section._load_favorites_view()
+        return False
+
     def _create_section_label(self, text):
         """Crea una etiqueta de sección con formato."""
         label = Gtk.Label()
@@ -423,66 +585,129 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         label.set_halign(Gtk.Align.START)
         return label
 
+    def _restore_window_size(self):
+        """Solicita el último tamaño guardado; la workarea actual conserva la autoridad final."""
+        settings = self.backend.load_json("settings")
+        window_size = settings.get("panel", {}).get("window_size", {})
+
+        if not isinstance(window_size, dict):
+            return
+
+        width = window_size.get("width")
+        height = window_size.get("height")
+
+        if type(width) is not int or type(height) is not int or width <= 0 or height <= 0:
+            return
+
+        self.set_default_size(width, height)
+        log_event(f"Tamaño guardado del Panel solicitado: {width}x{height}",
+            origin="PANEL", level="DEBUG", reason="LAYOUT")
+
+    def _save_window_size(self):
+        """Guarda el tamaño efectivo actual del Panel al finalizar limpiamente."""
+        width, height = self.get_size()
+
+        if width <= 0 or height <= 0:
+            return
+
+        settings = self.backend.load_json("settings")
+        panel_state = settings.setdefault("panel", {})
+        panel_state["window_size"] = {
+            "width": int(width),
+            "height": int(height),
+        }
+        self.backend.save_json("settings", settings)
+        log_event(f"Tamaño del Panel guardado: {width}x{height}",
+            origin="PANEL", level="DEBUG", reason="SETTINGS")
+
+    def _update_window_size_limit(self):
+        """Actualiza el tamaño máximo según la workarea del monitor actual."""
+        if not hasattr(self.platform, "set_window_size_limit"):
+            return False
+
+        area = self.platform.get_window_available_area(os.getpid())
+        if not area:
+            return False
+
+        max_width = area["width"]
+        max_height = max(1, area["height"] - self._WORKAREA_MARGIN)
+
+        self.platform.set_window_size_limit(self, max_width, max_height)
+        return False
+
     def _preserve_window_position_on_expand(self):
         """Delega en la plataforma cualquier corrección previa a una expansión."""
+        self._update_window_size_limit()
         self.platform.preserve_window_position_on_expand(os.getpid())
 
     def _on_initial_map(self, widget, event):
         """Aplica una corrección específica de plataforma tras el primer mapeo."""
         self.disconnect_by_func(self._on_initial_map)
+        self._update_window_size_limit()
         GLib.timeout_add(50, self._correct_initial_window_position)
         return False
 
     def _correct_initial_window_position(self):
         self.platform.correct_initial_window_position(os.getpid())
+
+        if not self._initial_left_panel_collapsed:
+            self._set_left_panel_collapsed(False, persist=False, animate=False)
+
         return False
 
     def _fit_collapsed(self):
-        """Limita la ventana al alto disponible de su área de trabajo."""
+        """Limita la ventana al tamaño disponible de su área de trabajo."""
         area = self.platform.get_window_available_area(os.getpid())
 
         if not area:
             return False
 
         window_w, window_h = self.get_size()
-        available_height = area["height"] - self._WORKAREA_MARGIN
+        available_width = area["width"]
+        available_height = max(1, area["height"] - self._WORKAREA_MARGIN)
+        fitted_w = min(window_w, available_width)
+        fitted_h = min(window_h, available_height)
 
-        if window_h > available_height:
-            log_event(f"Panel reajustado: alto {window_h} -> {available_height} (área útil={area['height']}, margen={self._WORKAREA_MARGIN})", origin="PANEL", level="DEBUG", reason="LAYOUT")
-            self.resize(window_w, available_height)
+        if fitted_w != window_w or fitted_h != window_h:
+            log_event(f"Panel reajustado: {window_w}x{window_h} -> {fitted_w}x{fitted_h} "
+                f"(workarea={area['width']}x{area['height']}, margen={self._WORKAREA_MARGIN})",
+                origin="PANEL", level="DEBUG", reason="LAYOUT")
+            self.resize(fitted_w, fitted_h)
 
         return False
 
     def _notify_engine(self, action=None):
         if action is None:
             action = {"action": "force_rotation"}
-        # TIMING TEST: registrar envío de petición
-        with open("/tmp/wmm_timing_test.csv", "a") as f:
-            import csv, fcntl
-            fcntl.flock(f, fcntl.LOCK_EX)
-            writer = csv.writer(f)
-            writer.writerow([time.strftime("%Y-%m-%d %H:%M:%S"), "PANEL", "send_command", time.perf_counter()])
-            fcntl.flock(f, fcntl.LOCK_UN)
         self.backend.notify_engine(action)
         time.sleep(0.05)
 
-    def _increment_busy(self):
-        """Incrementa el contador de ocupación y desactiva la interfaz si es el primero."""
-        self._busy_counter += 1
-        if self._busy_counter == 1:
-            self._set_sources_sensitive(False)
+    def _begin_sources_operation(self):
+        """Abre una operación global y mantiene Sources no interactiva hasta su FIN."""
+        if self._sources_operation_active:
+            return False
 
-    def _decrement_busy(self):
-        """Decrementa el contador de ocupación y reactiva la interfaz si llega a cero."""
-        if self._busy_counter == 0:
-            return
-        self._busy_counter -= 1
-        if self._busy_counter <= 0:
-            self._busy_counter = 0
-            self._set_sources_sensitive(True)
-            # Forzar la aparición de las flechas de expansión tras completar el proceso
-            if hasattr(self, 'sources_section'):
-                GLib.idle_add(self.sources_section.load_sources_into_treeview)
+        self._sources_operation_active = True
+        self._set_sources_sensitive(False)
+        return True
+
+    def _finish_sources_operation(self):
+        """Cierra la operación global y devuelve Sources al usuario una sola vez."""
+        if not self._sources_operation_active:
+            return False
+
+        self._sources_operation_active = False
+        self._set_sources_sensitive(True)
+
+        # La representación final de Sources se reconstruye sólo al alcanzar el FIN global.
+        if hasattr(self, 'sources_section'):
+            GLib.idle_add(self.sources_section.load_sources_into_treeview)
+
+        return False
+
+    def _is_sources_operation_active(self):
+        """Indica si existe una operación global que mantiene Sources bloqueada."""
+        return self._sources_operation_active
 
     def _set_sources_sensitive(self, sensitive):
         """Activa/desactiva la sección de fuentes durante operaciones largas."""
@@ -491,6 +716,8 @@ class WMMControlPanel(Gtk.ApplicationWindow):
 
     def _set_progress_active(self, active, text=None):
         """Muestra/oculta la barra de progreso."""
+        # Barra, aviso de resincronización y spacer son mutuamente excluyentes:
+        # representan fases distintas dentro del mismo espacio visual.
         if active:
             log_event(f"Barra de progreso activada: {text or ''}",
                       origin="PANEL", level="INFO", reason="LIBRARY")
@@ -498,7 +725,12 @@ class WMMControlPanel(Gtk.ApplicationWindow):
             log_event("Barra de progreso desactivada",
                       origin="PANEL", level="INFO", reason="LIBRARY")
         if active:
+            # Mientras una fase está activa, progress ocupa el espacio compartido
+            # y oculta cualquier aviso pendiente de Sources.
             self.btn_spacer.hide()
+            if hasattr(self, 'sources_section'):
+                self.sources_section.resync_notice.hide()
+
             self.scan_progress.show()
             self.scan_progress.set_fraction(0.0)
             if text:
@@ -506,9 +738,15 @@ class WMMControlPanel(Gtk.ApplicationWindow):
                 self.scan_progress.set_text(text)
         else:
             self.scan_progress.hide()
-            self.btn_spacer.show()
             self.scan_progress.set_fraction(0.0)
             self.scan_progress.set_show_text(False)
+
+            if hasattr(self, 'sources_section'):
+            # Al liberar progress, devolver el espacio al estado global de Sources:
+            # resync_notice si queda trabajo pendiente; spacer en caso contrario.
+                self.sources_section._update_resync_notice()
+            else:
+                self.btn_spacer.show()
 
     def _show_warning_dialog(self, message):
         """Muestra un diálogo de advertencia."""
@@ -577,11 +815,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
 
         # Restaurar alineación del grupo de monitores
         align_value = settings.get("monitor_group_align", "START")
-        align_map = {
-            "START": Gtk.Align.START,
-            "CENTER": Gtk.Align.CENTER,
-            "END": Gtk.Align.END
-        }
+        align_map = {"START": Gtk.Align.START, "CENTER": Gtk.Align.CENTER, "END": Gtk.Align.END}
         self.monitors_section.monitor_group_box.set_halign(align_map.get(align_value, Gtk.Align.START))
         self.monitors_section._update_align_labels(align_map.get(align_value, Gtk.Align.START))
 
@@ -638,7 +872,8 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         self.monitors_section.edit_preset_label.set_max_width_chars(24)
         self.monitors_section.edit_label_stack.set_visible_child_name("edit_preset")
 
-        log_event(f"Preset cargado en edición: {preset_name}", origin="PANEL", level="INFO", reason="BOOKMARK")
+        log_event(f"Preset cargado en edición: {preset_name}",
+            origin="PANEL", level="INFO", reason="BOOKMARK")
 
     # ==========================================================
     # APERTURA DE VENTANAS EXTERNAS
@@ -681,16 +916,17 @@ class WMMControlPanel(Gtk.ApplicationWindow):
 
         if os.path.exists(pid_path):
             try:
-                with open(pid_path, "r") as f:
-                    old_pid = int(f.read().strip())
+                with open(pid_path, "r") as f: old_pid = int(f.read().strip())
                 os.kill(old_pid, 0)
-                log_event(f"Otro panel ya está corriendo (PID {old_pid})", origin="PANEL", level="WARN", reason="NOTIFY")
+                log_event(f"Otro panel ya está corriendo (PID {old_pid})",
+                    origin="PANEL", level="WARN", reason="NOTIFY")
             except (OSError, ValueError):
                 pass
 
         with open(pid_path, "w") as f:
             f.write(str(os.getpid()))
-        log_event(f"PID {os.getpid()} registrado en {pid_path}", origin="PANEL", level="INFO", reason="NOTIFY")
+        log_event(f"PID {os.getpid()} registrado en {pid_path}",
+            origin="PANEL", level="INFO", reason="NOTIFY")
 
         # Monitor de archivos para recibir eventos del motor
         self._setup_panel_monitor()
@@ -706,25 +942,26 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         command_file = Gio.File.new_for_path(command_path)
         self._panel_monitor = command_file.monitor_file(Gio.FileMonitorFlags.NONE, None)
         self._panel_monitor.connect("changed", self._on_panel_file_changed)
-        log_event("Monitor de command_panel.json iniciado. Esperando eventos del motor...", origin="PANEL", level="INFO", reason="COMMAND")
+        log_event("Monitor de command_panel.json iniciado. Esperando eventos del motor...",
+            origin="PANEL", level="INFO", reason="COMMAND")
 
     def _on_panel_file_changed(self, monitor, file, other_file, event_type):
         """Callback asíncrono cuando el motor escribe en command_panel.json."""
         try:
-            # Micro-pausa para asegurar que el flush del disco terminó
-            time.sleep(0.02)
 
+            if event_type != Gio.FileMonitorEvent.CHANGES_DONE_HINT:
+                return
             command_path = file.get_path()
             with open(command_path, "r", encoding="utf-8") as f:
                 event = json.load(f)
-
             action = event.get("action", "")
 
             # Refuerzo anti-eco: si no hay acción, no hacemos nada
             if not action:
                 return
 
-            log_event(f"Evento recibido del motor: {action}", origin="PANEL", level="DEBUG", reason="COMMAND")
+            log_event(f"Evento recibido del motor: {action}",
+                origin="PANEL", level="DEBUG", reason="COMMAND")
 
             # Limpiamos el buzón (esto disparará otro evento, pero la condición de arriba lo parará)
             with open(command_path, "w", encoding="utf-8") as f:
@@ -737,23 +974,28 @@ class WMMControlPanel(Gtk.ApplicationWindow):
                 GLib.idle_add(self._load_settings)
             elif action == "bookmarks_updated":
                 GLib.idle_add(self.favorites_section._load_presets)
-                GLib.idle_add(self.favorites_section._load_bookmarks_single)
+                GLib.idle_add(self._refresh_single_favorites)
             elif action == "hardware_changed":
                 GLib.idle_add(self.monitors_section._load_monitors_normal)
             elif action == "shutdown":
-                log_event("Cierre solicitado por el engine", origin="PANEL", level="INFO", reason="COMMAND")
+                log_event("Cierre solicitado por el engine",
+                    origin="PANEL", level="INFO", reason="COMMAND")
                 self._on_delete_event(None, None)
             else:
-                log_event(f"Acción desconocida recibida del motor: {action}", origin="PANEL", level="WARN", reason="COMMAND")
+                log_event(f"Acción desconocida recibida del motor: {action}",
+                    origin="PANEL", level="WARN", reason="COMMAND")
 
         except json.JSONDecodeError:
             # El archivo estaba a medias, lo ignoramos
             pass
         except Exception as e:
-            log_event(f"Error al procesar evento del motor: {e}", origin="PANEL", level="ERROR", reason="COMMAND")
+            log_event(f"Error al procesar evento del motor: {e}",
+                origin="PANEL", level="ERROR", reason="COMMAND")
 
     def _on_delete_event(self, widget, event):
-        """Limpia el PID y el monitor al cerrar."""
+        """Guarda el tamaño final y limpia el PID/monitor al cerrar."""
+        self._save_window_size()
+
         # Cancelar el monitor de archivos
         if hasattr(self, '_panel_monitor') and self._panel_monitor:
             self._panel_monitor.cancel()
@@ -762,9 +1004,11 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         if os.path.exists(pid_path):
             try:
                 os.remove(pid_path)
-                log_event("Archivo PID eliminado. Cierre limpio", origin="PANEL", level="INFO", reason="NOTIFY")
+                log_event("Archivo PID eliminado. Cierre limpio",
+                    origin="PANEL", level="INFO", reason="NOTIFY")
             except Exception as e:
-                log_event(f"Error al eliminar PID: {e}", origin="PANEL", level="ERROR", reason="NOTIFY")
+                log_event(f"Error al eliminar PID: {e}",
+                    origin="PANEL", level="ERROR", reason="NOTIFY")
 
         app = self.get_application()
         if app:
@@ -779,11 +1023,32 @@ class PanelApplication(Gtk.Application):
         self.window = None
 
     def do_activate(self):
-        if not self.window:
-            self.window = WMMControlPanel(self)
-            self.add_window(self.window)
-        self.window.present()
+        """Crea o presenta el panel y evita instancias huérfanas si falla el arranque."""
+        if self.window:
+            self.window.present()
+            return
 
+        try:
+            window = WMMControlPanel(self)
+            self.add_window(window)
+            self.window = window
+            window.present()
+
+        except Exception as e:
+            # El traceback debe quedar disponible incluso si el logger de WMM
+            # todavía no ha terminado de inicializarse.
+            traceback.print_exc()
+
+            try:
+                log_event(f"Error fatal al iniciar el Panel: {e}",
+                    origin="PANEL", level="ERROR", reason="INIT")
+            except Exception:
+                pass
+
+            # Si la ventana no ha podido construirse, esta Gtk.Application no
+            # debe permanecer registrada sin ventana y recibir futuras activaciones.
+            self.window = None
+            self.quit()
 
 if __name__ == "__main__":
     app = PanelApplication()

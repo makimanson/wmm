@@ -46,6 +46,10 @@ VALID_LEVELS = ("DEBUG", "INFO", "WARN", "ERROR")
 MAX_LOG_LINES = 500          # Número de líneas que se conservan al truncar
 TRUNCATE_THRESHOLD = 1000    # Umbral que dispara el truncado
 
+# RUNTIME-02: el log se mantiene deliberadamente pequeño y acotado.
+# La relectura completa hasta este umbral fue medida y se acepta frente
+# a introducir contadores auxiliares o estado compartido entre procesos.
+
 # ----------------------------------------------------------------------
 # RUTAS DEL LOG (configurables externamente)
 # ----------------------------------------------------------------------
@@ -109,9 +113,14 @@ def log_event(message, origin="UNKNOW", level="INFO", reason="GENERIC"):
     try:
         with open(_LOG_PATH, "a+", encoding="utf-8") as f:
             _lock_file(f)
+            # Escritura y mantenimiento forman una única sección crítica:
+            # ningún otro proceso puede escribir mientras se evalúa o trunca el log.
             f.write(line)
             f.flush()  # Forzar escritura inmediata al disco
             # Truncado perezoso: si el archivo supera el umbral, conservar solo las últimas líneas
+            # RUNTIME-02: esta relectura es intencionada. debug.log sigue siendo la
+            # única autoridad global; las pruebas multiproceso validaron este modelo
+            # y un contador auxiliar resultó más complejo sin mejora runtime suficiente.
             f.seek(0)
             lines = f.readlines()
             if len(lines) > TRUNCATE_THRESHOLD:
@@ -124,7 +133,6 @@ def log_event(message, origin="UNKNOW", level="INFO", reason="GENERIC"):
         # Fallback silencioso: no queremos que un fallo de logging
         # interrumpa el componente que nos llama.
         print(f"[DEBUG_LOGGER] Error al escribir log: {e}", file=sys.stderr)
-
 
 def read_log():
     """
@@ -143,7 +151,6 @@ def read_log():
         print(f"[DEBUG_LOGGER] Error al leer log: {e}", file=sys.stderr)
         return ""
 
-
 def get_log_path():
     """
     Retorna la ruta completa al archivo de log.
@@ -152,7 +159,6 @@ def get_log_path():
         str: Ruta absoluta al archivo debug.log en el directorio de caché.
     """
     return _LOG_PATH
-
 
 def clear_log():
     """
@@ -163,8 +169,20 @@ def clear_log():
     """
     try:
         os.makedirs(os.path.dirname(_LOG_PATH), exist_ok=True)
-        with open(_LOG_PATH, "w+", encoding="utf-8") as f:
+
+        # Abrir sin truncar: Clear debe respetar la misma exclusión
+        # que los escritores antes de modificar el contenido del log.
+        with open(_LOG_PATH, "a+", encoding="utf-8") as f:
+            _lock_file(f)
+
+            # El truncado sólo ocurre después de adquirir el lock:
+            # ningún log_event() activo puede perder su escritura por carrera.
+            f.seek(0)
             f.truncate(0)
+            f.flush()
+
+            _unlock_file(f)
+
     except Exception as e:
         print(f"[DEBUG_LOGGER] Error al limpiar log: {e}", file=sys.stderr)
 

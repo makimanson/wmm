@@ -1,360 +1,528 @@
+<!--
+SPDX-FileCopyrightText: 2026 makimanson
+SPDX-License-Identifier: GPL-3.0-or-later
+
+WMM - Wallpaper Multi-Monitor Manager
+
+HELP_es.md -- Archivo de ayuda en castellano
+
+WMM-Title: Ayuda
+WMM-Contents: Contenidos
+-->
+
+# Entornos de escritorio
+
+WMM dispone actualmente de integración completa con **Cinnamon**, **GNOME Shell**, **KDE Plasma 6** y **MATE**.
+
+El panel de control y las funciones principales son comunes a todos los entornos. Algunos controles pueden cambiar ligeramente de aspecto o ubicación según el escritorio, pero comparten la misma configuración.
+
 # Ajustes
 
-Para abrir el panel de control, haz clic derecho sobre el icono de WMM en el panel y selecciona **WMM Ajustes**.
+Abre el menú de WMM desde su applet, extensión o plasmoide y selecciona **Ajustes** para abrir el panel de control.
 
 ## Opciones
 
-Aquí encontrarás las opciones generales de WMM. Cambia el fondo al iniciar, elige el modo de aspecto, efectos de imagen, color de fondo y controla la presentación de diapositivas. Cada cambio se refleja en tiempo real en los monitores virtuales de la sección **Pantallas**.
+Aquí encontrarás las opciones generales de WMM. Puedes cambiar el comportamiento al iniciar, el modo de aspecto, los efectos de imagen, el fondo y la presentación de diapositivas. Los cambios se reflejan en los monitores virtuales de la sección **Monitores**.
 
-### Icono Reiniciar
-Reinicia completamente el motor y el panel de control. Es útil si el motor deja de responder.
+### Icono Ayuda
+
+Abre esta ayuda en una ventana independiente.
 
 ### Icono Visor de Logs
-Abre el visor de logs de depuración en una ventana aparte. Muestra en tiempo real toda la actividad del motor y del panel de control.
+
+Abre el visor de logs de depuración en una ventana aparte. Muestra en tiempo real la actividad de WMM y permite filtrar el registro.
+
+### Icono Reiniciar
+
+Reinicia completamente el motor y el panel de control. Es útil si necesitas volver a cargar WMM durante la sesión.
+
+### Icono Plegar / Expandir
+
+Pliega la columna lateral del panel para dejar más espacio a las secciones de monitores y miniaturas. Al volver a pulsarlo se recupera la vista completa.
+
+WMM recuerda el estado plegado o desplegado del panel.
+
+### Plegar / desplegar secciones
+
+Las distintas secciones del panel de control pueden **plegarse o desplegarse** pulsando sobre su cabecera.
+
+* **Desplegada**: muestra todos los controles y opciones de la sección.
+* **Plegada**: oculta su contenido y deja visible únicamente la cabecera.
+
+Esto permite reducir el espacio ocupado por las secciones que no estés utilizando y centrar la vista en las opciones que necesites en cada momento.
+
+El plegado solo afecta a la visualización del panel: **no activa, desactiva ni modifica ninguna opción de WMM**.
 
 ### Cambiar el fondo de pantalla al iniciar
-Si está **activada**, al iniciar el ordenador el motor elige imágenes nuevas y regenera el fondo desde cero.
-Si está **desactivada**, se conserva la última composición guardada (ideal si te gusta cómo lo dejaste y no quieres cambios inesperados).
 
-### Distribución
-Activa o desactiva el **Modo Distribuido** (*Spanned*). Al activarse, se utiliza una única imagen panorámica que se extiende por todos los monitores a la vez.
+Si está **activada**, al iniciar WMM el motor elige imágenes nuevas y genera una nueva composición.
+
+Si está **desactivada**, se conserva la última composición guardada.
+
+### Modo Panorámico
+
+Activa o desactiva el **Modo Panorámico** (*Spanned*). Al activarse, se utiliza una única imagen panorámica que se extiende por todos los monitores a la vez.
+
 Solo está disponible si hay más de un monitor activo.
 
 ### Relación de aspecto
+
 Controla cómo se ajusta la imagen dentro de cada monitor:
 
-- **Escalado** (*Scaled*): La imagen se reduce o amplía para ocupar el monitor completamente **sin deformarla**. Si la imagen no llena todo el monitor, el espacio sobrante se rellena con el color o efecto de fondo seleccionado.
-- **Zoom**: La imagen se escala para cubrir todo el monitor. Si la imagen y el monitor tienen proporciones diferentes, las partes que sobran se recortan.
-- **Estirado** (*Stretched*): La imagen se estira para ajustarse exactamente al tamaño del monitor, aunque se deforme.
+- **Escalado** (*Scaled*): la imagen se reduce o amplía sin deformarla. Si no llena todo el monitor, el espacio sobrante se rellena con el color o efecto de fondo seleccionado.
+- **Zoom**: la imagen se escala para cubrir todo el monitor. Si la imagen y el monitor tienen proporciones diferentes, las partes sobrantes se recortan.
+- **Estirado** (*Stretched*): la imagen se ajusta exactamente al tamaño del monitor, aunque pueda deformarse.
 
 ### Efecto de imagen
+
 Aplica un efecto visual sobre la imagen de cada monitor:
 
-- **Ninguno** (*None*): Sin efecto.
-- **Sepia** (*Sepia*): Aplica un tono envejecido, marronoso, a la imagen.
-- **Blanco y negro** (*Black and White*): Convierte la imagen a escala de grises, eliminando los colores.
+- **Ninguno** (*None*): sin efecto.
+- **Sepia** (*Sepia*): aplica un tono envejecido a la imagen.
+- **Blanco y negro** (*Black and White*): convierte la imagen a escala de grises.
 
 ### Efecto de fondo
-Rellena el espacio sobrante cuando la imagen no cubre completamente el monitor (solo visible en modo Escalado). Tienes dos opciones:
 
-- **Difuminado** (*Blur*): Toma la propia imagen, la desenfoca y la usa como fondo, creando un efecto de continuidad.
-- **Color**: Utiliza el color sólido o degradado que tengas seleccionado en la opción "Color de fondo".
+Rellena el espacio sobrante cuando la imagen no cubre completamente el monitor. Es visible principalmente en modo **Escalado**.
+
+- **Difuminado** (*Blur*): utiliza una copia desenfocada de la propia imagen como fondo.
+- **Color**: utiliza el color sólido o degradado seleccionado en **Color de fondo**.
 
 ### Color de fondo
-Define el color del espacio sobrante cuando se usa el modo Escalado o cuando un monitor no tiene imagen asignada. Tienes tres opciones:
 
-- **Color sólido** (*Solid color*): Un único color plano. Puedes elegirlo con el selector de color.
-- **Degradado Horizontal** (*Gradient H*): Un degradado de dos colores de izquierda a derecha.
-- **Degradado Vertical** (*Gradient V*): Un degradado de dos colores de arriba abajo.
+Define el fondo utilizado cuando una imagen no ocupa toda la pantalla o cuando un monitor no tiene una imagen asignada.
+
+- **Color sólido** (*Solid color*): un único color plano.
+- **Degradado Horizontal** (*Gradient H*): degradado de dos colores de izquierda a derecha.
+- **Degradado Vertical** (*Gradient V*): degradado de dos colores de arriba abajo.
 
 ### Presentación de diapositivas
-Activa o desactiva el cambio automático de imágenes. Cuando está activado, el motor cambia las imágenes de fondo según la configuración de frecuencia y modo.
 
-### Frecuencia máxima.
-Establece el límite máximo (en minutos) que puede tener el intervalo de rotación. El control deslizante del menú del applet se ajusta a este valor.
+Activa o desactiva el cambio automático de imágenes. Cuando está activado, el motor cambia los fondos según la frecuencia y el modo configurados.
 
-### Diapositivas cada:
-Define cada cuántos minutos el motor cambiará las imágenes de fondo.
+### Frecuencia máxima
+
+Establece el límite máximo, en minutos, que puede tener el intervalo de rotación utilizado desde el menú de WMM.
+
+### Diapositivas cada...
+
+Define cada cuántos minutos se realizará un cambio automático de fondo de pantalla.
 
 ### Modo de presentación
-Controla cómo cambian las imágenes los monitores durante la presentación de diapositivas:
 
-- **Síncrono** (*Sync*): Todos los monitores cambian a la vez, tomando una imagen de un mismo *preset* o de la biblioteca general.
-- **Asíncrono** (*Async*): Cada monitor cambia por su cuenta, de manera independiente.
+Controla cómo cambian las imágenes y el efecto de transición durante la presentación de diapositivas:
 
-**Comportamiento con Favoritos activado:**
-- Si **"Solo Favoritos"** está activado en el menú del applet, o en la sección **Favoritos**, la presentación de diapositivas utiliza exclusivamente las imágenes de tus **Favoritos**
-- Si tienes activado el modo **Síncrono** la rotación se hará solo con los presets guardados, ignorando el resto de la biblioteca.
-- Si tienes activado el modo **Asíncrono** la rotación se hará solo con los favoritos guardados, ignorando el resto de la biblioteca.
+- **Síncrono** (*Sync*):
+    - Aplica un efecto de fundido a negro (Fade-out > Fade-in).
+    - Todos los monitores cambian a la vez.
+    - Si está activada la opción **Solo favoritos**: la rotación utiliza los presets guardados.
+
+- **Asíncrono** (*Async*):
+    - Aplica un efecto de fusión entre imágenes (Crossfade).
+    - Los monitores cambian por turnos de manera independiente.
+    - Si está activada la opción **Solo favoritos**: la rotación utiliza imágenes individuales de la lista de favoritos.
 
 ## Favoritos
 
-Gestiona tus combinaciones de fondos favoritas. Puedes crear, cargar y eliminar presets. Un *preset* es una composición de fondo guardada que puedes cargar en cualquier momento.
+Gestiona tus combinaciones de fondos favoritas. Puedes crear, cargar, modificar y eliminar presets. Un *preset* es una composición guardada que puedes recuperar en cualquier momento.
 
 ### Switch "Solo favoritos"
-Si lo activas, la presentación de diapositivas utiliza exclusivamente las imágenes de tus presets guardados, ignorando el resto de la biblioteca. Si la presentación está en modo síncrono, selecciona un preset al azar en cada cambio. En modo asíncrono, selecciona imágenes individuales de la lista plana de favoritos.
+
+Si lo activas, la presentación de diapositivas utiliza exclusivamente tus favoritos.
+
+- En modo **síncrono** se utilizan los presets guardados.
+- En modo **asíncrono** se utilizan las imágenes individuales de la lista de favoritos.
 
 ### Caja Presets (izquierda)
 
-- **Cargar un preset en los monitores**: haz clic derecho sobre el nombre del preset y selecciona *"Cargar en monitores"*. El preset se cargará en el modo de edición para que puedas verlo y modificarlo antes de aplicarlo.
-- **Cambiar el nombre de un preset**: haz un clic lento sobre el nombre del preset (sin hacer doble clic). El texto se volverá editable. Escribe el nuevo nombre y pulsa Enter.
+- **Cargar un preset en los monitores**: haz clic derecho sobre el nombre del preset y selecciona *"Cargar en monitores"*. El preset se cargará en modo de edición para que puedas verlo y modificarlo antes de aplicarlo.
+- **Cambiar el nombre de un preset**: haz un clic lento sobre el nombre del preset. Cuando el texto se vuelva editable, escribe el nuevo nombre y pulsa Enter.
 - **Eliminar un preset**: haz clic derecho sobre el preset y selecciona *"Eliminar el preset"*. También puedes seleccionarlo y pulsar el botón de la papelera.
-- **Eliminar una imagen de un preset**: haz clic derecho sobre la imagen dentro del preset y selecciona *"Eliminar la imagen"*. El monitor conservará su posición en el preset pero sin imagen.
-- **Abrir una imagen del preset**: haz doble clic sobre la imagen. Se abrirá con el visor de imágenes predeterminado del sistema.
+- **Eliminar una imagen de un preset**: haz clic derecho sobre la imagen dentro del preset y selecciona *"Eliminar la imagen"*. El monitor conservará su posición en el preset pero quedará sin imagen.
+- **Abrir una imagen del preset**: haz doble clic sobre la imagen para abrirla con el visor predeterminado del sistema.
 
 ### Caja Favoritos (derecha)
 
-- **Añadir una imagen a favoritos**: desde la galería de miniaturas, haz clic derecho sobre una imagen y selecciona *"Añadir a favoritos"*. También puedes añadirla desde el gestor de archivos Nemo con la acción *"WMM: Add to favorites"*.
-- **Seleccionar varias imágenes**: puedes seleccionar varias imágenes a la vez usando **Ctrl+clic** (selección discontinua) o **Mayús+clic** (selección de un rango continuo).
-- **Eliminar una imagen de favoritos**: haz clic derecho sobre la imagen en la lista y selecciona *"Eliminar de favoritos"*.
-- **Abrir una imagen**: haz doble clic sobre la imagen para abrirla con el visor de imágenes predeterminado del sistema.
+- **Añadir una imagen a favoritos**: desde la galería de miniaturas, haz clic derecho sobre una imagen y selecciona *"Añadir a favoritos"*. También puedes hacerlo desde los gestores de archivos compatibles con WMM.
+- **Seleccionar varias imágenes**: utiliza **Ctrl+clic** para una selección discontinua o **Mayús+clic** para seleccionar un rango.
+- **Eliminar una imagen de favoritos**: haz clic derecho sobre la imagen y selecciona *"Eliminar de favoritos"*.
+- **Abrir una imagen**: haz doble clic para abrirla con el visor de imágenes predeterminado del sistema.
 
 ### Botones de eliminación
 
-Tanto la caja de Presets como la de Favoritos tienen un botón con icono de papelera en la parte inferior derecha. Este botón elimina el elemento seleccionado en ese momento (un preset, una imagen de un preset o una imagen de la lista de favoritos). Si tienes varios elementos seleccionados en la lista de favoritos, el botón los eliminará todos a la vez.
+Tanto la caja de Presets como la de Favoritos tienen un botón con icono de papelera en la parte inferior derecha.
+
+El botón elimina el elemento seleccionado en ese momento. Si hay varias imágenes seleccionadas en la lista de favoritos, las elimina todas de la lista.
 
 ## Fuentes de imagen
 
-Desde aquí puedes añadir, eliminar y gestionar las carpetas que WMM utiliza para buscar imágenes. Cada carpeta se muestra con sus subcarpetas (si la recursividad está activada) y puedes controlar cuáles están activas.
-En los procesos y funcionalidades de esta sección **nunca se eliminan carpetas ni imágenes originales del disco.** Únicamente se eliminan sus referencias a la biblioteca y sus **miniaturas** de la memoria caché
+Desde aquí puedes añadir, eliminar y gestionar las carpetas que WMM utiliza como biblioteca de imágenes.
+
+Si una fuente es recursiva, se muestran también sus subcarpetas y puedes decidir cuáles permanecen activas.
+
+En esta sección **WMM nunca elimina las carpetas ni las imágenes originales del disco**. Las operaciones de limpieza afectan únicamente a la biblioteca interna y a las miniaturas almacenadas en caché.
 
 ### Botón "Añadir una fuente"
-Abre un diálogo para seleccionar una carpeta del sistema. Al seleccionarla:
 
-- **Carpeta con subcarpetas**: marca la casilla *"Incluir subcarpetas (Recursivo)"* si quieres que WMM busque imágenes también dentro de todas las subcarpetas.
-- **Carpeta sin subcarpetas**: deja la casilla desmarcada para indexar solo las imágenes de la carpeta raíz.
-- Al pulsar **"Añadir"**, la carpeta se registra en la lista de fuentes, pero **no se escanea inmediatamente**. Queda preparada para ser procesada.
-- Las miniaturas se generarán y la carpeta se indexará en la **próxima sincronización**, que puede ser:
-  - Cuando pulses el botón **"Resincronizar"**.
-  - Cuando abras el panel de control en una nueva sesión.
-  - Cuando forces una **"Sincronización de la biblioteca"** desde el menú del applet.
-  - Cuando el motor se inicia.
-- Hasta que no se produzca una de estas acciones, la carpeta aparecerá en la lista pero no verás sus imágenes en la galería.
+Abre un diálogo para seleccionar una carpeta del sistema.
+
+- **Incluir subcarpetas (Recursivo)**: actívalo si quieres que WMM incluya también las subcarpetas de esa fuente.
+- Si lo dejas desactivado, solo se utilizarán las imágenes situadas directamente en la carpeta raíz.
+- Al pulsar **Añadir**, WMM registra la nueva fuente, sincroniza su contenido y actualiza la galería.
+- Cuando termina la operación, las imágenes disponibles aparecen en la sección **Miniaturas**.
 
 ### Botón "Eliminar una fuente"
-Elimina la carpeta seleccionada **de la biblioteca de imágenes.** Antes de eliminarla, se muestra un diálogo de confirmación. Si aceptas:
 
-- La carpeta desaparece de la lista de fuentes.
-- **Las miniaturas no se borran inmediatamente.** Permanecen en la memoria caché hasta que se haga una limpieza. Puedes eliminarlas de tres maneras:
-  - Manualmente: haciendo clic derecho en la carpeta (o subcarpeta) y seleccionando **"Eliminar la memoria caché"**.
-  - Automáticamente: al pulsar el botón **"Resincronizar"** (el motor detecta que la fuente ya no existe y limpia su caché).
-  - Automáticamente: durante un ciclo de mantenimiento (sincronización de la biblioteca desde el applet o al inicio del motor).
+Elimina la fuente seleccionada de la biblioteca de WMM.
+
+Antes de hacerlo se muestra un diálogo de confirmación. Si aceptas:
+
+- La fuente desaparece de la lista.
+- Sus imágenes dejan de estar disponibles para WMM.
+- Se retiran de la biblioteca y de la caché los datos asociados a esa fuente.
+
+Los archivos originales permanecen intactos en el disco.
 
 ### Botón "Resincronizar"
-Vuelve a escanear todas las fuentes de imagen y actualiza la biblioteca. Debes usar este botón cuando:
 
-- **Añades o eliminas imágenes** manualmente dentro de las carpetas de WMM.
-- **Cambias el nombre o la estructura** de las subcarpetas.
-- Quieres **regenerar las miniaturas** después de haber movido o modificado imágenes.
+Revisa las fuentes configuradas y pone la biblioteca al día con el contenido real de las carpetas.
 
-Durante la sincronización, WMM recorre todas las carpetas activas, detecta imágenes nuevas, **elimina miniaturas** de las que ya no existen y actualiza la galería de miniaturas. Al finalizar, recibirás una notificación con el resumen de los cambios.
+Úsalo cuando:
+
+- hayas añadido, eliminado, movido o renombrado imágenes fuera de WMM;
+- hayas modificado imágenes con otro programa;
+- hayas cambiado la estructura de las carpetas;
+- aparezca el aviso **"Sources need resynchronization"**;
+- quieras reconciliar de forma global el estado de todas las fuentes.
+
+Durante la sincronización, WMM detecta las imágenes nuevas, modificadas o eliminadas y actualiza la biblioteca y las miniaturas necesarias.
+
+### Aviso "Sources need resynchronization"
+
+Este aviso indica que la configuración actual de las fuentes y el contenido que WMM tiene preparado para mostrar todavía no coinciden completamente.
+
+No es un error. Puede aparecer, por ejemplo, después de activar o desactivar carpetas, cambiar la opción **Recursivo** o reactivar una carpeta cuya caché ya había sido eliminada.
+
+Pulsa **Resincronizar** para actualizar globalmente la biblioteca.
+
+Si únicamente quieres recuperar una subcarpeta activa que no tiene caché, puedes utilizar **Generar miniaturas** desde su menú contextual.
 
 ### Navegación por el árbol de carpetas
 
 #### Doble clic en una carpeta
-Abre la carpeta con el gestor de archivos del sistema para que puedas ver su contenido directamente.
 
-#### Clic derecho en una carpeta padre
-Muestra un menú contextual con estas opciones:
+Abre la carpeta con el gestor de archivos predeterminado del sistema.
 
-- **Activar/Desactivar la carpeta**: si la desactivas, la carpeta y todas sus subcarpetas dejarán de mostrarse en la galería de miniaturas. Las imágenes no se incluirán en la presentación de diapositivas. Es útil para ocultar temporalmente una carpeta sin eliminarla.
-- **Activar/Desactivar todas las subcarpetas**: aplica el mismo estado (activado o desactivado) a todas las subcarpetas de la carpeta seleccionada. Ideal para gestionar carpetas con muchas subcarpetas de golpe.
-- **Eliminar de la memoria caché de la carpeta**: esta opción **solo aparece si la carpeta ha sido previamente desactivada**. Borra las **miniaturas** asociadas para liberar espacio.
+#### Clic derecho sobre una carpeta
 
-#### Clic derecho en una subcarpeta
-Muestra un menú contextual con estas opciones:
+El menú contextual ofrece las acciones disponibles según el tipo y estado de la carpeta:
 
-- **Activar/Desactivar la subcarpeta**: controla si las imágenes de esta subcarpeta en concreto se muestran en la galería y se incluyen en la presentación.
-- **Eliminar la memoria caché de la subcarpeta**: borra las **miniaturas** de esta subcarpeta específica.
+- **Activar / Desactivar carpeta**: cambia si sus imágenes forman parte de la biblioteca activa. El cambio de visibilidad es inmediato y no inicia por sí solo una sincronización completa.
+- **Activar subcarpetas / Desactivar subcarpetas**: en una fuente recursiva, permite cambiar de una vez el estado de sus subcarpetas.
+- **Generar miniaturas**: está disponible para una subcarpeta activa que todavía no tiene contenido preparado en caché. Procesa únicamente esa subcarpeta.
+- **Eliminar caché**: aparece para carpetas inactivas. Elimina de WMM la caché asociada a esa carpeta, pero no toca las imágenes originales.
 
-### Activar/Desactivar la recursividad
-La columna *"Recursivo"* del árbol de carpetas muestra un interruptor para cada carpeta padre. Cuando está **activado**, WMM indexa todas las subcarpetas dentro de esta fuente. Cuando está **desactivado**, solo indexa las imágenes de la carpeta raíz, ignorando las subcarpetas.
+Si una carpeta se reactiva mientras su caché todavía existe, WMM puede reutilizarla inmediatamente.
 
-Si activas la recursividad, el árbol de carpetas se despliega automáticamente para mostrar las subcarpetas activas. Si la desactivas, las subcarpetas no desaparecerán inmediatamente. El cambio se hará efectivo en la próxima sincronización (al pulsar "Resincronizar", al abrir el panel de nuevo, al forzar una sincronización de la biblioteca o en el siguiente inicio del motor). Hasta entonces, las subcarpetas permanecerán en la galería y en la presentación de diapositivas.
+Si se reactiva después de haber eliminado su caché, quedará activa pero sus imágenes no aparecerán hasta que utilices **Resincronizar** o **Generar miniaturas**.
+
+### Activar / Desactivar la recursividad
+
+La columna **Recursivo** aparece en las fuentes raíz.
+
+- **Activado**: las subcarpetas forman parte de la fuente.
+- **Desactivado**: WMM utiliza únicamente la carpeta raíz.
+
+El cambio se refleja inmediatamente en el árbol y en la visibilidad de las imágenes.
+
+Activar **Recursivo** permite a WMM descubrir las subcarpetas, pero no obliga a reconstruir automáticamente imágenes o miniaturas que ya no estén en caché. En ese caso puedes usar **Resincronizar** para toda la biblioteca o **Generar miniaturas** para una subcarpeta concreta.
 
 ## Monitores
 
-Aquí se muestran tus monitores como miniaturas. La sección se actualiza en tiempo real con cualquier cambio: rotación de fondos, cambios de geometría, encendido/apagado de monitores, etc.
+Aquí se muestran tus monitores como miniaturas. La sección se actualiza con los cambios de fondo, geometría y estado de las pantallas.
 
 ### Botonera de alineación
 
-En la cabecera de la sección encontrarás tres botones: `[` , `•` y `]`. Sirven para cambiar la alineación horizontal del bloque de monitores dentro de la ventana:
+En la cabecera encontrarás tres botones: `[` , `•` y `]`. Permiten cambiar la alineación horizontal del bloque de monitores dentro de la ventana:
 
-- **`[`** : alineación a la izquierda.
-- **`•`** : alineación centrada.
-- **`]`** : alineación a la derecha.
+- **`[`**: alineación a la izquierda.
+- **`•`**: alineación centrada.
+- **`]`**: alineación a la derecha.
 
 Es útil cuando tienes monitores con geometrías muy diferentes y quieres ajustar visualmente la previsualización.
 
 ### Modo normal
 
-En modo normal, la sección muestra una miniatura de cada monitor con la imagen que tiene asignada y un interruptor en la parte superior para activarlo o desactivarlo.
+En modo normal, la sección muestra una miniatura de cada monitor con su imagen asignada y un interruptor para activarlo o desactivarlo.
 
 #### Interruptores de monitor
 
-Cada interruptor tiene dos funciones:
-- **Activado**: el monitor muestra la imagen que tiene asignada. Si no tiene ninguna, se le asignará una automáticamente según su orientación.
-- **Desactivado**: el monitor se pinta con el color de fondo seleccionado (sólido o degradado) y no participa en la rotación de diapositivas.
+- **Activado**: el monitor muestra la imagen asignada. Si no tiene ninguna, WMM puede asignarle una según su orientación.
+- **Desactivado**: el monitor se rellena con el fondo seleccionado y no participa en la rotación de diapositivas.
 
-Si el **Modo Distribuido** está activado, los interruptores quedan bloqueados (no se pueden cambiar) porque una única imagen se extiende por todos los monitores.
+Si el **Modo Panorámico** está activado, los interruptores quedan bloqueados porque una única imagen se utiliza para la composición completa.
 
 #### Botones de acción
 
-- **Casilla "Favorito"**: si la marcas, al pulsar **Aceptar** se guardará la composición actual como un preset nuevo.
-- **Aceptar**: guarda la composición actual como preset (si la casilla está marcada) o simplemente aplica los cambios a tus pantallas. Si no se marca la casilla, no se guarda ningún preset.
-- **Actualizar**: refresca la vista de los monitores desde el motor. Útil si detectas que la previsualización no coincide con la realidad.
+- **Casilla "Favorito"**: si la marcas, al pulsar **Aceptar** se guardará la composición actual como un preset.
+- **Aceptar**: aplica los cambios a las pantallas. Si la casilla **Favorito** está marcada, también guarda el preset.
+- **Actualizar**: refresca la vista de los monitores desde el motor.
 
 ### Modo de edición
 
-Para activarlo, pulsa el botón **Modo de edición** (icono del lápiz). La sección cambia para permitirte asignar imágenes manualmente a cada monitor.
+Pulsa el botón **Modo de edición** con el icono del lápiz para asignar imágenes manualmente a los monitores.
 
 #### Arrastrar y soltar (Drag & Drop)
 
-Puedes arrastrar cualquier imagen desde la galería de miniaturas y soltarla sobre el monitor virtual donde quieras asignarla. El monitor se actualiza al instante con la nueva imagen.
+Puedes arrastrar cualquier imagen desde la galería de miniaturas y soltarla sobre el monitor virtual al que quieras asignarla.
 
 #### Panel de opciones de edición
 
-Cuando el modo de edición está activo, aparece un panel con opciones específicas para la composición que estás creando:
+Cuando el modo de edición está activo aparecen opciones específicas para la composición:
 
-- **Distribución (Spanned)**: activa o desactiva el modo distribuido para esta composición.
-- **Relación de aspecto**: elige el modo de ajuste para las imágenes de esta composición.
-- **Efectos**: aplica un efecto de imagen (sepia, blanco y negro) a la composición.
+- **Extender (Spanned)**: activa o desactiva el Modo Panorámico para esta composición.
+- **Relación de aspecto**: elige el modo de ajuste de las imágenes.
+- **Efectos**: aplica un efecto de imagen a la composición.
 
-Podrás ver el efecto al manipular estas opciones en tiempo real.
-Estos valores se guardan junto con el preset y tienen prioridad sobre la configuración global.
+Los cambios pueden previsualizarse mientras editas.
+
+Estos valores se guardan junto con el preset y tienen prioridad sobre la configuración global cuando ese preset se utiliza.
 
 #### Botones de acción en modo edición
 
-- **Casilla "Favorito"**: si la marcas, al pulsar **Aceptar** se guardará la composición editada como un preset (creando uno nuevo o actualizando el que habías cargado).
-- **Aceptar**: aplica los cambios al motor y sale del modo de edición. Si la casilla de favorito está marcada, también guarda el preset.
-- **Actualizar**: vacía todas las imágenes de los monitores y los deja sin imagen, para que puedas empezar de cero.
+- **Casilla "Favorito"**: permite guardar la composición editada como preset.
+- **Aceptar**: aplica los cambios y sale del modo de edición. Si la casilla está marcada, también guarda el preset.
+- **Actualizar**: vacía las imágenes asignadas a los monitores para que puedas reconstruir la composición desde cero.
 
 ## Miniaturas
 
-La galería de imágenes disponibles. Aquí se muestran todas las imágenes que WMM ha indexado en tus fuentes. Las miniaturas se generan automáticamente y se guardan en la memoria caché para que la navegación sea rápida.
+Esta sección muestra las imágenes disponibles en la biblioteca de WMM. Las miniaturas se almacenan en caché para que la navegación sea rápida.
 
 ### Botón Actualizar
 
-A la derecha de los botones H/V encontrarás un botón con el icono de refresco. Al pulsarlo, se regeneran todas las miniaturas de la galería. Es útil si has modificado imágenes fuera de WMM (por ejemplo, si las has editado con un programa externo) y quieres ver los cambios reflejados sin tener que hacer una sincronización completa de la biblioteca.
+Recarga la vista de miniaturas y reconstruye las que sean necesarias a partir de la biblioteca que WMM ya tiene sincronizada.
+
+Este botón **no sustituye a Resincronizar**. Si has añadido, eliminado, movido o modificado archivos originales fuera de WMM, utiliza **Resincronizar** para actualizar primero la biblioteca.
 
 ### Botones H / V
 
-En la cabecera de la sección encontrarás dos botones: **Horizontal** y **Vertical**. Al pulsarlos, la galería se desplaza automáticamente hasta la primera imagen de la orientación seleccionada. Son una ayuda rápida para navegar por la galería sin tener que hacer scroll manual.
+Los botones **Horizontal** y **Vertical** permiten saltar rápidamente al primer elemento de cada orientación dentro de la galería.
+
+### Botón Favoritos
+
+Muestra una vista específica con las imágenes guardadas como favoritas, incluidas las imágenes que forman parte de tus **Presets**.
 
 ### Disposición y orden
 
-Las miniaturas se muestran en un mosaico que se adapta al ancho de la ventana. El orden es fijo:
+Las miniaturas se muestran en un mosaico que se adapta al ancho disponible.
 
-- Primero, todas las imágenes **horizontales**.
-- Después, todas las imágenes **verticales**.
+El orden es:
 
-Dentro de cada grupo, las imágenes aparecen ordenadas por carpeta (según el orden de las fuentes de imagen) y alfabéticamente dentro de cada carpeta.
+- Primero las imágenes **horizontales**, con las incorporadas más recientemente a la biblioteca en primer lugar.
+- Después las imágenes **verticales**, también con las incorporadas más recientemente en primer lugar.
 
 ### Interacción con las miniaturas
 
-Puedes interactuar con cualquier miniatura de tres maneras:
+Puedes interactuar con cualquier miniatura de varias maneras:
 
-- **Doble clic**: abre la imagen original con el visor de imágenes predeterminado del sistema.
-- **Clic derecho**: muestra un menú contextual con dos opciones:
-  - *"Añadir a favoritos"*: añade la imagen a la lista plana de favoritos.
-  - *"Eliminar de favoritos"*: quita la imagen de la lista de favoritos (solo aparece si la imagen ya es favorita).
-- **Arrastrar (Drag & Drop)**: puedes arrastrar cualquier miniatura y soltarla sobre un monitor virtual en la sección **Monitores** (solo en modo de edición). La imagen se asignará a ese monitor.
+- **Doble clic**: abre la imagen original con el visor predeterminado del sistema.
+- **Clic derecho**:
+  - *"Añadir a favoritos"*: añade la imagen a la lista de favoritos.
+  - *"Eliminar de favoritos"*: la elimina de esa lista cuando ya es favorita.
+- **Arrastrar (Drag & Drop)**: en modo de edición, puedes arrastrar una miniatura sobre un monitor virtual para asignarle esa imagen.
 
 ### Marco de favorito
 
-Las imágenes que has añadido a la lista de favoritos se destacan visualmente con un marco de color verde alrededor de la miniatura. Así puedes identificarlas rápidamente mientras navegas por la galería.
+Las imágenes incluidas en la lista de favoritos se destacan con un marco de color verde.
 
 # Favoritos
 
-El menú Favoritos del applet permite acceder rápidamente a los presets guardados y crear nuevos con la composición actual del fondo.
+El menú **Favoritos** de WMM permite acceder rápidamente a los presets guardados y crear otros nuevos a partir de la composición actual.
 
 ### Switch "Solo favoritos"
 
-Si lo activas, la presentación de diapositivas utiliza exclusivamente las imágenes de tus presets guardados, ignorando el resto de la biblioteca. Cuando está activado, el modo de presentación cambia su comportamiento:
+Cuando está activado, la presentación de diapositivas utiliza únicamente contenido guardado como favorito:
 
-- **Modo síncrono**: selecciona un preset al azar en cada cambio y lo aplica a todos los monitores a la vez.
-- **Modo asíncrono**: selecciona imágenes individuales de la lista plana de favoritos y las asigna a los monitores por turnos.
+- **Modo síncrono**: selecciona un preset y aplica la composición completa.
+- **Modo asíncrono**: utiliza imágenes individuales de la lista de favoritos.
 
-Si activas este switch mientras el temporizador está apagado, el motor lo encenderá automáticamente para que la rotación pueda funcionar.
+Si activas **Solo favoritos** mientras la presentación de diapositivas está apagada, WMM la activa automáticamente para que la rotación pueda funcionar.
 
 ### Añadir un preset
 
-Al pulsar **"Add Preset Favorite"**, se abre un pequeño diálogo donde puedes poner nombre a la composición actual de fondos. WMM sugiere un nombre automático (por ejemplo, *"Bookmark 01"*), pero puedes escribir lo que quieras.
+Pulsa **"Añadir Preset a favorito"** para guardar la composición actual.
 
-- **Nombre en blanco**: si dejas el campo vacío y pulsas **OK**, el diálogo te avisa y no se guarda nada.
-- **Nombre repetido**: si escribes un nombre que ya existe, el diálogo te avisa y tienes que elegir uno diferente.
-- **Grabación del preset**: al pulsar **OK** con un nombre válido, el preset se guarda automáticamente con la configuración actual de todos los monitores, incluyendo las imágenes, el modo de aspecto, el efecto de imagen y el modo distribuido.
+Se abre un diálogo donde puedes indicar el nombre del preset. WMM propone un nombre automático, por ejemplo *"Bookmark 01"*, que puedes sustituir por el que quieras.
+
+- **Nombre en blanco**: WMM avisa y no guarda el preset.
+- **Nombre repetido**: debes elegir un nombre diferente.
+- **Grabación del preset**: se guarda la configuración actual de los monitores, incluyendo imágenes y opciones asociadas a la composición.
 
 ### Lista de presets
 
-Debajo del switch y del botón de añadir, aparece una lista con todos los presets que tienes guardados. Si la lista es larga, se muestra una barra de desplazamiento para navegar por ella.
+Debajo de los controles aparece la lista de presets guardados.
 
-- **Cargar un preset**: haz clic sobre el nombre del preset. WMM detendrá el temporizador (si estaba activo) y aplicará la composición guardada a los monitores inmediatamente.
-- **Eliminar un preset**: haz clic en el icono de la papelera que hay a la derecha de cada preset. Se mostrará un diálogo de confirmación. Si lo eliminas, el preset desaparece de la lista y de la lista plana de favoritos.
+- **Cargar un preset**: pulsa sobre su nombre para aplicarlo. WMM detiene el temporizador si estaba activo y carga la composición guardada.
+- **Eliminar un preset**: pulsa el icono de la papelera y confirma la eliminación.
 
 # Presentación de diapositivas
 
-Desde este menú puedes controlar el cambio automático de imágenes de fondo. Cuando la presentación está activa, el motor cambia las imágenes según el intervalo y el modo que tengas configurados en el panel de control.
+Desde este menú puedes controlar el cambio automático de fondos sin abrir el panel de control.
 
 ### Switch "Activado / Desactivado"
 
-El interruptor principal enciende o apaga completamente el temporizador de rotación.
+El interruptor principal enciende o apaga el temporizador de rotación.
 
-- **Activado**: el motor inicia la cuenta atrás inmediatamente. El primer cambio de imágenes se producirá una vez transcurrido el intervalo configurado (por defecto, 15 minutos). Si el intervalo es muy corto, el cambio puede ser casi instantáneo.
-- **Desactivado**: el temporizador se detiene. Se mantiene el fondo actual sin cambios hasta que lo vuelvas a activar o hagas una rotación manual.
+- **Activado**: comienza la cuenta atrás para el siguiente cambio.
+- **Desactivado**: se mantiene la composición actual hasta que vuelvas a activar la presentación o fuerces una rotación manual.
 
-Cuando activas el temporizador desde aquí, el panel de control se sincroniza automáticamente para reflejar el cambio.
+El estado se sincroniza automáticamente con el panel de control.
 
-### Control deslizante (Slider)
+### Intervalo
 
-Justo debajo del interruptor encontrarás un control deslizante que te permite ajustar el intervalo de cambio sin abrir el panel de control.
+Permite indicar cuántos minutos deben transcurrir entre cambios.
 
-- **Arrastra** el control para elegir los minutos que quieres que pasen entre cada cambio de imagen.
-- Mientras lo arrastras, verás el valor en minutos al lado del control.
-- Al **soltar** el control, el valor se guarda automáticamente y el motor actualiza el temporizador al instante.
+Según el entorno de escritorio, el control puede mostrarse como deslizador o mediante botones de ajuste. El valor mínimo es de 1 minuto y el máximo viene definido por **Frecuencia máxima** en el panel de control.
 
-El valor mínimo es de 1 minuto. El valor máximo viene definido por la opción **"Frec. Max."** del panel de control (por defecto, 60 minutos).
+Los cambios del intervalo se aplican al temporizador de WMM.
 
 # Monitores (Modo de Rotación)
 
-Este interruptor controla el modo de cambio de fondos entre los monitores.
+Controla cómo se reparten los cambios de fondo entre las pantallas.
 
-- **ASYNC (One)**: cada monitor cambia por turnos. En cada ciclo de rotación, solo un monitor recibe una imagen nueva, mientras que los otros conservan la que tienen.
-- **SYNC (All)**: todos los monitores cambian a la vez, aplicando una composición completa de manera simultánea.
+- **ASYNC (One)**: los monitores cambian por turnos. En cada ciclo solo uno recibe una nueva imagen.
+- **SYNC (All)**: todos los monitores cambian a la vez.
 
-El cambio entre un modo y otro es inmediato y no reinicia el temporizador.
+El cambio de modo es inmediato y no requiere reiniciar la presentación de diapositivas.
 
-# Modo Distribuido (Spanned)
+# Modo Panorámico (Spanned)
 
-Activa o desactiva el modo de fondo extendido. Cuando está activado, una única imagen panorámica se extiende por todos los monitores, cubriendo el lienzo completo. Esta opción solo tiene efecto si hay más de un monitor activo.
-La aplicación del modo distribuido es inmediata
+Activa o desactiva el fondo panorámico.
 
-Al activarlo, los interruptores individuales de los monitores en el Centro de Control se bloquean (no se pueden cambiar), ya que la imagen es común para todos.
+Cuando está activo, WMM utiliza una única imagen para construir una composición que cubre el conjunto de monitores respetando su posición y geometría.
 
-# Sincronizar Biblioteca
+Esta opción solo tiene efecto cuando hay más de un monitor activo.
 
-Esta opción fuerza un escaneo completo de todas las fuentes de imagen configuradas. WMM recorre las carpetas activas, detecta imágenes nuevas, elimina referencias a imágenes que ya no existen y actualiza la galería de miniaturas.
+Mientras **Spanned** está activado, los interruptores individuales de los monitores quedan bloqueados porque la composición es común a todas las pantallas.
 
-Al finalizar, recibirás una notificación con el resumen de los cambios (número de imágenes nuevas y eliminadas). Es útil después de añadir o quitar imágenes manualmente de las carpetas de WMM.
+# Herramientas
+
+El menú **Herramientas** reúne los accesos operativos comunes de WMM:
+
+- **Ajustes**: abre el panel de control.
+- **Sincronizar biblioteca**: revisa todas las fuentes y actualiza la biblioteca.
+- **Gestor de instalación**: permite actualizar, reinstalar o desinstalar WMM.
+- **Visor de registro de depuración**: abre el visor de actividad y diagnóstico.
+- **Ayuda**: abre este manual.
+
+## Sincronizar Biblioteca
+
+Revisa todas las fuentes configuradas y actualiza la biblioteca de WMM para que coincida con el contenido actual del disco.
+
+La sincronización detecta imágenes nuevas, modificadas y eliminadas, actualiza las referencias necesarias y reconstruye las miniaturas que correspondan.
+
+Es especialmente útil después de realizar cambios en las carpetas desde fuera de WMM o cuando aparece el aviso **"Resincronizar fuentes"**.
+
+La sincronización no modifica ni elimina las imágenes originales.
+
+## Gestor de instalación
+
+**El Gestor de instalación** permite realizar las tareas de mantenimiento de WMM desde una interfaz gráfica.
+
+La ventana muestra la versión instalada y el entorno de escritorio detectado.
+
+### Actualizar
+
+Si existe una versión más reciente, permite descargarla, validarla e iniciar la actualización.
+
+### Reinstalar
+
+Reinstala la versión actual para reparar o recuperar una instalación dañada conservando los datos de usuario que corresponda.
+
+### Desinstalar
+
+Inicia el desinstalador de WMM y elimina la aplicación y sus integraciones de escritorio.
+
+Antes de las operaciones que lo necesiten, el terminal integrado puede solicitar la contraseña administrativa. Escribe la contraseña directamente en ese terminal.
+
+Durante una operación de mantenimiento los demás controles permanecen bloqueados hasta que finaliza el proceso.
+
+## Visor de registro de depuración
+
+El visor de logs muestra en tiempo real la actividad de WMM y resulta útil para consultar lo que está haciendo el motor, el panel o las integraciones de escritorio.
+
+### Filtros
+
+Puedes filtrar las entradas por **Origen**, **Nivel** y **Motivo**, además de utilizar la búsqueda de texto.
+
+### Auto-scroll
+
+Mantiene la vista siguiendo automáticamente las nuevas entradas del registro.
+
+### Orden inverso
+
+Permite mostrar primero las entradas más recientes o mantener el orden cronológico normal.
+
+### Limpiar registro
+
+El botón de limpieza vacía el registro después de pedir confirmación.
+
+El visor recuerda las preferencias de **Auto-scroll**, **Orden inverso** y el tamaño de su ventana.
+
+## Ayuda
+
+Abre la ventana de ayuda de WMM.
+
+El índice de navegación aparece a la izquierda y el contenido Markdown formateado a la derecha para que puedas saltar directamente a la sección que necesites.
+
+# Acerca de WMM Manager
+
+Muestra información básica sobre WMM, incluida la versión instalada, nombre de la aplicación y licencia.
+En algunos entornos de escritorio también ofrece enlaces de utilidad.
+
+# Gestores de archivos
+
+WMM se integra con **Nemo**, **Nautilus**, **Dolphin** y **Caja** cuando estos gestores están disponibles en el sistema.
+
+Al hacer clic derecho sobre una imagen puedes encontrar acciones de WMM para:
+
+- **Añadir a favoritos**.
+- **Enviar a un monitor**.
+- **Distribuir la imagen en todas las pantallas**.
+
+Según el gestor de archivos, estas acciones pueden aparecer agrupadas dentro de **WMM Manager** o como acciones individuales.
+
+En MATE, la integración con Caja también puede ofrecer una acción para distribuir la imagen actual desde el menú contextual del escritorio.
 
 # Atajos de teclado
 
-Puedes forzar un cambio de fondo sin usar el ratón configurando un atajo de teclado personalizado en tu escritorio. WMM incluye un pequeño script preparado para ello.
+WMM registra la acción **Siguiente fondo** en los mecanismos de atajos de **Cinnamon**, **GNOME Shell**, **KDE Plasma 6** y **MATE**.
+
+La combinación de teclas la eliges tú desde la configuración de atajos de tu escritorio.
 
 ## En Cinnamon
 
-1.  Abre **Configuración del sistema → Teclado → Atajos de teclado**.
-2.  Haz clic en **Añadir atajo personalizado**.
-3.  Ponle el nombre **"WMM - Cambiar fondo de pantalla"**.
-4.  En el campo **Comando**, escribe:
+1. Abre **Configuración del sistema → Teclado → Atajos de teclado**.
+2. Entra en **Atajos personalizados**.
+3. Busca **"WMM - Siguiente fondo"**.
+4. Asigna la combinación que prefieras, por ejemplo `Ctrl+Alt+N`.
 
-    `bash -c "bash $HOME/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/wmm-next.sh"`
+## En GNOME Shell
 
-5.  Asigna la combinación de teclas que prefieras (por ejemplo, `Ctrl+Alt+N`).
-6.  Pulsa **Aceptar** y prueba el atajo.
+1. Abre la configuración de **Teclado** y sus atajos personalizados.
+2. Busca la acción de WMM para **Siguiente fondo**.
+3. Asigna la combinación que prefieras.
 
-## En GNOME
+## En KDE Plasma 6
 
-1.  Abre **Configuración → Teclado → Atajos personalizados**.
-2.  Haz clic en **"+"** para añadir uno nuevo.
-3.  Ponle el nombre **"WMM - Cambiar fondo de pantalla"**.
-4.  En el campo **Comando**, escribe:
+1. Abre **Configuración del sistema → Atajos**.
+2. Busca **WMM Manager** y **Siguiente fondo**.
+3. Asigna la combinación de teclas que quieras utilizar.
 
-    `bash -c "bash $HOME/.local/share/gnome-shell/extensions/wmm@maki/wmm_platform/shell/gnome/wmm-next.sh"`
+## En MATE
 
-5.  Asigna la combinación de teclas que prefieras (por ejemplo, `Ctrl+Alt+N`).
-6.  Cierra la ventana y prueba el atajo.
+1. Abre la configuración de **Atajos de teclado** de MATE.
+2. Busca **"WMM - Siguiente fondo"**.
+3. Asigna la combinación que prefieras.
 
-**Nota:** El script `wmm-next.sh` se instala automáticamente con WMM y debería tener los permisos de ejecución correctos. Si el atajo no funciona, asegúrate de que el script sea ejecutable:
-
-    **En Gnome**
-
-    `chmod +x ~/.local/share/gnome-shell/extensions/wmm@maki/wmm_platform/shell/gnome/wmm-next.sh   # para GNOME`
-
-    **En Cinnamon**
-
-    `chmod +x ~/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/wmm-next.sh # para Cinnamon`
-
-# Ayuda
-
-Abre la ventana de ayuda de WMM, donde encontrarás información detallada sobre todas las funcionalidades del programa. La ventana cuenta con un índice de navegación a la izquierda y el contenido formateado a la derecha.
+El atajo solicita una rotación manual utilizando el modo y la configuración actuales de WMM.

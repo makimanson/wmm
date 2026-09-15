@@ -141,7 +141,7 @@ class MonitorsSection:
     # ==========================================================
     def _build(self):
         """Construye y devuelve el widget principal de la sección."""
-        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
 
         # ----------------------------------------------------------
         # CABECERA: Título + Alineación
@@ -273,7 +273,7 @@ class MonitorsSection:
         edit_aspects_box.get_style_context().add_class("edit-aspects-box")
         edit_aspects_box.set_halign(Gtk.Align.CENTER)
 
-        hbox_dist = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        hbox_dist = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         spanned_label = Gtk.Label(label=_("Spanned") + ":")
         spanned_label.set_halign(Gtk.Align.CENTER)
         self.spanned_switch_edit.set_halign(Gtk.Align.CENTER)
@@ -282,14 +282,14 @@ class MonitorsSection:
         hbox_dist.pack_start(self.spanned_switch_edit, False, False, 0)
         edit_aspects_box.pack_start(hbox_dist, False, False, 0)
 
-        hbox_aspect = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        hbox_aspect = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         aspect_label = Gtk.Label(label=_("Aspect ratio") + ":")
         aspect_label.set_halign(Gtk.Align.START)
         hbox_aspect.pack_start(aspect_label, False, False, 0)
         hbox_aspect.pack_start(self.aspect_combo_edit, False, False, 0)
         edit_aspects_box.pack_start(hbox_aspect, False, False, 0)
 
-        hbox_effect = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        hbox_effect = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         effect_label = Gtk.Label(label=_("Effects") + ":")
         effect_label.set_halign(Gtk.Align.START)
         hbox_effect.pack_start(effect_label, False, False, 0)

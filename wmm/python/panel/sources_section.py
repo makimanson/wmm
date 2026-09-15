@@ -37,8 +37,6 @@ class SourcesSection:
         self.ie = ie
         self.scan_progress = scan_progress
         self.btn_spacer = btn_spacer
-        self._busy_counter = 0
-        self._sources_need_refresh = False
 
         # Construir la interfaz
         self.widget = self._build()
@@ -62,7 +60,7 @@ class SourcesSection:
     # ==========================================================
     def _build(self):
         """Construye y devuelve el widget principal de la sección."""
-        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
 
         # --- Cabecera ---
         self.sources_toggle = Gtk.EventBox()
@@ -75,7 +73,7 @@ class SourcesSection:
         vbox.pack_start(self.sources_toggle, False, False, 0)
 
         # --- Contenido ---
-        self.sources_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        self.sources_content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         vbox.pack_start(self.sources_content, True, True, 0)
 
         # ScrolledWindow para el treeview
@@ -106,9 +104,12 @@ class SourcesSection:
         # Columna "Recursive" con toggle
         renderer_rec = Gtk.CellRendererToggle()
         renderer_rec.connect("toggled", self.on_recursive_toggled)
-        col_rec = Gtk.TreeViewColumn(_("Recursive"), renderer_rec, active=4)
-        col_rec.set_cell_data_func(renderer_rec, self._hide_checkbox_in_children)
-        self.sources_tree.append_column(col_rec)
+        self.col_recursive = Gtk.TreeViewColumn(_("Recursive"), renderer_rec, active=4)
+        self.col_recursive.set_cell_data_func(renderer_rec, self._hide_checkbox_in_children)
+        self.sources_tree.append_column(self.col_recursive)
+
+        self.sources_tree.set_has_tooltip(True)
+        self.sources_tree.connect("query-tooltip", self._on_sources_tooltip)
 
         self.sources_tree.connect("button-press-event", self.on_tree_button_press)
         scrolled.add(self.sources_tree)
@@ -124,6 +125,13 @@ class SourcesSection:
 
         self.center_stack = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
         self.center_stack.pack_start(self.scan_progress, True, True, 0)
+
+        self.resync_notice = Gtk.Label(label=_("Sources need resynchronization"))
+        self.resync_notice.set_halign(Gtk.Align.CENTER)
+        self.resync_notice.set_no_show_all(True)
+        self.resync_notice.hide()
+        self.center_stack.pack_start(self.resync_notice, True, True, 0)
+
         self.center_stack.pack_start(self.btn_spacer, True, True, 0)
         btn_box.pack_start(self.center_stack, True, True, 0)
 
@@ -146,9 +154,10 @@ class SourcesSection:
         expanded = not self.sources_content.get_visible()
 
         if expanded:
-            self._parent_window._preserve_window_position_on_expand()
+            self._parent_window._expand_section_to_fit("sources")
+        else:
+            self.set_expanded(False)
 
-        self.set_expanded(expanded)
         self._parent_window._save_section_state("sources", expanded)
 
         if not expanded:
@@ -198,6 +207,8 @@ class SourcesSection:
         sources_data = self.backend.load_json("sources").get("sources", [])
         index_data = self.backend.load_json("index")
 
+        # sources.json define las raíces; scan_index aporta la estructura lógica
+        # conocida y el estado Active/Inactive de sus hijas.
         for s in sources_data:
             root_path = s.get('path')
             if not root_path or s.get('type') == 'virtual':
@@ -206,35 +217,35 @@ class SourcesSection:
             root_name = s.get('name', os.path.basename(root_path))
             is_recursive = s.get('recursive', False)
 
-            index_info = index_data.get(root_path)
-            root_active = True
-            if isinstance(index_info, list) and len(index_info) > 1:
-                root_active = index_info[1]
-            else:
-                root_active = s.get('active', True)
+            root_active = self.handler.get_index_active(
+                root_path, index_data, default=s.get('active', True)
+            )
 
             parent_iter = self.sources_model.append(None, [
                 "", root_name, root_path, root_active, is_recursive, True
             ])
 
-            prefix = root_path if root_path.endswith(os.sep) else root_path + os.sep
-            sub_paths = sorted([p for p in index_data if p.startswith(prefix)])
-            path_to_iter = {root_path: parent_iter}
+            # Recursive decide si las hijas conocidas forman parte del árbol;
+            # su presencia aquí no depende de que conserven image_cache.
+            if is_recursive:
+                prefix = root_path if root_path.endswith(os.sep) else root_path + os.sep
+                sub_paths = sorted([p for p in index_data if p.startswith(prefix)])
+                path_to_iter = {root_path: parent_iter}
 
-            for sub in sub_paths:
-                parent_path = os.path.dirname(sub)
-                if parent_path in path_to_iter:
-                    sub_info = index_data.get(sub, [0, True])
-                    sub_active = sub_info[1] if isinstance(sub_info, list) and len(sub_info) > 1 else True
-                    current_iter = self.sources_model.append(path_to_iter[parent_path], [
-                        "", os.path.basename(sub), sub, sub_active, False, False
-                    ])
-                    path_to_iter[sub] = current_iter
+                for sub in sub_paths:
+                    parent_path = os.path.dirname(sub)
+                    if parent_path in path_to_iter:
+                        sub_active = self.handler.get_index_active(sub, index_data)
+
+                        current_iter = self.sources_model.append(path_to_iter[parent_path],
+                            ["", os.path.basename(sub), sub, sub_active, False, False])
+                        path_to_iter[sub] = current_iter
 
         log_event("Vista de fuentes reconstruida", origin="PANEL", level="INFO", reason="LIBRARY")
 
         self.sources_tree.set_model(None)
         self.sources_tree.set_model(self.sources_model)
+        self._update_resync_notice()
 
         # Restaurar posición del scroll
         def restore_scroll():
@@ -266,6 +277,28 @@ class SourcesSection:
     # ==========================================================
     # RENDERERS DEL TREEVIEW
     # ==========================================================
+    def _on_sources_tooltip(self, treeview, x, y, keyboard_mode, tooltip):
+        if keyboard_mode:
+            return False
+
+        bin_x, bin_y = treeview.convert_widget_to_bin_window_coords(x, y)
+        hit = treeview.get_path_at_pos(bin_x, bin_y)
+        if not hit:
+            return False
+
+        path, column, cell_x, cell_y = hit
+        if column != self.col_recursive:
+            return False
+
+        tree_iter = self.sources_model.get_iter(path)
+        if not self.sources_model.get_value(tree_iter, 5):
+            return False
+
+        tooltip.set_text(
+            _("Enabled") + ": " + _("Adds all subdirectories to the library.") + "\n"
+            + _("Disabled") + ": " + _("Removes subdirectories from the library."))
+        return True
+
     def _hide_checkbox_in_children(self, column, cell, model, iter, data):
         is_raiz = model.get_value(iter, 5)
         cell.set_property("visible", is_raiz)
@@ -275,11 +308,32 @@ class SourcesSection:
         tree_iter = self.sources_model.get_iter(path)
         current_val = self.sources_model.get_value(tree_iter, 4)
         new_val = not current_val
-        self.sources_model.set_value(tree_iter, 4, new_val)
         path_disk = self.sources_model.get_value(tree_iter, 2)
-        if hasattr(self.handler, 'update_source_recursive'):
-            self.handler.update_source_recursive(path_disk, new_val)
-        self.sources_tree.queue_draw()
+
+        if not self.handler.update_source_recursive(path_disk, new_val):
+            return
+
+        # Activar Recursive descubre estructura lógica únicamente:
+        # no materializa imágenes ni genera thumbnails por sí mismo.
+        if new_val:
+            self.handler.discover_recursive_folders(path_disk)
+
+        log_event(f"Recursividad cambiada: '{path_disk}' -> {new_val}",
+            origin="PANEL", level="INFO", reason="LIBRARY")
+
+        self.load_sources_into_treeview()
+
+        if new_val:
+            GLib.idle_add(self._expand_source_row, path_disk)
+
+        self._update_resync_notice()
+
+        # Refrescar Thumbnails sólo si existe materialización reutilizable;
+        # Recursive no debe provocar una reconstrucción implícita del cache.
+        if self.handler.has_child_cache(path_disk):
+            load_thumbnails = self._callbacks.get('load_thumbnails')
+            if load_thumbnails:
+                load_thumbnails()
 
     def _render_source_icon(self, column, cell, model, iter, data):
         is_active = model.get_value(iter, 3)
@@ -315,25 +369,12 @@ class SourcesSection:
                 return s
         return None
 
-    def _auto_update_recursive(self, parent_path):
-        children_state = self.handler.get_children_state(parent_path)
-        new_recursive = children_state != "all_inactive"
-        sources = self.backend.load_json("sources").get("sources", [])
-        for s in sources:
-            if s.get("path") == parent_path and s.get("type") == "physical":
-                if s.get("recursive") != new_recursive:
-                    s["recursive"] = new_recursive
-                    self.backend.save_json("sources", {"sources": sources})
-                    self.load_sources_into_treeview()
-                    log_event(f"Recursividad auto-ajustada: '{parent_path}' -> recursive={new_recursive}", origin="PANEL", level="INFO", reason="LIBRARY")
-                break
-
     def _on_source_row_activated(self, treeview, path, column):
         model = treeview.get_model()
         iter = model.get_iter(path)
         folder_path = model.get_value(iter, 2)
         if folder_path:
-            self.handler.open_in_file_manager(folder_path)
+            self.handler.open_file(folder_path)
 
     def _on_delete_button_clicked(self, widget):
         """Elimina una fuente (padre) o desactiva una subcarpeta (hijo)."""
@@ -382,21 +423,24 @@ class SourcesSection:
                 self.del_btn.set_tooltip_text(_("Activate folder"))
             self.del_btn.set_sensitive(True)
 
+    def _expand_source_row(self, source_path):
+        """Despliega la raíz indicada en el árbol de Sources."""
+        tree_iter = self.sources_model.get_iter_first()
+
+        while tree_iter:
+            if self.sources_model.get_value(tree_iter, 2) == source_path:
+                tree_path = self.sources_model.get_path(tree_iter)
+                if tree_path:
+                    self.sources_tree.expand_row(tree_path, open_all=False)
+                break
+
+            tree_iter = self.sources_model.iter_next(tree_iter)
+
+        return False
+
     # ==========================================================
     # CONTROL DE OCUPACIÓN (PROGRESS BAR)
     # ==========================================================
-    def _increment_busy(self):
-        self._busy_counter += 1
-        if self._busy_counter == 1:
-            self._set_sources_sensitive(False)
-
-    def _decrement_busy(self):
-        if self._busy_counter == 0:
-            return
-        self._busy_counter -= 1
-        if self._busy_counter <= 0:
-            self._busy_counter = 0
-            self._set_sources_sensitive(True)
 
     def _set_sources_sensitive(self, sensitive):
         self.sources_tree.set_sensitive(sensitive)
@@ -406,6 +450,18 @@ class SourcesSection:
             self.add_btn.set_sensitive(sensitive)
         if hasattr(self, 'del_btn'):
             self.del_btn.set_sensitive(sensitive)
+
+    def _update_resync_notice(self):
+        """Actualiza el aviso global sin competir con la barra de progreso."""
+        if self.scan_progress.get_visible():
+            self.resync_notice.hide()
+            self.btn_spacer.hide()
+            return
+        # El aviso representa el estado global de Sources, no la última carpeta tocada:
+        # permanece activo mientras exista cualquier diferencia lógica/materializada.
+        needs_resync = self.handler.needs_sources_resync()
+        self.resync_notice.set_visible(needs_resync)
+        self.btn_spacer.set_visible(not needs_resync)
 
     # ==========================================================
     # SINCRONIZACIÓN Y PROGRESO
@@ -418,12 +474,6 @@ class SourcesSection:
             fraction = current / total
             self.scan_progress.set_fraction(fraction)
             self.scan_progress.set_text(_("Scanning") + " " + str(current) + "/" + str(total) + " " + _("folders") + "...")
-        if current >= total:
-            self._decrement_busy()
-            self._callbacks['set_progress_active'](False)
-            if self._sources_need_refresh:
-                self.load_sources_into_treeview()
-                self._sources_need_refresh = False
 
     def show_context_menu(self, path, iter, event):
         is_active = self.sources_model.get_value(iter, 3)
@@ -431,7 +481,7 @@ class SourcesSection:
         parent_source = self._get_parent_source(path)
         is_root = (path == parent_source.get("path")) if parent_source else True
 
-        if is_root:
+        if is_root and self.sources_model.get_value(iter, 4):
             menu.append(Gtk.SeparatorMenuItem())
             children_state = self.handler.get_children_state(path)
             item_activate = Gtk.MenuItem(label=_("Activate subfolders"))
@@ -449,8 +499,19 @@ class SourcesSection:
         item.connect("activate", self.toggle_child_active, self.sources_model, iter)
         menu.append(item)
 
+        has_cache = self.handler.has_folder_cache(path)
+        # Sólo una hija activa y sin cache puede materializarse explícitamente:
+        # Generate thumbnails no debe resolver otras Sources pendientes.
+        if not is_root:
+            item_generate = Gtk.MenuItem(label=_("Generate thumbnails"))
+            item_generate.set_sensitive(is_active and not has_cache)
+            item_generate.connect("activate", self.on_generate_thumbnails_clicked, path)
+            menu.append(item_generate)
+        # Delete cache pertenece a hijas inactivas; permanece visible aunque
+        # ya no exista cache y sólo se deshabilita mediante set_sensitive().
         if not is_active:
             item_purge = Gtk.MenuItem(label=_("Delete cache"))
+            item_purge.set_sensitive(self.handler.has_folder_cache(path))
             item_purge.connect("activate", self.on_purge_cache_clicked, path)
             menu.append(item_purge)
         menu.show_all()
@@ -460,15 +521,23 @@ class SourcesSection:
         path = model.get_value(iter, 2)
         new_state = not model.get_value(iter, 3)
         model.set_value(iter, 3, new_state)
+
         if self.handler.update_index_active_state(path, new_state):
-            log_event(f"Estado cambiado: {path} -> {new_state}", origin="PANEL", level="INFO", reason="LIBRARY")
-        parent_source = self._get_parent_source(path)
-        if parent_source:
-            self._auto_update_recursive(parent_source.get("path"))
-        # Refrescar la sección de miniaturas para reflejar los cambios
-        load_thumbnails = self._callbacks.get('load_thumbnails')
-        if load_thumbnails:
-            load_thumbnails()
+            log_event(f"Estado cambiado: {path} -> {new_state}",
+                origin="PANEL", level="INFO", reason="LIBRARY")
+        # Desactivar oculta inmediatamente la carpeta.
+        # Reactivar reutiliza thumbnails sólo si su cache todavía existe.
+        has_cache = self.handler.has_folder_cache(path)
+        # Reactivar sin cache no materializa implícitamente:
+        # queda pendiente de Sync o Generate thumbnails.
+        should_reload_thumbnails = not new_state or has_cache
+
+        if should_reload_thumbnails:
+            load_thumbnails = self._callbacks.get('load_thumbnails')
+            if load_thumbnails:
+                load_thumbnails()
+
+        self._update_resync_notice()
 
     def on_purge_cache_clicked(self, widget, folder_path):
         dialog = Gtk.MessageDialog(
@@ -485,46 +554,99 @@ class SourcesSection:
         )
         response = dialog.run()
         if response == Gtk.ResponseType.YES:
+            # El borrado afecta sólo a la materialización de esta hija;
+            # su estado lógico Inactive permanece en scan_index.
             deleted_count = self.handler.purge_folder_cache(folder_path)
             if deleted_count > 0:
                 self.handler._send_notification(
                     reason=_("Cache deleted"),
                     detail_msg=str(deleted_count) + " " + _("thumbnails have been removed from cache"),
-                    level="info"
-                )
+                    level="info")
             else:
                 self.handler._send_notification(
                     reason=_("No cache"),
                     detail_msg=_("No thumbnails found in cache for this folder."),
-                    level="info"
-                )
+                    level="info")
+            self._update_resync_notice()
         dialog.destroy()
+
+    def on_generate_thumbnails_clicked(self, widget, folder_path):
+        if not self._callbacks['begin_sources_operation']():
+            return
+
+        self._callbacks['set_progress_active'](True, _("Scanning folder") + "...")
+
+        def materialize():
+            # Materialización explícita y local: sólo esta carpeta recupera cache.
+            success, total = self.handler.materialize_folder_cache(folder_path)
+
+            if not success:
+                self._callbacks['set_progress_active'](False)
+                self._update_resync_notice()
+                self._callbacks['finish_sources_operation']()
+                return False
+
+            log_event(f"Generación explícita solicitada: {folder_path} ({total} imágenes)",
+                origin="PANEL", level="INFO", reason="LIBRARY")
+
+            load_thumbnails = self._callbacks.get('load_thumbnails')
+            if load_thumbnails:
+                load_thumbnails(None, True)
+            else:
+                self._callbacks['set_progress_active'](False)
+                self._update_resync_notice()
+                self._callbacks['finish_sources_operation']()
+
+            return False
+
+        GLib.idle_add(materialize)
 
     def on_bulk_toggle(self, widget, parent_path, new_state):
         if self.handler.toggle_all_children(parent_path, new_state):
-            log_event(f"Cambio masivo: {parent_path} -> {new_state}", origin="PANEL", level="INFO", reason="LIBRARY")
+            log_event(f"Cambio masivo: {parent_path} -> {new_state}",
+                origin="PANEL", level="INFO", reason="LIBRARY")
             self.load_sources_into_treeview()
-            self._auto_update_recursive(parent_path)
+            # El cambio masivo modifica únicamente Active/Inactive.
+            # Desactivar oculta; reactivar sólo reutiliza lo que aún conserva cache.
+            should_reload_thumbnails = not new_state or self.handler.has_child_cache(parent_path)
+
+            if should_reload_thumbnails:
+                load_thumbnails = self._callbacks.get('load_thumbnails')
+                if load_thumbnails:
+                    load_thumbnails()
 
     # ==========================================================
     # BOTONES DE ACCIÓN
     # ==========================================================
     def on_refresh_sources_clicked(self, widget):
-        log_event("Refresco manual de fuentes solicitado", origin="PANEL", level="INFO", reason="LIBRARY")
-        self._callbacks['set_progress_active'](True, _("Resynchronizing library") + "...")
+        log_event("Refresco manual de fuentes solicitado",
+            origin="PANEL", level="INFO", reason="LIBRARY")
+
+        if not self._callbacks['begin_sources_operation']():
+            return
+
         self._callbacks['set_progress_active'](True, _("Scanning sources") + "...")
-        self._sources_need_refresh = True
-        self._increment_busy()
-        # Preparar callback para generar miniaturas al terminar
+
+        # Sync y Thumbnails forman una única operación global:
+        # Thumbnails recibe el FIN y libera Sources.
         load_thumbnails = self._callbacks.get('load_thumbnails')
+
+        def on_error(message):
+            self._callbacks['set_progress_active'](False)
+            self._callbacks['finish_sources_operation']()
+
         def on_complete():
             if load_thumbnails:
-                GLib.idle_add(load_thumbnails)
+                GLib.idle_add(load_thumbnails, None, True)
+            else:
+                self._callbacks['set_progress_active'](False)
+                self._callbacks['finish_sources_operation']()
 
         self.handler.sync_library(
             on_progress=self._on_sync_progress,
             on_folder=self._on_sync_folder_start,
-            on_complete=on_complete
+            on_complete=on_complete,
+            on_error=on_error
         )
 
     def on_add_source_clicked(self, widget):
@@ -559,26 +681,39 @@ class SourcesSection:
                 name = os.path.basename(path)
                 recursive = check_rec.get_active()
                 dialog.destroy()
+
+                if not self._callbacks['begin_sources_operation']():
+                    return
+
                 self._callbacks['set_progress_active'](True, _("Scanning") + ": " + name + "...")
+
+                # add_source registra la nueva Source; la materialización física
+                # se delega inmediatamente al flujo normal de Sync Library.
                 success = self.handler.add_source(name, path, recursive)
                 if success:
-                    self._sources_need_refresh = True
-                    self._callbacks['set_progress_active'](True, _("Scanning") + ": " + name + "...")
-                    self._increment_busy()
-                    self._sources_need_refresh = True
-                    # Preparar callback para generar miniaturas al terminar
                     load_thumbnails = self._callbacks.get('load_thumbnails')
+
+                    def on_error(message):
+                        self._callbacks['set_progress_active'](False)
+                        self._callbacks['finish_sources_operation']()
+
                     def on_complete():
                         if load_thumbnails:
-                            GLib.idle_add(load_thumbnails)
+                            GLib.idle_add(load_thumbnails, None, True)
+                        else:
+                            self._callbacks['set_progress_active'](False)
+                            self._callbacks['finish_sources_operation']()
 
+                    # Mantener una única operación Sources → Sync → Thumbnails → FIN.
                     self.handler.sync_library(
                         on_progress=self._on_sync_progress,
                         on_folder=self._on_sync_folder_start,
-                        on_complete=on_complete
+                        on_complete=on_complete,
+                        on_error=on_error
                     )
                 else:
-                    self._set_progress_active(False)
+                    self._callbacks['set_progress_active'](False)
+                    self._callbacks['finish_sources_operation']()
         else:
             dialog.destroy()
 
@@ -601,7 +736,11 @@ class SourcesSection:
             )
             response = dialog.run()
             if response == Gtk.ResponseType.YES:
+                # Una raíz se elimina como Source completa; no comparte la
+                # semántica diferida de Active/Inactive de una hija.
                 if self.handler.remove_source(source_path):
+                    # ConfigHandler ya ha resuelto la eliminación lógica y física;
+                    # aquí sólo reconstruimos las vistas que dependían de esa Source.
                     self.load_sources_into_treeview()
                     # Refrescar la sección de miniaturas para reflejar los cambios
                     load_thumbnails = self._callbacks.get('load_thumbnails')

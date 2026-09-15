@@ -48,6 +48,8 @@ from debug_logger import log_event
 from i18n import _, initialize
 
 platform = PlatformManager()
+if hasattr(platform, "set_process_name"):
+    platform.set_process_name("WMM AddBookmark")
 initialize(platform)
 
 # ==========================================================

@@ -1,0 +1,5 @@
+[Desktop Entry]
+Name=WMM Manager
+Icon=video-display
+Type=Menu
+ItemsList=wmm-add-to-favorites;wmm-send-to-monitor;wmm-span-image;

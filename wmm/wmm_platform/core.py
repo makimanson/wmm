@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # SPDX-FileCopyrightText: 2026 makimanson
@@ -50,7 +51,8 @@ class PlatformManager:
         todas las funciones necesarias para que el motor funcione de forma
         agnóstica al sistema operativo.
         """
-        log_event("PlatformManager inicializando", origin="CORE", level="DEBUG", reason="INIT")
+        log_event("PlatformManager inicializando",
+                  origin="CORE", level="DEBUG", reason="INIT")
         # ----------------------------------------------------------
         # 0. CONFIGURACIÓN DE PLATAFORMA (settings_core.json)
         # ----------------------------------------------------------
@@ -79,10 +81,12 @@ class PlatformManager:
         # Este módulo contiene funciones COMUNES a todos los escritorios de ese SO.
         try:
             so_module = importlib.import_module(f'.{platform_name}', package='wmm_platform')
-            log_event(f"Módulo SO '{platform_name}' cargado", origin="CORE", level="DEBUG", reason="MODULE")
+            log_event(f"Módulo SO '{platform_name}' cargado",
+                      origin="CORE", level="DEBUG", reason="MODULE")
         except ImportError:
             so_module = importlib.import_module('.generic', package='wmm_platform')
-            log_event(f"Módulo SO '{platform_name}' no encontrado, usando 'generic'", origin="CORE", level="WARN", reason="MODULE")
+            log_event(f"Módulo SO '{platform_name}' no encontrado, usando 'generic'",
+                      origin="CORE", level="WARN", reason="MODULE")
 
         # ----------------------------------------------------------
         # 2. EXPOSICIÓN DE FUNCIONES COMUNES DEL SO
@@ -96,6 +100,10 @@ class PlatformManager:
 
         # Enviar notificaciones de escritorio nativas del SO
         self.send_notification = so_module.send_notification
+
+        # Nombre visible del proceso en el sistema
+        if hasattr(so_module, 'set_process_name'):
+            self.set_process_name = so_module.set_process_name
 
         # Compilar archivos .po a .mo (solo si el SO lo soporta)
         # En Linux se usa msgfmt; en otros SO puede no estar disponible
@@ -128,15 +136,21 @@ class PlatformManager:
         # (linux.py, windows.py, mac.py...).
         # ----------------------------------------------------------
 
-        from wmm_platform.channels import send_command, start_receiving_commands
+        from wmm_platform.channels import (
+            send_command, start_receiving_commands, emit_busy_changed,)
 
         # API pública de comunicación del motor.
         self.send_command = send_command
         self.start_receiving_commands = start_receiving_commands
+        self.emit_busy_changed = emit_busy_changed
 
         # Inicialización de los canales soportados por el SO.
         if hasattr(so_module, "init_channels"):
             self.init_channels = so_module.init_channels
+
+        # Monitorización de cambios de hardware mediante el orquestador común.
+        from python.monitor_events import init_monitor_events
+        self.init_monitor_events = init_monitor_events
 
         # ----------------------------------------------------------
         # 3. FUNCIONES CON VALOR POR DEFECTO
@@ -175,7 +189,8 @@ class PlatformManager:
         if desktop:
             try:
                 desktop_module = importlib.import_module(f'.{desktop}', package='wmm_platform')
-                log_event(f"Módulo escritorio '{desktop}' cargado", origin="CORE", level="DEBUG", reason="MODULE")
+                log_event(f"Módulo escritorio '{desktop}' cargado",
+                          origin="CORE", level="DEBUG", reason="MODULE")
                 # Obtener la geometría de los monitores (Gdk, D-Bus, Win32...)
                 # Si el SO (linux.py) ya proporciona get_monitors, úsalo.
                 # Si no, usa el del escritorio.
@@ -186,7 +201,8 @@ class PlatformManager:
 
                 # Envio y montaje de imagenes renderizadas
                 if hasattr(desktop_module, 'render_master_wallpaper'):
-                    self.render_master_wallpaper = types.MethodType(desktop_module.render_master_wallpaper, desktop_module)
+                    self.render_master_wallpaper = types.MethodType(
+                        desktop_module.render_master_wallpaper, desktop_module)
 
                 # El escritorio puede definir su propio dominio de traducciones
                 # (ej: 'cinnamon' vs 'gnome-shell'). Sobrescribe el del SO.
@@ -203,18 +219,26 @@ class PlatformManager:
                 # Área útil de la ventana según el compositor del escritorio
                 if hasattr(desktop_module, 'get_window_available_area'):
                     self.get_window_available_area = desktop_module.get_window_available_area
+                # Publica el tamaño máximo permitido para la ventana del panel
+                if hasattr(desktop_module, 'set_window_size_limit'):
+                    self.set_window_size_limit = desktop_module.set_window_size_limit
                 # Correcciones específicas del gestor de ventanas durante
                 # expansiones del panel.
                 if hasattr(desktop_module, 'preserve_window_position_on_expand'):
                     self.preserve_window_position_on_expand = desktop_module.preserve_window_position_on_expand
                 if hasattr(desktop_module, 'correct_initial_window_position'):
                     self.correct_initial_window_position = desktop_module.correct_initial_window_position
-                # --- MONITORIZACIÓN DE CAMBIOS DE HARDWARE (delegado en monitor_events) ---
-                # Importamos el orquestador de eventos directamente
-                from python.monitor_events import init_monitor_events
-                self.init_monitor_events = init_monitor_events
+                # ----------------------------------------------------------
+                # ACTUALIZACIÓN DEL SHELL TRAS CAMBIOS DE TRADUCCIÓN
+                # ----------------------------------------------------------
+                # Algunos escritorios pueden necesitar recargar su shell para que los
+                # componentes ya cargados recojan los nuevos catálogos de traducción.
+                if hasattr(desktop_module, 'refresh_shell_after_translation_update'):
+                    self.refresh_shell_after_translation_update = desktop_module.refresh_shell_after_translation_update
+
             except ImportError:
-                log_event(f"Módulo escritorio '{desktop}' no encontrado", origin="CORE", level="WARN", reason="MODULE")
+                log_event(f"Módulo escritorio '{desktop}' no encontrado",
+                          origin="CORE", level="WARN", reason="MODULE")
 
         # ----------------------------------------------------------
         # 5. FUNCIONES DE CÁLCULO AGNÓSTICAS
@@ -251,13 +275,15 @@ class PlatformManager:
 
             caller = inspect.stack()[1].function
 
-            log_event(f"[DIAG] _ensure_platform_config llamado desde {caller}", origin="CORE", level="DEBUG", reason="SETTINGS")
+            log_event(f"[DIAG] _ensure_platform_config llamado desde {caller}",
+                      origin="CORE", level="DEBUG", reason="SETTINGS")
             return config
 
         # ----------------------------------------------------------
         # 2. Si no existe, detectar el entorno delegando en los módulos
         # ----------------------------------------------------------
-        log_event("Generando settings_core.ini por primera vez", origin="CORE", level="INFO", reason="SETTINGS")
+        log_event("Generando settings_core.ini por primera vez",
+                  origin="CORE", level="INFO", reason="SETTINGS")
 
         # --- Plataforma (SO) ---
         raw_platform = sys.platform
@@ -335,19 +361,17 @@ class PlatformManager:
         try:
             _write_ini(config_path, config)
             self._ini_was_generated = True
-            log_event("Archivo settings_core.ini generado correctamente", origin="CORE", level="INFO", reason="SETTINGS")
+            log_event("Archivo settings_core.ini generado correctamente",
+                      origin="CORE", level="INFO", reason="SETTINGS")
         except Exception as e:
-            log_event(f"Error al guardar settings_core.ini: {e}", origin="CORE", level="ERROR", reason="SETTINGS")
+            log_event(f"Error al guardar settings_core.ini: {e}",
+                      origin="CORE", level="ERROR", reason="SETTINGS")
 
         # Verificación de integridad del INI mínimo.
         missing = [k for k in ('platform', 'desktop') if not config.get(k)]
         if missing:
-            log_event(
-                f"Configuración incompleta: faltan {', '.join(missing)}",
-                origin="CORE",
-                level="WARN",
-                reason="SETTINGS"
-            )
+            log_event(f"Configuración incompleta: faltan {', '.join(missing)}",
+                      origin="CORE", level="WARN", reason="SETTINGS")
 
         return config
 

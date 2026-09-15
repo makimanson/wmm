@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Action
+Name=Span image across all screens
+Name[es]=Extender imagen a todos los monitores
+Name[ca]=Estén la imatge a totes les pantalles
+Icon=view-fullscreen
+ToolbarLabel=Span image across all screens
+ToolbarLabel[es]=Extender imagen a todos los monitores
+ToolbarLabel[ca]=Estén la imatge a totes les pantalles
+Profiles=profile-zero;
+
+[X-Action-Profile profile-zero]
+Exec=@APP_DIR@/wmm_platform/shell/file_manager/common/wmm-span-image.sh %f
+Basenames=*.gif;*.webp;*.bmp;*.png;*.jpeg;*.jpg;
+Matchcase=false
+MimeTypes=image/*;
+Schemes=file;

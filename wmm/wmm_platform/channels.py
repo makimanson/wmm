@@ -36,6 +36,21 @@ def register_channel(name, channel):
     """Registra un canal de comunicación disponible."""
     _channels[name] = channel
 
+def emit_busy_changed(busy):
+    """
+    Publica el estado busy en los canales que soportan estado reactivo.
+
+    La autoridad del estado pertenece al engine. Los canales únicamente
+    transportan su valor hacia los clientes que puedan consumirlo.
+    """
+    for channel in _channels.values():
+        try:
+            if hasattr(channel, "emit_busy_changed"):
+                channel.emit_busy_changed(bool(busy))
+        except Exception as e:
+            log_event(f"{channel.__class__.__name__}: {e}",
+                origin="CHANNELS", level="ERROR", reason="COMMAND")
+
 # ==========================================================
 # COMUNICACIÓN AGNÓSTICA
 # ==========================================================
@@ -59,7 +74,8 @@ def send_command(command):
         try:
             channel.send(command)
         except Exception as e:
-            log_event(f"{channel.__class__.__name__}: {e}", origin="CHANNELS", level="ERROR", reason="COMMAND")
+            log_event(f"{channel.__class__.__name__}: {e}",
+                origin="CHANNELS", level="ERROR", reason="COMMAND")
 
 
 def start_receiving_commands(command_callback):
@@ -79,7 +95,8 @@ def start_receiving_commands(command_callback):
         try:
             channel.start_receiving_commands(command_callback)
         except Exception as e:
-            log_event(f"{channel.__class__.__name__}: {e}", origin="CHANNELS", level="ERROR", reason="COMMAND")
+            log_event(f"{channel.__class__.__name__}: {e}",
+                origin="CHANNELS", level="ERROR", reason="COMMAND")
 
 # ==========================================================
 # CANAL FILE (commands.json)
@@ -146,22 +163,15 @@ class FileChannel:
                 json.dump({}, f)
 
         commands_file = Gio.File.new_for_path(self._path)
-        self._monitor = commands_file.monitor_file(
-            Gio.FileMonitorFlags.NONE,
-            None
-        )
+        self._monitor = commands_file.monitor_file(Gio.FileMonitorFlags.NONE, None)
 
         def on_file_changed(monitor, file, other_file, event_type):
             try:
-                #
-                # Espera muy breve para asegurar que el escritor
-                # ha finalizado la escritura del archivo.
-                #
-                time.sleep(0.02)
 
+                if event_type != Gio.FileMonitorEvent.CHANGES_DONE_HINT:
+                    return
                 with open(self._path, "r") as f:
                     action_data = json.load(f)
-
                 if action_data and "action" in action_data:
 
                     #
@@ -170,14 +180,13 @@ class FileChannel:
                     #
                     with open(self._path, "w") as f:
                         json.dump({}, f)
-
                     order = action_data.get("action")
-
                     if order:
                         callback(order, action_data)
 
             except Exception as e:
-                log_event(f"Error al leer commands.json: {e}", origin="CHANNELS", level="ERROR", reason="COMMAND")
+                log_event(f"Error al leer commands.json: {e}",
+                    origin="CHANNELS", level="ERROR", reason="COMMAND")
 
         self._monitor.connect("changed", on_file_changed)
 
@@ -189,7 +198,8 @@ class FileChannel:
         global _monitor
         _monitor = self._monitor
 
-        log_event("Monitor de commands.json iniciado", origin="CHANNELS", level="INFO", reason="COMMAND")
+        log_event("Monitor de commands.json iniciado",
+            origin="CHANNELS", level="INFO", reason="COMMAND")
 
 # ==========================================================
 # CANAL D-Bus
@@ -224,6 +234,10 @@ class DBusChannel:
     def start_receiving_commands(self, callback):
         self._object.set_callback(callback)
 
+    def emit_busy_changed(self, busy):
+        """Publica el estado busy actual a través del objeto D-Bus."""
+        self._object.set_busy_state(busy)
+
 
 class _DBusObject(dbus.service.Object):
     """
@@ -248,9 +262,15 @@ class _DBusObject(dbus.service.Object):
         """Emitida cuando cambia bookmarks.json."""
         pass
 
+    @dbus.service.signal('org.maki.wmm', signature='b')
+    def BusyChanged(self, busy):
+        """Emitida cuando cambia el estado busy del engine."""
+        pass
+
     def __init__(self, bus_name):
         super().__init__(bus_name, "/org/maki/wmm")
         self._callback = None
+        self._busy = True
 
         # Rutas de los archivos a monitorizar
         data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data')
@@ -268,9 +288,20 @@ class _DBusObject(dbus.service.Object):
         self._monitor_settings.connect('changed', self._on_settings_changed)
         self._monitor_bookmarks.connect('changed', self._on_bookmarks_changed)
 
+    def set_busy_state(self, busy):
+        """Actualiza y publica el estado busy recibido desde el engine."""
+        busy = bool(busy)
+
+        if self._busy == busy:
+            return
+
+        self._busy = busy
+        self.BusyChanged(busy)
+
     def set_callback(self, callback):
         self._callback = callback
-        log_event("Callback D-Bus registrado", origin="DBUS", level="DEBUG", reason="COMMAND")
+        log_event("Callback D-Bus registrado",
+            origin="DBUS", level="DEBUG", reason="COMMAND")
 
     def _on_settings_changed(self, monitor, file, other_file, event_type):
         """Emite SettingsChanged cuando settings.json termina de modificarse."""
@@ -280,7 +311,8 @@ class _DBusObject(dbus.service.Object):
                     content = f.read()
                 self.SettingsChanged(content)
             except Exception as e:
-                log_event(f"Error al emitir SettingsChanged: {e}", origin="DBUS", level="ERROR", reason="COMMAND")
+                log_event(f"Error al emitir SettingsChanged: {e}",
+                    origin="DBUS", level="ERROR", reason="COMMAND")
 
     def _on_bookmarks_changed(self, monitor, file, other_file, event_type):
         """Emite BookmarksChanged cuando bookmarks.json termina de modificarse."""
@@ -290,7 +322,8 @@ class _DBusObject(dbus.service.Object):
                     content = f.read()
                 self.BookmarksChanged(content)
             except Exception as e:
-                log_event(f"Error al emitir BookmarksChanged: {e}", origin="DBUS", level="ERROR", reason="COMMAND")
+                log_event(f"Error al emitir BookmarksChanged: {e}",
+                    origin="DBUS", level="ERROR", reason="COMMAND")
 
     def _dispatch(self, action, json_data):
         """
@@ -360,6 +393,11 @@ class _DBusObject(dbus.service.Object):
                 return f.read()
         except Exception:
             return "{}"
+
+    @dbus.service.method("org.maki.wmm", out_signature="b")
+    def GetBusy(self):
+        """Devuelve el último estado busy publicado por el engine."""
+        return self._busy
 
     # ----------------------------------------------------------
     # CONTROL DEL MOTOR

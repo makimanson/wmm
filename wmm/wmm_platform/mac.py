@@ -54,11 +54,11 @@ def unlock_file(f):
     """
     fcntl.flock(f, fcntl.LOCK_UN)
 
-def open_file(path):
+def open_file(path, capability=None, **params):
     """
     Abre un archivo o directorio con la aplicación predeterminada en macOS.
     """
-    subprocess.run(['open', path], check=False)
+    subprocess.run(["open", path], check=False)
 
 def send_notification(title, message, level="info"):
     """

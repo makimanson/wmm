@@ -1,360 +1,528 @@
-# Ajusts
+<!--
+SPDX-FileCopyrightText: 2026 makimanson
+SPDX-License-Identifier: GPL-3.0-or-later
 
-Per obrir el panell de control, fes clic dret sobre la icona de WMM al panell i selecciona **WMM Ajusts**.
+WMM - Wallpaper Multi-Monitor Manager
+
+HELP_ca.md -- Fitxer d'ajuda en català
+
+WMM-Title: Ajuda
+WMM-Contents: Continguts
+-->
+
+# Entorns d'escriptori
+
+WMM disposa actualment d'integració completa amb **Cinnamon**, **GNOME Shell**, **KDE Plasma 6** i **MATE**.
+
+El tauler de control i les funcions principals són comunes a tots els entorns. Alguns controls poden canviar lleugerament d'aspecte o d'ubicació segons l'escriptori, però comparteixen la mateixa configuració.
+
+# Ajustaments
+
+Obre el menú de WMM des del seu applet, extensió o plasmoide i selecciona **Ajustaments** per obrir el tauler de control.
 
 ## Opcions
 
-Aquí trobaràs les opcions generals de WMM. Canvia el fons en iniciar, tria el mode d'aspecte, efectes d'imatge, color de fons i controla la presentació de diapositives. Cada canvi es reflecteix en temps real als monitors virtuals de la secció **Pantalles**.
+Aquí trobaràs les opcions generals de WMM. Pots canviar el comportament en iniciar, el mode d'aspecte, els efectes d'imatge, el fons i la presentació de diapositives. Els canvis es reflecteixen als monitors virtuals de la secció **Monitors**.
 
-### Icona Reinicia
-Reinicia completament el motor i el panell de control. És útil si el motor deixa de respondre.
+### Icona Ajuda
+
+Obre aquesta ajuda en una finestra independent.
 
 ### Icona Visor de Logs
-Obre el visor de logs de depuració en una finestra a part. Mostra en temps real tota l'activitat del motor i del panell de control.
 
-### Canvia el fons de pantalla al inici
-Si està **activada**, en iniciar l'ordinador el motor tria imatges noves i regenera el fons des de zero.
-Si està **desactivada**, es conserva l'última composició guardada (ideal si t'agrada com ho has deixat i no vols canvis inesperats).
+Obre el visor de logs de depuració en una finestra a part. Mostra en temps real l'activitat de WMM i permet filtrar el registre.
 
-### Distribució
-Activa o desactiva el **Mode Distribuït** (*Spanned*). Quan s'activa, s'utilitza una única imatge panoràmica que s'estén per tots els monitors alhora.
+### Icona Reiniciar
+
+Reinicia completament el motor i el tauler de control. És útil si necessites tornar a carregar WMM durant la sessió.
+
+### Icona Plegar / Desplegar
+
+Plega la columna lateral del tauler per deixar més espai a les seccions de monitors i miniatures. En tornar a prémer-la es recupera la vista completa.
+
+WMM recorda l'estat plegat o desplegat del tauler.
+
+### Plegar / desplegar seccions
+
+Les diferents seccions del tauler de control es poden **plegar o desplegar** prement sobre la capçalera.
+
+* **Desplegada**: mostra tots els controls i opcions de la secció.
+* **Plegada**: n'amaga el contingut i deixa visible únicament la capçalera.
+
+Això permet reduir l'espai ocupat per les seccions que no estiguis utilitzant i centrar la vista en les opcions que necessitis en cada moment.
+
+El plegat només afecta la visualització del tauler: **no activa, desactiva ni modifica cap opció de WMM**.
+
+### Canviar el fons de pantalla en iniciar
+
+Si està **activada**, en iniciar WMM el motor tria imatges noves i genera una composició nova.
+
+Si està **desactivada**, es conserva l'última composició desada.
+
+### Mode Panoràmic
+
+Activa o desactiva el **Mode Panoràmic** (*Spanned*). En activar-lo, s'utilitza una única imatge panoràmica que s'estén per tots els monitors alhora.
+
 Només està disponible si hi ha més d'un monitor actiu.
 
 ### Relació d'aspecte
+
 Controla com s'ajusta la imatge dins de cada monitor:
 
-- **Escalat** (*Scaled*): La imatge es redueix o s'amplia per a ocupar el monitor completament **sense deformar-la**. Si la imatge no omple tot el monitor, l'espai sobrant s'omple amb el color o efecte de fons seleccionat.
-- **Zoom**: La imatge s'escala per a cobrir tot el monitor. Si la imatge i el monitor tenen proporcions diferents, les parts que sobren es retallen.
-- **Estirat** (*Stretched*): La imatge s'estira per a ajustar-se exactament a la mida del monitor, encara que es deformi.
+- **Escalat** (*Scaled*): la imatge es redueix o s'amplia sense deformar-la. Si no omple tot el monitor, l'espai sobrant s'omple amb el color o efecte de fons seleccionat.
+- **Zoom**: la imatge s'escala per cobrir tot el monitor. Si la imatge i el monitor tenen proporcions diferents, les parts sobrants es retallen.
+- **Estirat** (*Stretched*): la imatge s'ajusta exactament a la mida del monitor, encara que es pugui deformar.
 
 ### Efecte d'imatge
+
 Aplica un efecte visual sobre la imatge de cada monitor:
 
-- **Cap** (*None*): Sense efecte.
-- **Sèpia** (*Sepia*): Aplica un to envellit, marronós, a la imatge.
-- **Blanc i negre** (*Black and White*): Converteix la imatge a escala de grisos, eliminant els colors.
+- **Cap** (*None*): sense efecte.
+- **Sèpia** (*Sepia*): aplica un to envellit a la imatge.
+- **Blanc i negre** (*Black and White*): converteix la imatge a escala de grisos.
 
 ### Efecte de fons
-Omple l'espai sobrant quan la imatge no cobreix completament el monitor (només visible en mode Escalat). Tens dues opcions:
 
-- **Difuminat** (*Blur*): Agafa la pròpia imatge, la desenfoca i l'usa com a fons, creant un efecte de continuïtat.
-- **Color**: Utilitza el color sòlid o degradat que tinguis seleccionat en l'opció "Color de fons".
+Omple l'espai sobrant quan la imatge no cobreix completament el monitor. És visible principalment en mode **Escalat**.
+
+- **Difuminat** (*Blur*): utilitza una còpia desenfocada de la mateixa imatge com a fons.
+- **Color**: utilitza el color sòlid o degradat seleccionat a **Color de fons**.
 
 ### Color de fons
-Defineix el color de l'espai sobrant quan s'usa el mode Escalat o quan un monitor no té imatge assignada. Tens tres opcions:
 
-- **Color sòlid** (*Solid color*): Un únic color pla. Pots triar-lo amb el selector de color.
-- **Degradat Horitzontal** (*Gradient H*): Un degradat de dos colors d'esquerra a dreta.
-- **Degradat Vertical** (*Gradient V*): Un degradat de dos colors de dalt a baix.
+Defineix el fons utilitzat quan una imatge no ocupa tota la pantalla o quan un monitor no té cap imatge assignada.
+
+- **Color sòlid** (*Solid color*): un únic color pla.
+- **Degradat horitzontal** (*Gradient H*): degradat de dos colors d'esquerra a dreta.
+- **Degradat vertical** (*Gradient V*): degradat de dos colors de dalt a baix.
 
 ### Presentació de diapositives
-Activa o desactiva el canvi automàtic d'imatges. Quan està activat, el motor canvia les imatges de fons segons la configuració de freqüència i mode.
 
-### Freqüència màxima.
-Estableix el límit màxim (en minuts) que pot tenir l'interval de rotació. El control lliscant del menú de l'applet s'ajusta a aquest valor.
+Activa o desactiva el canvi automàtic d'imatges. Quan està activat, el motor canvia els fons segons la freqüència i el mode configurats.
 
-### Diapositives cada:
-Defineix cada quants minuts el motor canviarà les imatges de fons.
+### Freqüència màxima
+
+Estableix el límit màxim, en minuts, que pot tenir l'interval de rotació utilitzat des del menú de WMM.
+
+### Diapositives cada...
+
+Defineix cada quants minuts es farà un canvi automàtic de fons de pantalla.
 
 ### Mode de presentació
-Controla com canvien les imatges els monitors durant la presentació de diapositives:
 
-- **Síncron** (*Sync*): Tots els monitors canvien alhora, agafant una imatge d'un mateix *preset* o de la biblioteca general.
-- **Asíncron** (*Async*): Cada monitor canvia pel seu compte, de manera independent.
+Controla com canvien les imatges i l'efecte de transició durant la presentació de diapositives:
 
-**Comportament amb Preferits activat:**
-- Si **"Només Preferits"** està activat al menú de l'applet, o a la seccio **Favorits**, la presentació de diapositives utilitza exclusivament les imatges dels teus **Favorits**
-- Si tens activat el mode **Síncron** la rotació es farà només amb els presets guardats, ignorant la resta de la biblioteca.
-- Si tens activat el mode **Asíncron** la rotació es farà només amb els favorits guardats, ignorant la resta de la biblioteca.
+- **Síncron** (*Sync*):
+    - Aplica un efecte de fos a negre (Fade-out > Fade-in).
+    - Tots els monitors canvien alhora.
+    - Si està activada l'opció **Només preferits**: la rotació utilitza els presets desats.
+
+- **Asíncron** (*Async*):
+    - Aplica un efecte de fusió entre imatges (Crossfade).
+    - Els monitors canvien per torns de manera independent.
+    - Si està activada l'opció **Només preferits**: la rotació utilitza imatges individuals de la llista de preferits.
 
 ## Preferits
 
-Gestiona les teves combinacions de fons preferides. Pots crear, carregar i eliminar presets. Un *preset* és una composició de fons guardada que pots carregar en qualsevol moment.
+Gestiona les teves combinacions de fons preferides. Pots crear, carregar, modificar i eliminar presets. Un *preset* és una composició desada que pots recuperar en qualsevol moment.
 
-### Switch "Només favorits"
-Si l'actives, la presentació de diapositives utilitza exclusivament les imatges dels teus presets guardats, ignorant la resta de la biblioteca. Si la presentació està en mode síncron, selecciona un preset a l'atzar en cada canvi. En mode asíncron, selecciona imatges individuals de la llista plana de favorits.
+### Switch "Només preferits"
+
+Si l'actives, la presentació de diapositives utilitza exclusivament els teus preferits.
+
+- En mode **síncron** s'utilitzen els presets desats.
+- En mode **asíncron** s'utilitzen les imatges individuals de la llista de preferits.
 
 ### Caixa Presets (esquerra)
 
-- **Carregar un preset als monitors**: fes clic dret sobre el nom del preset i selecciona *"Carrega als monitors"*. El preset es carregarà en el mode d'edició perquè puguis veure'l i modificar-lo abans d'aplicar-lo.
-- **Canviar el nom d'un preset**: fes un clic lent sobre el nom del preset (sense fer doble clic). El text es tornarà editable. Escriu el nou nom i prem Enter.
-- **Eliminar un preset**: fes clic dret sobre el preset i selecciona *"Elimina el preset"*. També pots seleccionar-lo i prémer el botó de la paperera.
-- **Eliminar una imatge d'un preset**: fes clic dret sobre la imatge dins del preset i selecciona *"Elimina la imatge"*. El monitor conservarà la seva posició al preset però sense imatge.
-- **Obrir una imatge del preset**: fes doble clic sobre la imatge. S'obrirà amb el visor d'imatges predeterminat del sistema.
+- **Carregar un preset als monitors**: fes clic dret sobre el nom del preset i selecciona *"Carrega als monitors"*. El preset es carregarà en mode d'edició perquè el puguis veure i modificar abans d'aplicar-lo.
+- **Canviar el nom d'un preset**: fes un clic lent sobre el nom del preset. Quan el text es torni editable, escriu el nom nou i prem Enter.
+- **Eliminar un preset**: fes clic dret sobre el preset i selecciona *"Elimina el preset"*. També el pots seleccionar i prémer el botó de la paperera.
+- **Eliminar una imatge d'un preset**: fes clic dret sobre la imatge dins del preset i selecciona *"Elimina la imatge"*. El monitor conservarà la seva posició al preset però quedarà sense imatge.
+- **Obrir una imatge del preset**: fes doble clic sobre la imatge per obrir-la amb el visor predeterminat del sistema.
 
-### Caixa Favorits (dreta)
+### Caixa Preferits (dreta)
 
-- **Afegir una imatge a favorits**: des de la galeria de miniatures, fes clic dret sobre una imatge i selecciona *"Afegeix a favorits"*. També pots afegir-la des del gestor de fitxers Nemo amb l'acció *"WMM: Add to favorites"*.
-- **Seleccionar diverses imatges**: pots seleccionar diverses imatges alhora fent servir **Ctrl+clic** (selecció discontínua) o **Maj+clic** (selecció d'un rang continu).
-- **Eliminar una imatge de favorits**: fes clic dret sobre la imatge a la llista i selecciona *"Elimina de favorits"*.
-- **Obrir una imatge**: fes doble clic sobre la imatge per obrir-la amb el visor d'imatges predeterminat del sistema.
+- **Afegir una imatge a preferits**: des de la galeria de miniatures, fes clic dret sobre una imatge i selecciona *"Afegeix a preferits"*. També ho pots fer des dels gestors de fitxers compatibles amb WMM.
+- **Seleccionar diverses imatges**: utilitza **Ctrl+clic** per a una selecció discontínua o **Majús+clic** per seleccionar un rang.
+- **Eliminar una imatge de preferits**: fes clic dret sobre la imatge i selecciona *"Elimina de preferits"*.
+- **Obrir una imatge**: fes doble clic per obrir-la amb el visor d'imatges predeterminat del sistema.
 
 ### Botons d'eliminació
 
-Tant la caixa de Presets com la de Favorits tenen un botó amb icona de paperera a la part inferior dreta. Aquest botó elimina l'element seleccionat en aquell moment (un preset, una imatge d'un preset o una imatge de la llista de favorits). Si tens diversos elements seleccionats a la llista de favorits, el botó els eliminarà tots alhora.
+Tant la caixa de Presets com la de Preferits tenen un botó amb icona de paperera a la part inferior dreta.
 
-## Fonts d'imatge
+El botó elimina l'element seleccionat en aquell moment. Si hi ha diverses imatges seleccionades a la llista de preferits, les elimina totes de la llista.
 
-Des d'aquí pots afegir, eliminar i gestionar les carpetes que WMM utilitza per cercar imatges. Cada carpeta es mostra amb les seves subcarpetes (si la recursivitat està activada) i pots controlar quines estan actives.
-En els processos i funcionalitats d'aquesta secció **mai no s'eliminen carpetes ni imatges originals del disc.** Únicament s'eliminen les seves referències a la bliblioteca i les seves **miniatures** a la memòria cau
+## Fonts d'imatges
 
-### Botó "Afegeix una font"
-Obre un diàleg per seleccionar una carpeta del sistema. En seleccionar-la:
+Des d'aquí pots afegir, eliminar i gestionar les carpetes que WMM utilitza com a biblioteca d'imatges.
 
-- **Carpeta amb subcarpetes**: marca la casella *"Inclou subcarpetes (Recursiu)"* si vols que WMM cerqui imatges també dins de totes les subcarpetes.
-- **Carpeta sense subcarpetes**: deixa la casella desmarcada per indexar només les imatges de la carpeta arrel.
-- En prémer **"Afegeix"**, la carpeta es registra a la llista de fonts, però **no s'escaneja immediatament**. Queda preparada per ser processada.
-- Les miniatures es generaran i la carpeta s'indexarà en la **propera sincronització**, que pot ser:
-  - Quan premis el botó **"Resincronitza"**.
-  - Quan obris el panell de control en una nova sessió.
-  - Quan forces una **"Sincronització de la biblioteca"** des del menú de l'applet.
-  - Quan el motor s'inicia.
-- Fins que no es produeixi una d'aquestes accions, la carpeta apareixerà a la llista però no veuràs les seves imatges a la galeria.
+Si una font és recursiva, també se'n mostren les subcarpetes i pots decidir quines continuen actives.
 
-### Botó "Elimina una font"
-Elimina la carpeta seleccionada **de la biblioteca d'imatges.** Abans d'eliminar-la, es mostra un diàleg de confirmació. Si acceptes:
+En aquesta secció **WMM no elimina mai les carpetes ni les imatges originals del disc**. Les operacions de neteja només afecten la biblioteca interna i les miniatures emmagatzemades a la memòria cau.
 
-- La carpeta desapareix de la llista de fonts.
-- **Les miniatures no s'esborren immediatament.** Romanen a la memòria cau fins que es faci una neteja. Pots eliminar-les de tres maneres:
-  - Manualment: fent clic dret a la carpeta (o subcarpeta) i seleccionant **"Elimina la memòria cau"**.
-  - Automàticament: en prémer el botó **"Resincronitza"** (el motor detecta que la font ja no existeix i neteja la seva caché).
-  - Automàticament: durant un cicle de manteniment (sincronització de la biblioteca des de l'applet o a l'inici del motor).
+### Botó "Afegir una font"
 
-### Botó "Resincronitza"
-Torna a escanejar totes les fonts d'imatge i actualitza la biblioteca. Has de fer servir aquest botó quan:
+Obre un diàleg per seleccionar una carpeta del sistema.
 
-- **Afegeixes o elimines imatges** manualment dins de les carpetes de WMM.
-- **Canvies el nom o l'estructura** de les subcarpetes.
-- Vols **regenerar les miniatures** després d'haver mogut o modificat imatges.
+- **Incloure subcarpetes (Recursiu)**: activa-ho si vols que WMM inclogui també les subcarpetes d'aquesta font.
+- Si ho deixes desactivat, només s'utilitzaran les imatges situades directament a la carpeta arrel.
+- En prémer **Afegir**, WMM registra la font nova, sincronitza el contingut i actualitza la galeria.
+- Quan acaba l'operació, les imatges disponibles apareixen a la secció **Miniatures**.
 
-Durant la sincronització, WMM recorre totes les carpetes actives, detecta imatges noves, **elimina miniatures** les que ja no existeixen i actualitza la galeria de miniatures. En finalitzar, rebràs una notificació amb el resum dels canvis.
+### Botó "Eliminar una font"
+
+Elimina la font seleccionada de la biblioteca de WMM.
+
+Abans es mostra un diàleg de confirmació. Si ho acceptes:
+
+- La font desapareix de la llista.
+- Les seves imatges deixen d'estar disponibles per a WMM.
+- S'eliminen de la biblioteca i de la memòria cau les dades associades a aquella font.
+
+Els fitxers originals es mantenen intactes al disc.
+
+### Botó "Resincronitzar"
+
+Revisa les fonts configurades i posa la biblioteca al dia amb el contingut real de les carpetes.
+
+Utilitza'l quan:
+
+- hagis afegit, eliminat, mogut o canviat de nom imatges fora de WMM;
+- hagis modificat imatges amb un altre programa;
+- hagis canviat l'estructura de les carpetes;
+- aparegui l'avís **"Sources need resynchronization"**;
+- vulguis reconciliar globalment l'estat de totes les fonts.
+
+Durant la sincronització, WMM detecta les imatges noves, modificades o eliminades i actualitza la biblioteca i les miniatures necessàries.
+
+### Avís "Sources need resynchronization"
+
+Aquest avís indica que la configuració actual de les fonts i el contingut que WMM té preparat per mostrar encara no coincideixen completament.
+
+No és un error. Pot aparèixer, per exemple, després d'activar o desactivar carpetes, canviar l'opció **Recursiu** o reactivar una carpeta de la qual ja s'havia eliminat la memòria cau.
+
+Prem **Resincronitzar** per actualitzar globalment la biblioteca.
+
+Si només vols recuperar una subcarpeta activa que no té memòria cau, pots utilitzar **Generar miniatures** des del menú contextual.
 
 ### Navegació per l'arbre de carpetes
 
 #### Doble clic en una carpeta
-Obre la carpeta amb el gestor de fitxers del sistema perquè puguis veure'n el contingut directament.
 
-#### Clic dret en una carpeta pare
-Mostra un menú contextual amb aquestes opcions:
+Obre la carpeta amb el gestor de fitxers predeterminat del sistema.
 
-- **Activa/Desactiva la carpeta**: si la desactives, la carpeta i totes les seves subcarpetes deixaran de mostrar-se a la galeria de miniatures. Les imatges no s'inclouran en la presentació de diapositives. És útil per amagar temporalment una carpeta sense eliminar-la.
-- **Activa/Desactiva totes les subcarpetes**: aplica el mateix estat (activat o desactivat) a totes les subcarpetes de la carpeta seleccionada. Ideal per gestionar carpetes amb moltes subcarpetes de cop.
-- **Elimina de la memòria cau de la carpeta**: aquesta opció **només apareix si la carpeta ha estat prèviament desactivada**. Esborra les **miniatures** associades per alliberar espai.
+#### Clic dret sobre una carpeta
 
-#### Clic dret en una subcarpeta
-Mostra un menú contextual amb aquestes opcions:
+El menú contextual ofereix les accions disponibles segons el tipus i l'estat de la carpeta:
 
-- **Activa/Desactiva la subcarpeta**: controla si les imatges d'aquesta subcarpeta en concret es mostren a la galeria i s'inclouen en la presentació.
-- **Elimina la memòria cau de la subcarpeta**: esborra les **miniatures** d'aquesta subcarpeta específica.
+- **Activar / Desactivar carpeta**: canvia si les seves imatges formen part de la biblioteca activa. El canvi de visibilitat és immediat i no inicia per si sol una sincronització completa.
+- **Activar subcarpetes / Desactivar subcarpetes**: en una font recursiva, permet canviar d'una vegada l'estat de les seves subcarpetes.
+- **Generar miniatures**: està disponible per a una subcarpeta activa que encara no té contingut preparat a la memòria cau. Processa únicament aquella subcarpeta.
+- **Eliminar memòria cau**: apareix per a carpetes inactives. Elimina de WMM la memòria cau associada a aquella carpeta, però no toca les imatges originals.
 
-### Activar/Desactivar la recursivitat
-La columna *"Recursiu"* de l'arbre de carpetes mostra un interruptor per a cada carpeta pare. Quan està **activat**, WMM indexa totes les subcarpetes dins d'aquesta font. Quan està **desactivat**, només indexa les imatges de la carpeta arrel, ignorant les subcarpetes.
+Si una carpeta es reactiva mentre la seva memòria cau encara existeix, WMM la pot reutilitzar immediatament.
 
-Si actives la recursivitat, l'arbre de carpetes es desplega automàticament per mostrar les subcarpetes actives. Si la desactives, les subcarpetes no desapareixeran immediatament. El canvi es farà efectiu en la propera sincronització (en prémer "Resincronitza", en obrir el panell de nou, al forçar una sincronització de la biblioteca o en el següent inici del motor). Fins llavors, les subcarpetes romandran a la galeria i a la presentació de diapositives.
+Si es reactiva després d'haver eliminat la memòria cau, quedarà activa però les seves imatges no apareixeran fins que utilitzis **Resincronitzar** o **Generar miniatures**.
+
+### Activar / Desactivar la recursivitat
+
+La columna **Recursiu** apareix a les fonts arrel.
+
+- **Activat**: les subcarpetes formen part de la font.
+- **Desactivat**: WMM utilitza únicament la carpeta arrel.
+
+El canvi es reflecteix immediatament a l'arbre i en la visibilitat de les imatges.
+
+Activar **Recursiu** permet que WMM descobreixi les subcarpetes, però no obliga a reconstruir automàticament imatges o miniatures que ja no siguin a la memòria cau. En aquest cas pots utilitzar **Resincronitzar** per a tota la biblioteca o **Generar miniatures** per a una subcarpeta concreta.
 
 ## Monitors
 
-Aquí es mostren els teus monitors com a miniatures. La secció s'actualitza en temps real amb qualsevol canvi: rotació de fons, canvis de geometria, encesa/apagada de monitors, etc.
+Aquí es mostren els monitors com a miniatures. La secció s'actualitza amb els canvis de fons, geometria i estat de les pantalles.
 
 ### Botonera d'alineació
 
-A la capçalera de la secció trobaràs tres botons: `[` , `•` i `]`. Serveixen per canviar l'alineació horitzontal del bloc de monitors dins de la finestra:
+A la capçalera trobaràs tres botons: `[` , `•` i `]`. Permeten canviar l'alineació horitzontal del bloc de monitors dins de la finestra:
 
-- **`[`** : alineació a l'esquerra.
-- **`•`** : alineació centrada.
-- **`]`** : alineació a la dreta.
+- **`[`**: alineació a l'esquerra.
+- **`•`**: alineació centrada.
+- **`]`**: alineació a la dreta.
 
 És útil quan tens monitors amb geometries molt diferents i vols ajustar visualment la previsualització.
 
 ### Mode normal
 
-En mode normal, la secció mostra una miniatura de cada monitor amb la imatge que té assignada i un interruptor a la part superior per activar-lo o desactivar-lo.
+En mode normal, la secció mostra una miniatura de cada monitor amb la imatge assignada i un interruptor per activar-lo o desactivar-lo.
 
 #### Interruptors de monitor
 
-Cada interruptor té dues funcions:
-- **Activat**: el monitor mostra la imatge que té assignada. Si no en té cap, se li assignarà una automàticament segons la seva orientació.
-- **Desactivat**: el monitor es pinta amb el color de fons seleccionat (sòlid o degradat) i no participa en la rotació de diapositives.
+- **Activat**: el monitor mostra la imatge assignada. Si no en té cap, WMM en pot assignar una segons l'orientació.
+- **Desactivat**: el monitor s'omple amb el fons seleccionat i no participa en la rotació de diapositives.
 
-Si el **Mode Distribuït** està activat, els interruptors queden bloquejats (no es poden canviar) perquè una única imatge s'estén per tots els monitors.
+Si el **Mode Panoràmic** està activat, els interruptors queden bloquejats perquè una única imatge s'utilitza per a tota la composició.
 
 #### Botons d'acció
 
-- **Casella "Favorit"**: si la marques, en prémer **Acepta** es guardarà la composició actual com un preset nou.
-- **Acepta**: guarda la composició actual com a preset (si la casella està marcada) o simplement aplica els canvis a les teves pantalles. Si no es marca la casella, no es desa cap preset.
-- **Actualitza**: refresca la vista dels monitors des del motor. Útil si detectes que la previsualització no coincideix amb la realitat.
+- **Casella "Preferit"**: si la marques, en prémer **Acceptar** es desarà la composició actual com a preset.
+- **Acceptar**: aplica els canvis a les pantalles. Si la casella **Preferit** està marcada, també desa el preset.
+- **Actualitzar**: refresca la vista dels monitors des del motor.
 
 ### Mode d'edició
 
-Per activar-lo, prem el botó **Mode d'edició** (icona del llapis). La secció canvia per permetre't assignar imatges manualment a cada monitor.
+Prem el botó **Mode d'edició** amb la icona del llapis per assignar imatges manualment als monitors.
 
 #### Arrossegar i deixar anar (Drag & Drop)
 
-Pots arrossegar qualsevol imatge des de la galeria de miniatures i deixar-la anar sobre el monitor virtual on vulguis assignar-la. El monitor s'actualitza a l'instant amb la nova imatge.
+Pots arrossegar qualsevol imatge des de la galeria de miniatures i deixar-la anar sobre el monitor virtual al qual la vulguis assignar.
 
 #### Panell d'opcions d'edició
 
-Quan el mode d'edició està actiu, apareix un panell amb opcions específiques per a la composició que estàs creant:
+Quan el mode d'edició està actiu apareixen opcions específiques per a la composició:
 
-- **Distribució (Spanned)**: activa o desactiva el mode distribuït per a aquesta composició.
-- **Relació d'aspecte**: tria el mode d'ajust per a les imatges d'aquesta composició.
-- **Efectes**: aplica un efecte d'imatge (sèpia, blanc i negre) a la composició.
+- **Estendre (Spanned)**: activa o desactiva el Mode Panoràmic per a aquesta composició.
+- **Relació d'aspecte**: tria el mode d'ajust de les imatges.
+- **Efectes**: aplica un efecte d'imatge a la composició.
 
-Podràs veure l'efecte en manipular aquestes opcions en temps real.
-Aquests valors es guarden juntament amb el preset i tenen prioritat sobre la configuració global.
+Els canvis es poden previsualitzar mentre edites.
+
+Aquests valors es desen juntament amb el preset i tenen prioritat sobre la configuració global quan s'utilitza aquell preset.
 
 #### Botons d'acció en mode edició
 
-- **Casella "Favorit"**: si la marques, en prémer **Acepta** es guardarà la composició editada com un preset (creant-ne un de nou o actualitzant el que havies carregat).
-- **Acepta**: aplica els canvis al motor i surt del mode d'edició. Si la casella de favorit està marcada, també desa el preset.
-- **Actualitza**: buida totes les imatges dels monitors i els deixa sense imatge, perquè puguis començar de zero.
+- **Casella "Preferit"**: permet desar la composició editada com a preset.
+- **Acceptar**: aplica els canvis i surt del mode d'edició. Si la casella està marcada, també desa el preset.
+- **Actualitzar**: buida les imatges assignades als monitors perquè puguis reconstruir la composició des de zero.
 
 ## Miniatures
 
-La galeria d'imatges disponibles. Aquí es mostren totes les imatges que WMM ha indexat a les teves fonts. Les miniatures es generen automàticament i es desen a la memòria cau perquè la navegació sigui ràpida.
+Aquesta secció mostra les imatges disponibles a la biblioteca de WMM. Les miniatures s'emmagatzemen a la memòria cau perquè la navegació sigui ràpida.
 
-### Botó Actualitza
+### Botó Actualitzar
 
-A la dreta dels botons H/V trobaràs un botó amb la icona de refresc. En prémer-lo, es regeneren totes les miniatures de la galeria. És útil si has modificat imatges fora de WMM (per exemple, si les has editades amb un programa extern) i vols veure els canvis reflectits sense haver de fer una sincronització completa de la biblioteca.
+Recarrega la vista de miniatures i reconstrueix les que siguin necessàries a partir de la biblioteca que WMM ja té sincronitzada.
+
+Aquest botó **no substitueix Resincronitzar**. Si has afegit, eliminat, mogut o modificat fitxers originals fora de WMM, utilitza **Resincronitzar** per actualitzar primer la biblioteca.
 
 ### Botons H / V
 
-A la capçalera de la secció trobaràs dos botons: **Horizontal** i **Vertical**. En prémer'ls, la galeria es desplaça automàticament fins a la primera imatge de l'orientació seleccionada. Són una ajuda ràpida per navegar per la galeria sense haver de fer scroll manual.
+Els botons **Horitzontal** i **Vertical** permeten saltar ràpidament al primer element de cada orientació dins de la galeria.
+
+### Botó Preferits
+
+Mostra una vista específica amb les imatges desades com a preferides, incloses les imatges que formen part dels teus **Presets**.
 
 ### Disposició i ordre
 
-Les miniatures es mostren en un mosaic que s'adapta a l'amplada de la finestra. L'ordre és fix:
+Les miniatures es mostren en un mosaic que s'adapta a l'amplada disponible.
 
-- Primer, totes les imatges **horitzontals**.
-- Després, totes les imatges **verticals**.
+L'ordre és:
 
-Dins de cada grup, les imatges apareixen ordenades per carpeta (segons l'ordre de les fonts d'imatge) i alfabèticament dins de cada carpeta.
+- Primer les imatges **horitzontals**, amb les incorporades més recentment a la biblioteca en primer lloc.
+- Després les imatges **verticals**, també amb les incorporades més recentment en primer lloc.
 
 ### Interacció amb les miniatures
 
-Pots interactuar amb qualsevol miniatura de tres maneres:
+Pots interactuar amb qualsevol miniatura de diverses maneres:
 
-- **Doble clic**: obre la imatge original amb el visor d'imatges predeterminat del sistema.
-- **Clic dret**: mostra un menú contextual amb dues opcions:
-  - *"Afegeix a favorits"*: afegeix la imatge a la llista plana de favorits.
-  - *"Elimina de favorits"*: treu la imatge de la llista de favorits (només apareix si la imatge ja és favorita).
-- **Arrossegar (Drag & Drop)**: pots arrossegar qualsevol miniatura i deixar-la anar sobre un monitor virtual a la secció **Monitors** (només en mode d'edició). La imatge s'assignarà a aquell monitor.
+- **Doble clic**: obre la imatge original amb el visor predeterminat del sistema.
+- **Clic dret**:
+  - *"Afegir a preferits"*: afegeix la imatge a la llista de preferits.
+  - *"Eliminar de preferits"*: l'elimina de la llista quan ja és preferida.
+- **Arrossegar (Drag & Drop)**: en mode d'edició, pots arrossegar una miniatura sobre un monitor virtual per assignar-hi aquella imatge.
 
-### Marc de favorit
+### Marc de preferit
 
-Les imatges que has afegit a la llista de favorits es destaquen visualment amb un marc de color verd al voltant de la miniatura. Així pots identificar-les ràpidament mentre navegues per la galeria.
+Les imatges incloses a la llista de preferits es destaquen amb un marc de color verd.
 
-# Favorits
+# Preferits
 
-El menú Favorits de l'applet permet accedir ràpidament als presets guardats i crear-ne de nous amb la composició actual del fons.
+El menú **Preferits** de WMM permet accedir ràpidament als presets desats i crear-ne de nous a partir de la composició actual.
 
-### Switch "Només favorits"
+### Switch "Només preferits"
 
-Si l'actives, la presentació de diapositives utilitza exclusivament les imatges dels teus presets guardats, ignorant la resta de la biblioteca. Quan està activat, el mode de presentació canvia el seu comportament:
+Quan està activat, la presentació de diapositives utilitza únicament contingut desat com a preferit:
 
-- **Mode síncron**: selecciona un preset a l'atzar en cada canvi i l'aplica a tots els monitors alhora.
-- **Mode asíncron**: selecciona imatges individuals de la llista plana de favorits i les assigna als monitors per torns.
+- **Mode síncron**: selecciona un preset i aplica la composició completa.
+- **Mode asíncron**: utilitza imatges individuals de la llista de preferits.
 
-Si actives aquest switch mentre el temporitzador està apagat, el motor l'engegarà automàticament perquè la rotació pugui funcionar.
+Si actives **Només preferits** mentre la presentació de diapositives està apagada, WMM l'activa automàticament perquè la rotació pugui funcionar.
 
 ### Afegir un preset
 
-En prémer **"Add Preset Favorite"**, s'obre un petit diàleg on pots posar nom a la composició actual de fons. WMM suggereix un nom automàtic (per exemple, *"Bookmark 01"*), però pots escriure el que vulguis.
+Prem **"Afegir Preset a preferits"** per desar la composició actual.
 
-- **Nom en blanc**: si deixes el camp buit i prems **OK**, el diàleg t'avisa i no es desa res.
-- **Nom repetit**: si escrius un nom que ja existeix, el diàleg t'avisa i has de triar-ne un de diferent.
-- **Gravació del preset**: en prémer **OK** amb un nom vàlid, el preset es desa automàticament amb la configuració actual de tots els monitors, incloent les imatges, el mode d'aspecte, l'efecte d'imatge i el mode distribuït.
+S'obre un diàleg on pots indicar el nom del preset. WMM proposa un nom automàtic, per exemple *"Bookmark 01"*, que pots substituir pel que vulguis.
+
+- **Nom en blanc**: WMM avisa i no desa el preset.
+- **Nom repetit**: has de triar un nom diferent.
+- **Desament del preset**: es desa la configuració actual dels monitors, incloses les imatges i les opcions associades a la composició.
 
 ### Llista de presets
 
-Sota el switch i el botó d'afegir, apareix una llista amb tots els presets que tens guardats. Si la llista és llarga, es mostra una barra de desplaçament per navegar-hi.
+Sota els controls apareix la llista de presets desats.
 
-- **Carregar un preset**: fes clic sobre el nom del preset. WMM aturarà el temporitzador (si estava actiu) i aplicarà la composició guardada als monitors immediatament.
-- **Eliminar un preset**: fes clic a la icona de la paperera que hi ha a la dreta de cada preset. Es mostrarà un diàleg de confirmació. Si l'elimines, el preset desapareix de la llista i de la llista plana de favorits.
+- **Carregar un preset**: prem sobre el seu nom per aplicar-lo. WMM atura el temporitzador si estava actiu i carrega la composició desada.
+- **Eliminar un preset**: prem la icona de la paperera i confirma l'eliminació.
 
 # Presentació de diapositives
 
-Des d'aquest menú pots controlar el canvi automàtic d'imatges de fons. Quan la presentació està activa, el motor canvia les imatges segons l'interval i el mode que tinguis configurats al panell de control.
+Des d'aquest menú pots controlar el canvi automàtic de fons sense obrir el tauler de control.
 
 ### Switch "Activat / Desactivat"
 
-L'interruptor principal encén o apaga completament el temporitzador de rotació.
+L'interruptor principal encén o apaga el temporitzador de rotació.
 
-- **Activat**: el motor inicia el comptador enrere immediatament. El primer canvi d'imatges es produirà un cop transcorregut l'interval configurat (per defecte, 15 minuts). Si l'interval és molt curt, el canvi pot ser gairebé instantani.
-- **Desactivat**: el temporitzador s'atura. Es manté el fons actual sense canvis fins que el tornis a activar o facis una rotació manual.
+- **Activat**: comença el compte enrere per al canvi següent.
+- **Desactivat**: es manté la composició actual fins que tornis a activar la presentació o forcis una rotació manual.
 
-Quan actives el temporitzador des d'aquí, el panell de control es sincronitza automàticament per reflectir el canvi.
+L'estat se sincronitza automàticament amb el tauler de control.
 
-### Control lliscant (Slider)
+### Interval
 
-Just a sota de l'interruptor trobaràs un control lliscant que et permet ajustar l'interval de canvi sense obrir el panell de control.
+Defineix quants minuts han de passar entre canvis.
 
-- **Arrossega** el control per triar els minuts que vols que passin entre cada canvi d'imatge.
-- Mentre l'arrossegues, veuràs el valor en minuts al costat del control.
-- En **deixar anar** el control, el valor es desa automàticament i el motor actualitza el temporitzador a l'instant.
+Segons l'entorn d'escriptori, el control es pot mostrar com a lliscador o mitjançant botons d'ajust. El valor mínim és d'1 minut i el màxim ve definit per **Freqüència màxima** al tauler de control.
 
-El valor mínim és d'1 minut. El valor màxim ve definit per l'opció **"Freq. Max."** del panell de control (per defecte, 60 minuts).
+Els canvis de l'interval s'apliquen al temporitzador de WMM.
 
 # Monitors (Mode de Rotació)
 
-Aquest interruptor controla el mode de canvi de fons entre els monitors.
+Controla com es reparteixen els canvis de fons entre les pantalles.
 
-- **ASYNC (One)**: cada monitor canvia per torns. En cada cicle de rotació, només un monitor rep una imatge nova, mentre que els altres conserven la que tenen.
-- **SYNC (All)**: tots els monitors canvien alhora, aplicant una composició completa de manera simultània.
+- **ASYNC (One)**: els monitors canvien per torns. En cada cicle només un rep una imatge nova.
+- **SYNC (All)**: tots els monitors canvien alhora.
 
-El canvi entre un mode i l'altre és immediat i no reinicia el temporitzador.
+El canvi de mode és immediat i no requereix reiniciar la presentació de diapositives.
 
-# Mode Distribuït (Spanned)
+# Mode Panoràmic (Spanned)
 
-Activa o desactiva el mode de fons estès. Quan està activat, una única imatge panoràmica s'estén per tots els monitors, cobrint el llenç complet. Aquesta opció només té efecte si hi ha més d'un monitor actiu.
-L'aplicació del mode distribuït és immediata
+Activa o desactiva el fons panoràmic.
 
-En activar-lo, els interruptors individuals dels monitors al Centre de Control es bloquegen (no es poden canviar), ja que la imatge és comuna per a tots.
+Quan està actiu, WMM utilitza una única imatge per construir una composició que cobreix el conjunt de monitors respectant-ne la posició i la geometria.
 
-# Sincronitzar Biblioteca
+Aquesta opció només té efecte quan hi ha més d'un monitor actiu.
 
-Aquesta opció força un escaneig complet de totes les fonts d'imatge configurades. WMM recorre les carpetes actives, detecta imatges noves, elimina referències a imatges que ja no existeixen i actualitza la galeria de miniatures.
+Mentre **Spanned** està activat, els interruptors individuals dels monitors queden bloquejats perquè la composició és comuna a totes les pantalles.
 
-En finalitzar, rebràs una notificació amb el resum dels canvis (nombre d'imatges noves i eliminades). És útil després d'afegir o treure imatges manualment de les carpetes de WMM.
+# Eines
+
+El menú **Eines** reuneix els accessos operatius comuns de WMM:
+
+- **Ajustaments**: obre el tauler de control.
+- **Sincronitzar biblioteca**: revisa totes les fonts i actualitza la biblioteca.
+- **Gestor d'instal·lació**: permet actualitzar, reinstal·lar o desinstal·lar WMM.
+- **Visor del registre de depuració**: obre el visor d'activitat i diagnòstic.
+- **Ajuda**: obre aquest manual.
+
+## Sincronitzar Biblioteca
+
+Revisa totes les fonts configurades i actualitza la biblioteca de WMM perquè coincideixi amb el contingut actual del disc.
+
+La sincronització detecta imatges noves, modificades i eliminades, actualitza les referències necessàries i reconstrueix les miniatures que corresponguin.
+
+És especialment útil després de fer canvis a les carpetes des de fora de WMM o quan apareix l'avís **"Resincronitzar fonts"**.
+
+La sincronització no modifica ni elimina les imatges originals.
+
+## Gestor d'instal·lació
+
+**El Gestor d'instal·lació** permet fer les tasques de manteniment de WMM des d'una interfície gràfica.
+
+La finestra mostra la versió instal·lada i l'entorn d'escriptori detectat.
+
+### Actualitzar
+
+Si hi ha una versió més recent, permet descarregar-la, validar-la i iniciar l'actualització.
+
+### Reinstal·lar
+
+Reinstal·la la versió actual per reparar o recuperar una instal·lació malmesa conservant les dades d'usuari que corresponguin.
+
+### Desinstal·lar
+
+Inicia el desinstal·lador de WMM i elimina l'aplicació i les seves integracions d'escriptori.
+
+Abans de les operacions que ho necessitin, el terminal integrat pot demanar la contrasenya administrativa. Escriu-la directament en aquell terminal.
+
+Durant una operació de manteniment, la resta de controls es mantenen bloquejats fins que acaba el procés.
+
+## Visor del registre de depuració
+
+El visor de logs mostra en temps real l'activitat de WMM i és útil per consultar què està fent el motor, el tauler o les integracions d'escriptori.
+
+### Filtres
+
+Pots filtrar les entrades per **Origen**, **Nivell** i **Motiu**, a més d'utilitzar la cerca de text.
+
+### Auto-scroll
+
+Manté la vista seguint automàticament les entrades noves del registre.
+
+### Ordre invers
+
+Permet mostrar primer les entrades més recents o mantenir l'ordre cronològic normal.
+
+### Netejar registre
+
+El botó de neteja buida el registre després de demanar confirmació.
+
+El visor recorda les preferències d'**Auto-scroll**, **Ordre invers** i la mida de la finestra.
+
+## Ajuda
+
+Obre la finestra d'ajuda de WMM.
+
+L'índex de navegació apareix a l'esquerra i el contingut Markdown formatat a la dreta perquè puguis saltar directament a la secció que necessitis.
+
+# Quant a WMM Manager
+
+Mostra informació bàsica sobre WMM, inclosa la versió instal·lada, el nom de l'aplicació i la llicència.
+En alguns entorns d'escriptori també ofereix enllaços útils.
+
+# Gestors de fitxers
+
+WMM s'integra amb **Nemo**, **Nautilus**, **Dolphin** i **Caja** quan aquests gestors estan disponibles al sistema.
+
+En fer clic dret sobre una imatge pots trobar accions de WMM per:
+
+- **Afegir a preferits**.
+- **Enviar a un monitor**.
+- **Distribuir la imatge a totes les pantalles**.
+
+Segons el gestor de fitxers, aquestes accions poden aparèixer agrupades dins de **WMM Manager** o com a accions individuals.
+
+A MATE, la integració amb Caja també pot oferir una acció per distribuir la imatge actual des del menú contextual de l'escriptori.
 
 # Dreceres de teclat
 
-Pots forçar un canvi de fons sense fer servir el ratolí configurant una drecera de teclat personalitzada al teu escriptori. WMM inclou un petit script preparat per a això.
+WMM registra l'acció **Fons següent** als mecanismes de dreceres de **Cinnamon**, **GNOME Shell**, **KDE Plasma 6** i **MATE**.
 
-## En Cinnamon
+La combinació de tecles la tries tu des de la configuració de dreceres del teu escriptori.
 
-1.  Obre **Configuració del sistema → Teclat → Dreceres de teclat**.
-2.  Fes clic a **Afegeix una drecera personalitzada**.
-3.  Posa-li el nom **"WMM - Canviar fons de pantalla"**.
-4.  Al camp **Comanda**, escriu:
+## A Cinnamon
 
-    `bash -c "bash $HOME/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/wmm-next.sh"`
+1. Obre **Configuració del sistema → Teclat → Dreceres de teclat**.
+2. Entra a **Dreceres personalitzades**.
+3. Busca **"WMM - Fons següent"**.
+4. Assigna la combinació que prefereixis, per exemple `Ctrl+Alt+N`.
 
-5.  Assigna la combinació de tecles que prefereixis (per exemple, Ctrl+Alt+N).
-6.  Prem Accepta i prova la drecera.
+## A GNOME Shell
 
-## En GNOME
+1. Obre la configuració de **Teclat** i les dreceres personalitzades.
+2. Busca l'acció de WMM per a **Fons següent**.
+3. Assigna la combinació que prefereixis.
 
-1.  Obre Configuració → Teclat → Dreceres personalitzades.
-2.  Fes clic a "+" per afegir-ne una de nova.
-3.  Posa-li el nom "WMM - Canviar fons de pantalla".
-4.  Al camp Comanda, escriu:
+## A KDE Plasma 6
 
-    `bash -c "bash $HOME/.local/share/gnome-shell/extensions/wmm@maki/wmm_platform/shell/gnome/wmm-next.sh"`
+1. Obre **Configuració del sistema → Dreceres**.
+2. Busca **WMM Manager** i **Fons següent**.
+3. Assigna la combinació de tecles que vulguis utilitzar.
 
-5.  Assigna la combinació de tecles que prefereixis (per exemple, Ctrl+Alt+N).
-6.  Tanca la finestra i prova la drecera.
+## A MATE
 
-Nota: El script wmm-next.sh s'instal·la automàticament amb WMM i hauria de tenir els permisos d'execució correctes. Si la drecera no funciona, assegura't que el script sigui executable:
+1. Obre la configuració de **Dreceres de teclat** de MATE.
+2. Busca **"WMM - Fons següent"**.
+3. Assigna la combinació que prefereixis.
 
-    **Per a GNOME**
-
-    `chmod +x ~/.local/share/gnome-shell/extensions/wmm@maki/wmm_platform/shell/gnome/wmm-next.sh`
-
-    **Per a Cinnamon**
-
-    `chmod +x ~/.local/share/cinnamon/applets/wmm@maki/wmm_platform/shell/cinnamon/wmm-next.sh`
-
-# Ajuda
-
-Obre la finestra d'ajuda de WMM, on trobaràs informació detallada sobre totes les funcionalitats del programa. La finestra compta amb un índex de navegació a l'esquerra i el contingut formatejat a la dreta.
+La drecera sol·licita una rotació manual utilitzant el mode i la configuració actuals de WMM.

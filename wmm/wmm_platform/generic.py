@@ -42,7 +42,7 @@ def unlock_file(f):
     """Desbloqueo de archivo no disponible en plataforma genérica."""
     pass
 
-def open_file(path):
+def open_file(path, capability=None, **params):
     """Apertura de archivo no disponible en plataforma genérica."""
     pass
 

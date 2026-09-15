@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Action
+Name=Add to Favorites
+Name[es]=Añadir a Favoritos
+Name[ca]=Afegir a preferits
+Icon=add
+ToolbarLabel=Add to Favorites
+ToolbarLabel[es]=Añadir a Favoritos
+ToolbarLabel[ca]=Afegir a preferits
+Profiles=profile-zero;
+
+[X-Action-Profile profile-zero]
+Exec=@APP_DIR@/wmm_platform/shell/file_manager/common/wmm-add_to_bookmarks.sh %f
+Basenames=*.gif;*.webp;*.bmp;*.png;*.jpeg;*.jpg;
+Matchcase=false
+MimeTypes=image/*;
+Schemes=file;

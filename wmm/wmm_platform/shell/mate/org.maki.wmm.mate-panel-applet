@@ -1,0 +1,15 @@
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+[Applet Factory]
+Id=WMMAppletFactory
+Name=WMM Applet Factory
+Description=Factory for WMM Panel Applet
+
+[WMMApplet]
+Name=WMM Manager
+Description=Wallpaper Multi-Monitor Manager
+Description[es]=Administrador de Fondos de Pantalla
+Description[ca]=Administrador de Fons de Pantalla
+Icon=video-display
+Platforms=X11;Wayland;

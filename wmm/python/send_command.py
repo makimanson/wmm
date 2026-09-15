@@ -86,6 +86,30 @@ def main():
         log_event("motor no está corriendo", origin="SEND_COMM", level="ERROR", reason="COMMAND")
         sys.exit(1)
 
+    source = sys.argv[2] if len(sys.argv) > 2 else None
+    source_str = f" ({source})" if source else ""
+
+    # ADMISSION GUARD:
+    # force_rotation es deliberadamente no acumulativo. Si la petición nace
+    # mientras el engine está ocupado debe descartarse antes de entrar en un
+    # canal donde podría sobrevivir hasta que el motor vuelva a estar idle.
+    if command.get("action") == "force_rotation":
+        status_path = os.path.join(pm.cache_dir, "engine_status.json")
+
+        try:
+            with open(status_path, "r", encoding="utf-8") as f:
+                status = json.load(f)
+            engine_busy = bool(status.get("busy", False)) if isinstance(status, dict) else True
+        except (OSError, json.JSONDecodeError):
+            # Un estado no disponible no debe interpretarse como idle:
+            # para una orden no acumulativa es más seguro descartar la petición.
+            engine_busy = True
+
+        if engine_busy:
+            log_event(f"force_rotation descartado: motor ocupado{source_str}",
+                origin="SEND_COMM", level="DEBUG", reason="COMMAND")
+            return
+
     # ------------------------------------------------------
     # Envío del comando
     # ------------------------------------------------------
@@ -98,13 +122,12 @@ def main():
         # Delegar el envío a la infraestructura de comunicación.
         pm.send_command(command)
 
-        source = sys.argv[2] if len(sys.argv) > 2 else None
-        source_str = f" ({source})" if source else ""
-
-        log_event(f"comando enviado: {command.get('action', 'unknown')}{source_str}", origin="SEND_COMM", level="INFO", reason="COMMAND")
+        log_event(f"comando enviado: {command.get('action', 'unknown')}{source_str}",
+            origin="SEND_COMM", level="INFO", reason="COMMAND")
 
     except Exception as e:
-        log_event(f"error al enviar comando: {e}", origin="SEND_COMM", level="ERROR", reason="COMMAND")
+        log_event(f"error al enviar comando: {e}",
+            origin="SEND_COMM", level="ERROR", reason="COMMAND")
         sys.exit(1)
 
 

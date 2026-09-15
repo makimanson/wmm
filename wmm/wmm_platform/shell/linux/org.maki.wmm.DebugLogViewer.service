@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
+# ==========================================================
+# WMM - Wallpaper Multi-Monitor Manager
+# KDE Debug Log Viewer D-Bus Activation Service
+# ==========================================================
+#
+# org.maki.wmm.DebugLogViewer.service
+# Installed by install.sh when required by the active desktop integration.
+#
+# Installation target (XDG):
+#   ~/.local/share/dbus-1/services/
+#
+# @PYTHON3@ is replaced with the Python interpreter used by WMM.
+# @APP_DIR@ is replaced with the KDE WMM installation directory.
+#
+# This service is intentionally independent from org.maki.wmm so the
+# log viewer remains available when the engine is not running.
+#
+# ==========================================================
+
+[D-BUS Service]
+
+# Independent Debug Log Viewer session bus name.
+Name=org.maki.wmm.DebugLogViewer
+
+# Debug Log Viewer entry point.
+Exec=@PYTHON3@ @APP_DIR@/python/debug_log_viewer.py

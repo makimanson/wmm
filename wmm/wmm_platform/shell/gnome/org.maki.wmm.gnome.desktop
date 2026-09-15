@@ -1,5 +1,9 @@
 # SPDX-FileCopyrightText: 2026 makimanson
 # SPDX-License-Identifier: GPL-3.0-or-later
+#
+# WMM - Wallpaper Multi-Monitor Manager
+#
+# org.maki.wmm.gnome.desktop -- launcher and actions for GNOME Shell
 
 [Desktop Entry]
 Version=1.0
@@ -17,3 +21,40 @@ Terminal=false
 Categories=Graphics;
 StartupNotify=false
 OnlyShowIn=GNOME;
+Actions=InstallManager;DebugLogViewer;Help;Changelog;About;
+
+[Desktop Action InstallManager]
+Name=Install Manager
+Name[es]=Gestor de instalación de WMM
+Name[ca]=Gestor d'instal·lació de WMM
+Icon=system-software-install
+Exec=@PYTHON3@ @APP_DIR@/wmm_platform/shell/installer/wmm-install_manager.py
+
+[Desktop Action DebugLogViewer]
+Name=Debug Log Viewer
+Name[es]=Visor del registro de depuración
+Name[ca]=Visor del registre de depuració
+Icon=text-x-generic
+Exec=@PYTHON3@ @APP_DIR@/python/debug_log_viewer.py
+
+[Desktop Action Help]
+Name=Help
+Name[es]=Ayuda
+Name[ca]=Ajuda
+Icon=help-faq
+Exec=@PYTHON3@ @APP_DIR@/python/docs_viewer.py help/HELP.md
+
+
+[Desktop Action Changelog]
+Name=Changelog
+Name[es]=Registro de cambios
+Name[ca]=Registre de canvis
+Icon=document-page-setup
+Exec=@PYTHON3@ @APP_DIR@/python/docs_viewer.py CHANGELOG.md
+
+[Desktop Action About]
+Name=About WMM
+Name[es]=Acerca de WMM
+Name[ca]=Quant a WMM
+Icon=help-about
+Exec=@PYTHON3@ @APP_DIR@/python/about.py

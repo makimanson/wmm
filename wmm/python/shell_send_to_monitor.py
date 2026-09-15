@@ -134,6 +134,9 @@ def main():
     # Inicializar la plataforma
     platform = PlatformManager()
 
+    if hasattr(platform, "set_process_name"):
+        platform.set_process_name("WMM SendToMon")
+
     # Inicializar traducciones
     initialize(platform)
 

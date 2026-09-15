@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# WMM - Wallpaper Multi-Monitor Manager
+#
+# org.maki.wmm.kde.desktop -- launcher and actions for KDE Plasma 6
+
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=WMM - Wallpaper Multi-Monitor Manager
+Comment=Start WMM
+Comment[es]=Inicia WMM
+Comment[ca]=Inicia WMM
+Exec=/usr/bin/dbus-send --session --type=method_call --dest=org.freedesktop.DBus /org/freedesktop/DBus org.freedesktop.DBus.StartServiceByName string:org.maki.wmm uint32:0
+Icon=video-display
+Terminal=false
+Categories=Graphics;
+StartupNotify=false
+X-KDE-GlobalShortcutType=Service
+
+Actions=next-background;InstallManager;DebugLogViewer;Help;Changelog;About;
+
+[Desktop Action next-background]
+Name=Next Background
+Name[es]=Siguiente fondo
+Name[ca]=Fons següent
+Icon=window-next
+Exec=@PYTHON3@ @APP_DIR@/python/send_command.py "{\\"action\\":\\"force_rotation\\"}" HOTKEY
+
+[Desktop Action InstallManager]
+Name=Install Manager
+Name[es]=Gestor de instalación
+Name[ca]=Gestor d'instal·lació
+Icon=install
+Exec=@PYTHON3@ @APP_DIR@/wmm_platform/shell/installer/wmm-install_manager.py
+
+[Desktop Action DebugLogViewer]
+Name=Debug Log Viewer
+Name[es]=Visor del registro de depuración
+Name[ca]=Visor del registre de depuració
+Icon=debug-step-into-instruction
+Exec=@PYTHON3@ @APP_DIR@/python/debug_log_viewer.py
+
+[Desktop Action Help]
+Name=Help
+Name[es]=Ayuda
+Name[ca]=Ajuda
+Icon=question
+Exec=@PYTHON3@ @APP_DIR@/python/docs_viewer.py help/HELP.md
+
+[Desktop Action Changelog]
+Name=Changelog
+Name[es]=Registro de canbios
+Name[ca]=Registre de canvis
+Icon=debug-step-into-instruction
+Exec=@PYTHON3@ @APP_DIR@/python/docs_viewer.py CHANGELOG.md
+
+[Desktop Action About]
+Name=About WMM
+Name[es]=Acerca de WMM
+Name[ca]=Quant a WMM
+Icon=help-about
+Exec=@PYTHON3@ @APP_DIR@/python/about.py

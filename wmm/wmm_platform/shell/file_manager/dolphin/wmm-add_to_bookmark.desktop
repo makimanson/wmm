@@ -15,5 +15,5 @@ Encoding=UTF-8
 Name=WMM: Add to favorites
 Name[es]=WMM: Añadir a favoritos
 Name[ca]=WMM: Afegeix a preferits
-Icon=user-bookmarks
-Exec=$HOME/.local/share/kio/servicemenus/wmm-add_to_bookmarks.sh %f
+Icon=bookmark-add-folder
+Exec=@APP_DIR@/wmm_platform/shell/file_manager/common/wmm-add_to_bookmarks.sh %f

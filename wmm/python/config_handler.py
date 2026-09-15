@@ -11,6 +11,7 @@ config_handler.py – Gestor de configuración y persistencia.
 # IMPORTS DE LIBRERÍA ESTÁNDAR
 # ==========================================================
 import os
+import stat
 import sys
 import json
 import hashlib
@@ -18,6 +19,7 @@ import random
 import re
 import time
 import subprocess
+import threading
 
 # ==========================================================
 # CONFIGURACIÓN DEL PATH DEL PROYECTO
@@ -105,8 +107,11 @@ class ConfigHandler:
     CMD_OPEN_PANEL      = "open_panel"
     CMD_ADD_BOOKMARK    = "add_bookmark"
     CMD_OPEN_HELP       = "open_help"
+    CMD_OPEN_ABOUT      = "open_about"
     CMD_SHELL_SEND_TO = "shell_send_to_monitor"
     CMD_SHELL_ADD_FAV = "shell_add_favorite"
+    CMD_SHELL_SPANNED_CURRENT = "shell_spanned_current"
+    CMD_SHELL_SPANNED_IMAGE = "shell_spanned_image"
     CMD_APPLY_SELECTION = "apply_manual_selection"
 
     def __init__(self, cache_base_dir=None, platform=None):
@@ -140,7 +145,8 @@ class ConfigHandler:
             self.cache_dir = cache_base_dir
         else:
             self.cache_dir = os.path.join(self.app_root, "cache")
-        log_event(f"[DIAG] ConfigHandler: cache_base_dir={cache_base_dir!r}, cache_dir={self.cache_dir!r}", origin="CONFIG", level="DEBUG", reason="SETTINGS")
+        log_event(f"[DIAG] ConfigHandler: cache_base_dir={cache_base_dir!r}, cache_dir={self.cache_dir!r}",
+            origin="CONFIG", level="DEBUG", reason="SETTINGS")
         # Rutas derivadas de la caché
         self.master_canvas = os.path.join(self.cache_dir, "wallpaper_master.jpg")
         self.thumbnails_dir = os.path.join(self.cache_dir, "thumbnails")
@@ -228,7 +234,7 @@ class ConfigHandler:
                     "solid_color": "#000000",
                     "gradient_h": ["#000000", "#8D9797"],
                     "gradient_v": ["#000000", "#8D9797"],
-                    "monitor_group_align": "START",
+                    "monitor_group_align": "CENTER",
                 }
             },
             "sources": {"sources": []},
@@ -252,6 +258,34 @@ class ConfigHandler:
             if not os.path.exists(self.files[key]):
                 self.save_json(key, default_content)
 
+        # --- MIGRACIÓN DE scan_index AL MODELO LÓGICO BOOLEANO ---
+        # El formato histórico [folder_mtime, active] deja de ser necesario:
+        # scan_index conserva únicamente estructura conocida + Active/Inactive.
+        # Esta es la única frontera que interpreta formatos legacy;
+        # el runtime normal trabaja exclusivamente con estados booleanos.
+        index_data = self.load_json("index")
+        index_migrated = False
+
+        for path, entry in index_data.items():
+            if isinstance(entry, bool):
+                continue
+
+            if isinstance(entry, list) and len(entry) > 1:
+                index_data[path] = bool(entry[1])
+            else:
+                # Formato legacy anterior sin estado explícito:
+                # históricamente se consideraba activo.
+                index_data[path] = True
+
+            index_migrated = True
+
+        if index_migrated:
+            self.save_json("index", index_data)
+            log_event(
+                f"scan_index migrado a formato booleano: {len(index_data)} entradas",
+                origin="CONFIG", level="INFO", reason="LIBRARY"
+            )
+
         # --- BLOQUE DE MIGRACIÓN Y GESTIÓN DE FUENTES ---
         sources_data = self.load_json("sources")
         settings_data = self.load_json("settings")
@@ -262,7 +296,8 @@ class ConfigHandler:
         legacy_sources = global_conf.get("sources", [])
 
         if legacy_sources and not sources_data.get("sources"):
-            log_event("Migrando fuentes a sources.json", origin="CONFIG", level="INFO", reason="SETTINGS")
+            log_event("Migrando fuentes a sources.json",
+                origin="CONFIG", level="INFO", reason="SETTINGS")
             for item in legacy_sources:
                 # Extraemos la ruta: en tu JSON es un dict con clave "path"
                 folder_path = item.get("path") if isinstance(item, dict) else item
@@ -303,7 +338,8 @@ class ConfigHandler:
             }
             # Insertar en la posición 0 (Cabecera)
             sources_data["sources"].insert(0, vault_source)
-            log_event("Fuente del sistema 'Vault' inicializada", origin="CONFIG", level="INFO", reason="VAULT")
+            log_event("Fuente del sistema 'Vault' inicializada",
+                origin="CONFIG", level="INFO", reason="VAULT")
         else:
             # Si existe pero no está el primero, podríamos reordenar aquí si fuera crítico
             pass
@@ -338,7 +374,8 @@ class ConfigHandler:
             if m_hash not in current_active_hashes:
                 history[m_hash] = data       # guardar siempre, con o sin imagen
                 has_changed = True
-                log_event(f"Monitor {m_hash} movido a histórico", origin="CONFIG", level="DEBUG", reason="VAULT")
+                log_event(f"Monitor {m_hash} movido a histórico",
+                    origin="CONFIG", level="DEBUG", reason="VAULT")
 
         # 2. Reconstruir la sesión activa con los hashes actuales
         for m_hash in current_active_hashes:
@@ -354,16 +391,19 @@ class ConfigHandler:
                     entry = {"path": entry if entry else None, "active": True}
                 new_active[m_hash] = entry
                 has_changed = True
-                log_event(f"Monitor {m_hash} recuperado del histórico", origin="CONFIG", level="DEBUG", reason="VAULT")
+                log_event(f"Monitor {m_hash} recuperado del histórico",
+                    origin="CONFIG", level="DEBUG", reason="VAULT")
             else:
                 # Nuevo monitor: sin imagen y activo por defecto
                 new_active[m_hash] = {"path": None, "active": True}
                 has_changed = True
-                log_event(f"Nuevo monitor {m_hash} detectado", origin="CONFIG", level="INFO", reason="VAULT")
+                log_event(f"Nuevo monitor {m_hash} detectado",
+                    origin="CONFIG", level="INFO", reason="VAULT")
 
         if has_changed:
             vault["active_session"] = new_active
-            log_event("Vault sincronizado con cambios", origin="CONFIG", level="DEBUG", reason="VAULT")
+            log_event("Vault sincronizado con cambios",
+                origin="CONFIG", level="DEBUG", reason="VAULT")
             vault["history"] = history
             self.save_json("vault", vault)
 
@@ -488,7 +528,8 @@ class ConfigHandler:
             self.save_json("history", hist_g)
 
         except Exception as e:
-            log_event(f"Error en refresh_metadata: {e}", origin="CONFIG", level="ERROR", reason="LIBRARY")
+            log_event(f"Error en refresh_metadata: {e}",
+                origin="CONFIG", level="ERROR", reason="LIBRARY")
 
     def update_monitor_image(self, m_hash, image_path):
         """Actualiza la asociación de imagen para un monitor específico en la sesión activa."""
@@ -514,7 +555,8 @@ class ConfigHandler:
             with open(self.files[key], 'r', encoding='utf-8') as f:
                 return json.load(f)
         except (json.JSONDecodeError, Exception) as e:
-            log_event(f"Error cargando {key}: {e}", origin="CONFIG", level="ERROR", reason="SETTINGS")
+            log_event(f"Error cargando {key}: {e}",
+                origin="CONFIG", level="ERROR", reason="SETTINGS")
             return {}
 
     def save_json(self, key, data):
@@ -528,25 +570,23 @@ class ConfigHandler:
                 raw_json = json.dumps(data, indent=4, ensure_ascii=False)
 
                 if key == "cache":
-                    # Formato compacto para 3 elementos: ["ruta", w, h]
+                    # Formato compacto actual: ["ruta", w, h, mtime_ns]
+                    compact_json = re.sub(
+                        r'\[\s+"([^"]+)",\s+(\d+),\s+(\d+),\s+(\d+)\s+\]',
+                        r'["\1", \2, \3, \4]',
+                        raw_json
+                    )
+                    # Compatibilidad visual durante la migración desde el formato legacy.
                     compact_json = re.sub(
                         r'\[\s+"([^"]+)",\s+(\d+),\s+(\d+)\s+\]',
                         r'["\1", \2, \3]',
-                        raw_json
-                    )
-                    f.write(compact_json)
-
-                elif key == "index":
-                    # Formato compacto para el vigía: [timestamp, active]
-                    # Captura: [ un número (entero o float), un booleano ]
-                    compact_json = re.sub(
-                        r'\[\s+([\d\.]+),\s+(true|false)\s+\]',
-                        r'[\1, \2]',
-                        raw_json
+                        compact_json
                     )
                     f.write(compact_json)
 
                 elif key == "bookmarks_single":
+                    # bookmarks_single mantiene path + metadatos derivados;
+                    # mtime_ns pertenece exclusivamente a image_cache.
                     # Formato compacto para 4 elementos: ["ruta", w, h, "orient"]
                     # Sherlock: Cazamos el trío V5 + el string de orientación
                     compact_json = re.sub(
@@ -571,13 +611,23 @@ class ConfigHandler:
                     f.write(compact_json)
 
                 else:
-                    # Settings, vault, geometry, etc. (Formato expandido estándar)
+                    # Index, vault, geometry, etc. (Formato expandido estándar)
                     f.write(raw_json)
 
         except Exception as e:
-            log_event(f"Error al guardar {key}: {e}", origin="CONFIG", level="ERROR", reason="SETTINGS")
+            log_event(f"Error al guardar {key}: {e}",
+                origin="CONFIG", level="ERROR", reason="SETTINGS")
 
         # --- PERSISTENCIA DE ESTADOS ---
+
+    def get_index_active(self, path, index=None, default=True):
+        """Retorna el estado lógico Active de una ruta de scan_index."""
+        if index is None:
+            index = self.load_json("index")
+
+        return index.get(path, default)
+        # scan_index ya está normalizado a path -> bool;
+        # la compatibilidad legacy queda confinada a ensure_structure().
 
     def update_source_recursive(self, path, state):
         """Actualiza el modo recursivo de una raíz en sources.json."""
@@ -589,13 +639,37 @@ class ConfigHandler:
                 return True
         return False
 
+    def discover_recursive_folders(self, root_path):
+        """Añade al scan_index las subcarpetas aún no conocidas, sin materializar imágenes."""
+        if not os.path.isdir(root_path):
+            return 0
+
+        index = self.load_json("index")
+        root = os.path.abspath(root_path)
+        added = 0
+
+        for folder, _, _ in os.walk(root):
+            folder = os.path.abspath(folder)
+            if folder == root or folder in index:
+                continue
+            index[folder] = True
+            # Descubrir estructura no materializa imágenes:
+            # la carpeta nace conocida y activa; Sync resolverá su cache.
+            added += 1
+        if added:
+            self.save_json("index", index)
+            log_event(f"Subcarpetas descubiertas: {root_path} ({added})",
+                origin="CONFIG", level="INFO", reason="LIBRARY")
+
+        return added
+
     def update_index_active_state(self, path, state):
-        """Cambia el estado de activación en el índice sin perder el mtime."""
+        """Cambia el estado de activación de una ruta conocida en scan_index."""
         index = self.load_json("index")
         if path in index:
-            entry = index[path]
-            mtime = entry[0] if isinstance(entry, list) else entry
-            index[path] = [mtime, state]
+            index[path] = state
+            # scan_index conserva sólo estado lógico;
+            # la frescura física pertenece exclusivamente a image_cache.
             self.save_json("index", index)
             return True
         return False
@@ -613,11 +687,12 @@ class ConfigHandler:
 
             # Verificamos si es un hijo (está dentro de la carpeta pero no es la carpeta misma)
             if current_path.startswith(root) and current_path != root:
-                if isinstance(index[path], list) and len(index[path]) > 1:
-                    # Solo marcamos como cambiado si el estado es realmente distinto
-                    if index[path][1] != new_state:
-                        index[path][1] = new_state
-                        changed = True
+                # Solo marcamos como cambiado si el estado es realmente distinto
+                if self.get_index_active(path, index) != new_state:
+                # El cambio masivo afecta sólo a Active/Inactive;
+                # no altera Recursive ni fuerza materialización inmediata.
+                    index[path] = new_state
+                    changed = True
 
         if changed:
             self.save_json("index", index)
@@ -626,6 +701,45 @@ class ConfigHandler:
 
         # Si llegamos aquí sin cambios, es que no había hijos o ya estaban en ese estado
         return False
+
+    def _refresh_bookmarks_single_metadata(self, cache):
+        """
+        Actualiza width, height y orientación de favoritos individuales
+        utilizando image_cache como autoridad de metadatos derivados.
+
+        Las rutas fuera de la biblioteca materializada se conservan intactas.
+        Retorna el número de favoritos actualizados.
+        """
+        current_list = self.load_json("bookmarks_single")
+        if not current_list:
+            return 0
+
+        lookup = {}
+        # La ruta sigue siendo la identidad del favorito.
+        # width / height / orientación son derivados del image_cache final.
+        for folder_data in cache.get("folders", {}).values():
+            for img in folder_data.get("h", []): lookup[img[0]] = [img[1], img[2], "h"]
+            for img in folder_data.get("v", []): lookup[img[0]] = [img[1], img[2], "v"]
+
+        updated = 0
+        for entry in current_list:
+            if not isinstance(entry, list) or len(entry) < 4:
+                continue
+
+            info = lookup.get(entry[0])
+            # Si la ruta no pertenece a la biblioteca materializada,
+            # no tenemos autoridad para modificar sus metadatos.
+            if info and entry[1:4] != info:
+                entry[1:4] = info
+                updated += 1
+
+        if updated:
+            self.save_json("bookmarks_single", current_list)
+            log_event(f"Metadatos de favoritos actualizados: {updated}",
+                origin="CONFIG", level="DEBUG", reason="BOOKMARK")
+
+        return updated
+
 
     def sync_bookmarks_flat_list(self):
         """
@@ -675,7 +789,9 @@ class ConfigHandler:
                 existing_paths.add(actual_path)
 
         self.save_json("bookmarks_single", current_list)
-        # Metadatos se actualizan en refresh_history_metadata, no aquí
+        # Este método sólo incorpora rutas nuevas.
+        # Los metadatos de favoritos existentes se refrescan desde image_cache
+        # mediante _refresh_bookmarks_single_metadata() durante Sync.
 
     def maintenance_flat_list(self):
         """
@@ -695,7 +811,8 @@ class ConfigHandler:
         if len(new_list) != len(flat_list):
             num_removed = len(flat_list) - len(new_list)
             self.save_json("bookmarks_single", new_list)
-            log_event(f"Limpieza: {num_removed} favoritos eliminados (no existen en disco)", origin="CONFIG", level="INFO", reason="BOOKMARK")
+            log_event(f"Limpieza: {num_removed} favoritos eliminados (no existen en disco)",
+                origin="CONFIG", level="INFO", reason="BOOKMARK")
         else:
             log_event("Lista de favoritos verificada: sin huérfanos", origin="CONFIG", level="INFO", reason="BOOKMARK")
 
@@ -725,7 +842,8 @@ class ConfigHandler:
             self.refresh_history_metadata()
             return True
         except Exception as e:
-            log_event(f"Error al guardar favorito '{bookmark_name}': {e}", origin="CONFIG", level="ERROR", reason="BOOKMARK")
+            log_event(f"Error al guardar favorito '{bookmark_name}': {e}",
+                origin="CONFIG", level="ERROR", reason="BOOKMARK")
             return False
 
     def get_next_bookmark_id(self):
@@ -777,7 +895,8 @@ class ConfigHandler:
             return True, "SUCCESS"
         except Exception as e:
             return False, f"ERROR: {str(e)}"
-            log_event(f"Error al guardar bookmark: {e}", origin="CONFIG", level="ERROR", reason="BOOKMARK")
+            log_event(f"Error al guardar bookmark: {e}",
+                origin="CONFIG", level="ERROR", reason="BOOKMARK")
 
     def _cleanup_preset_data(self, preset_data):
         """
@@ -878,39 +997,65 @@ class ConfigHandler:
                 return True
         return False
 
-    def _is_path_active(self, img_path):
+    def _is_covered_by_any_source(self, path, sources_data):
+        """Retorna True si path pertenece al ámbito actual de alguna fuente física."""
+        current = os.path.abspath(path)
+
+        for source in sources_data:
+            if source.get("type") != "physical":
+                continue
+            root = source.get("path", "")
+            if not root:
+                continue
+            root = os.path.abspath(root)
+            if current == root:
+                return True
+            if source.get("recursive", False) and current.startswith(root + os.sep):
+                return True
+
+        return False
+
+    def _is_path_active(self, img_path, sources_data=None, index=None):
         """
-        Retorna True si la imagen debe mostrarse en los thumbnails.
-        - Si la carpeta contenedora está en el índice, obedece su campo 'active'.
-        - Si no está en el índice, se muestra solo si está bajo una fuente recursiva activa.
+        Retorna True si la imagen pertenece al ámbito actual de una fuente
+        y su carpeta está activa.
+
+        sources_data e index pueden proporcionarse ya cargados para evitar
+        releer los JSON durante recorridos masivos.
         """
-        index = self.load_json("index")
+        if sources_data is None:
+            sources_data = self.load_json("sources").get("sources", [])
+        if index is None:
+            index = self.load_json("index")
         container = os.path.dirname(img_path)
+
+        if not self._is_covered_by_any_source(container, sources_data):
+            return False
         check_path = container
+
         while check_path:
             if check_path in index:
-                entry = index[check_path]
-                active = entry[1] if isinstance(entry, list) and len(entry) > 1 else True
-                return active
+                return self.get_index_active(check_path, index)
             parent = os.path.dirname(check_path)
             if parent == check_path:
                 break
             check_path = parent
-        # No está en el índice → verificar cobertura recursiva
-        sources_data = self.load_json("sources").get("sources", [])
-        return self._is_covered_by_any_recursive_source(container, sources_data)
 
-    def sync_library(self, on_progress=None, on_folder=None, on_complete=None):
+        return True
+
+    def sync_library(self, on_progress=None, on_folder=None, on_complete=None, on_error=None):
         """
         Sincroniza la biblioteca física basándose en sources.json.
         Implementa discriminación por carpeta y poda de árbol recursiva.
         """
         # --- 1. CARGA DE INFRAESTRUCTURA ---
         sources_data = self.load_json("sources").get("sources", [])
-        scan_index = self.load_json("index")  # Formato: {ruta: [mtime, active]}
+        scan_index = self.load_json("index")
         extensions = self.img_extensions
-        # Mapa de carpetas que el motor DEBE tener en cuenta
-        active_folders_mtime = {}
+
+        # Conjunto ordenado de carpetas físicamente activas.
+        # La frescura ya no se decide mediante mtime de directorio.
+        active_folders = {}
 
         # --- 2. MAPEO DE REALIDAD FÍSICA Y PODA LÓGICA ---
         for source in sources_data:
@@ -925,76 +1070,58 @@ class ConfigHandler:
 
             if is_recursive:
                 for root, dirs, _ in os.walk(root_path):
-                    # --- BISTURÍ: Inyección de novedad ---
-                    # Si es totalmente nueva, nace en el índice lista para procesar
+                    # Si es totalmente nueva, nace activa en el índice.
                     if root not in scan_index:
-                        scan_index[root] = [0, True]
+                        scan_index[root] = True
 
-                    # Normalización por si venimos de versiones antiguas (mtime float simple)
-                    idx_entry = scan_index[root]
-                    if not isinstance(idx_entry, list):
-                        idx_entry = [idx_entry, True]
-                        scan_index[root] = idx_entry
-
-                    folder_active = idx_entry[1]
+                    folder_active = self.get_index_active(root, scan_index)
 
                     if not folder_active:
-                        # Si alguna fuente recursiva activa cubre esta carpeta, no podar
+                        # Si ninguna fuente recursiva activa cubre esta carpeta,
+                        # podar también su descendencia.
                         if not self._is_covered_by_any_recursive_source(root, sources_data):
                             dirs[:] = []
                         continue
-                        # Si está cubierta, la consideramos activa
 
-                    active_folders_mtime[root] = os.path.getmtime(root)
+                    active_folders[root] = True
             else:
                 # Fuente no recursiva: solo la raíz
-                active_folders_mtime[root_path] = os.path.getmtime(root_path)
+                active_folders[root_path] = True
 
-        # --- 3. DETECCIÓN DIFERENCIAL ---
-        def needs_rescan(f, current_m):
-            entry = scan_index.get(f, [0, True])
-            if not isinstance(entry, list):
-                return True
-            old_mtime, old_active = entry[0], entry[1] if len(entry) > 1 else True
-            # Si la carpeta está marcada como inactiva, NUNCA se reescanea (aunque el mtime cambie)
-            if not old_active:
-                return False
-            # Si está activa y el mtime cambió, reescaneamos
-            return old_mtime != current_m
-
-        folders_to_rescan = [f for f, m in active_folders_mtime.items() if needs_rescan(f, m)]
-        # Añadir carpetas activas que aún no tienen entrada en la caché (recién activadas)
+        # --- 3. PREPARACIÓN DE RECONCILIACIÓN FÍSICA ---
         full_cache = self.load_json("cache")
         if "folders" not in full_cache:
             full_cache["folders"] = {}
-        cached_folders = set(full_cache["folders"].keys())
-        for f in active_folders_mtime:
-            if f not in cached_folders and f not in folders_to_rescan:
-                folders_to_rescan.append(f)
+
+        # Toda carpeta activa se inspecciona.
+        # _reconcile_folder_cache() determina qué imágenes están
+        # intactas, nuevas, modificadas, eliminadas o son legacy.
+        folders_to_reconcile = list(active_folders)
+        # No existe ya un gate de frescura por directorio:
+        # todas las activas se inspeccionan y mtime_ns decide por imagen.
 
         # --- Carpetas a eliminar de la caché ---
         # Separamos las que han sido eliminadas (fuente ya no existe) de las
         # que simplemente están desactivadas (hijos inactivos).
         deleted_folders = []
         inactive_folders = []
+        # Inactive conserva identidad en scan_index y sólo pierde materialización.
+        # Deleted pierde además su entrada lógica porque ya no pertenece al ámbito.
         for f in scan_index:
-            if f not in active_folders_mtime:
-                entry = scan_index.get(f)
-                is_inactive = isinstance(entry, list) and len(entry) > 1 and entry[1] is False
+        # Una carpeta fuera del conjunto activo no significa necesariamente Deleted:
+        # si sigue cubierta y está Inactive, conserva su identidad lógica.
+            if f not in active_folders:
+                is_inactive = not self.get_index_active(f, scan_index)
                 if is_inactive:
-                    # Si la carpeta inactiva ya no está cubierta por ninguna fuente,
-                    # tratarla como eliminada para limpiar su caché y thumbnails
+                    # Si la carpeta inactiva ya no está cubierta por ninguna
+                    # fuente recursiva, pasa a considerarse eliminada.
                     if not self._is_covered_by_any_recursive_source(f, sources_data):
                         deleted_folders.append(f)
                     else:
                         inactive_folders.append(f)
                 else:
                     deleted_folders.append(f)
-            elif (
-                isinstance(scan_index.get(f), list)
-                and len(scan_index[f]) > 1
-                and scan_index[f][1] is False
-            ):
+            elif not self.get_index_active(f, scan_index):
                 inactive_folders.append(f)
 
         # Mantenimiento de Favoritos y Metadatos
@@ -1002,20 +1129,20 @@ class ConfigHandler:
         self.refresh_history_metadata()
 
         # Resumen de carpetas activas, desactivadas y eliminadas
-        active_count = len(active_folders_mtime)
+        active_count = len(active_folders)
         inactive_count = len(inactive_folders)
         deleted_count = len(deleted_folders)
         if active_count > 0 or inactive_count > 0 or deleted_count > 0:
             log_event(f"Carpetas: {active_count} activas, {inactive_count} desactivadas, {deleted_count} eliminadas",
                       origin="CONFIG", level="DEBUG", reason="LIBRARY")
 
-        # SALIDA RÁPIDA: Si nada ha cambiado
-        if not folders_to_rescan and not deleted_folders:
+        # SALIDA RÁPIDA: Si no hay ninguna carpeta que reconciliar ni limpiar.
+        # El modo UI conserva el lifecycle completo: Sync termina y entrega
+        # el control a Thumbnails; progress ya no gobierna la operación.
+        if not folders_to_reconcile and not deleted_folders and not inactive_folders:
             log_event("Biblioteca sincronizada. Sin cambios", origin="CONFIG", level="INFO", reason="LIBRARY")
-            # Si estábamos en modo asíncrono, avisar al panel para que decremente el semáforo
-            if on_progress:
-                on_progress(0, 0)
-            full_cache = self.load_json("cache")
+            if on_complete:
+                on_complete()
             h, v = self._get_cache_totals(full_cache)
             return h, v, False, None
 
@@ -1023,80 +1150,90 @@ class ConfigHandler:
         if on_progress and on_folder:
             self._async_state = {
                 'on_complete': on_complete,
-                'folders_to_rescan': folders_to_rescan,
+                'on_error': on_error,
+                'folders_to_reconcile': folders_to_reconcile,
                 'deleted_folders': deleted_folders,
+                'inactive_folders': inactive_folders,
                 'full_cache': full_cache,
                 'extensions': extensions,
                 'scan_index': scan_index,
-                'active_folders_mtime': active_folders_mtime,
-                'stats': {"added_h": 0, "added_v": 0, "removed_h": 0, "removed_v": 0},
-                'index': 0,
+                'stats': {"added_h": 0, "added_v": 0, "removed_h": 0, "removed_v": 0, "modified": 0},
                 'on_progress': on_progress,
                 'on_folder': on_folder
             }
-            GLib.idle_add(self._process_next_folder_async)
+            # RUNTIME-04: la reconciliación pesada abandona el main thread.
+            # Un único worker secuencial conserva el orden sin paralelizar carpetas.
+            threading.Thread(
+                target=self._process_sync_worker,
+                name="WMM-SyncLibrary",
+                daemon=True
+            ).start()
             return None  # Salida temporal, el resultado se comunicará por callback
         # --- FIN MODO ASÍNCRONO ---
 
         # --- 4. PROCESAMIENTO QUIRÚRGICO DE CAMBIOS ---
         full_cache = self.load_json("cache")
         if "folders" not in full_cache: full_cache = {"folders": {}}
-        stats = {"added_h": 0, "added_v": 0, "removed_h": 0, "removed_v": 0}
+        stats = {"added_h": 0, "added_v": 0, "removed_h": 0, "removed_v": 0, "modified": 0}
 
         # A. Limpieza de carpetas eliminadas o desactivadas
         for f in deleted_folders:
+        # Deleted elimina materialización y estado lógico:
+        # la carpeta ya no pertenece al ámbito actual de Sources.
             # 1. Poda del Caché: Se elimina siempre para no mostrar fotos "apagadas"
             if f in full_cache["folders"]:
                 stats["removed_h"] += len(full_cache["folders"][f]['h'])
                 stats["removed_v"] += len(full_cache["folders"][f]['v'])
                 # Limpiar miniaturas asociadas antes de eliminar la carpeta de la caché
-                log_event(f"Eliminando caché de carpeta inactiva: {f}", origin="CONFIG", level="DEBUG", reason="LIBRARY")
+                log_event(f"Eliminando caché de carpeta inactiva: {f}",
+                    origin="CONFIG", level="DEBUG", reason="LIBRARY")
                 self._delete_thumbnails_for_folder(full_cache["folders"][f])
                 del full_cache["folders"][f]
 
             # 2. BISTURÍ EN EL ÍNDICE: Eliminar la entrada siempre que la carpeta
             #    no esté activa, independientemente de si existe en disco.
             del scan_index[f]
-            log_event(f"Entrada de índice eliminada: {f}", origin="CONFIG", level="DEBUG", reason="LIBRARY")
+            log_event(f"Entrada de índice eliminada: {f}",
+                origin="CONFIG", level="DEBUG", reason="LIBRARY")
 
-        # B. Escaneo de carpetas modificadas
-        if folders_to_rescan:
-            log_event(f"Sincronizando {len(folders_to_rescan)} directorios", origin="CONFIG", level="INFO", reason="LIBRARY")
+        # A.2 Limpieza diferida de carpetas hijas desactivadas.
+        # Se eliminan su caché de imágenes y sus thumbnails, pero se conserva
+        # scan_index con active=False para mantener la carpeta visible y permitir
+        # que una futura reactivación fuerce su reconstrucción.
+        for f in inactive_folders:
+        # Inactive elimina sólo cache y thumbnails:
+        # scan_index conserva la ruta y su estado False para una futura reactivación.
+            if f in full_cache["folders"]:
+                stats["removed_h"] += len(full_cache["folders"][f]['h'])
+                stats["removed_v"] += len(full_cache["folders"][f]['v'])
+                log_event(f"Eliminando caché de carpeta desactivada: {f}",
+                          origin="CONFIG", level="DEBUG", reason="LIBRARY")
+                self._delete_thumbnails_for_folder(full_cache["folders"][f])
+                del full_cache["folders"][f]
 
-        for folder in folders_to_rescan:
-            # Limpiar caché previo de la carpeta para actualizar estadísticas
-            if folder in full_cache["folders"]:
-                stats["removed_h"] += len(full_cache["folders"][folder]['h'])
-                stats["removed_v"] += len(full_cache["folders"][folder]['v'])
+        # B. Reconciliación de carpetas activas
+        if folders_to_reconcile:
+            log_event(f"Sincronizando {len(folders_to_reconcile)} directorios",
+                origin="CONFIG", level="INFO", reason="LIBRARY")
 
-            new_h, new_v = [], []
-            try:
-                for filename in os.listdir(folder):
-                    if filename.lower().endswith(extensions):
-                        f_path = os.path.join(folder, filename)
-                        if os.path.isfile(f_path):
-                            orient, w, h = self._process_image(f_path)
-                            if orient == "h": new_h.append([f_path, w, h])
-                            elif orient == "v": new_v.append([f_path, w, h])
-                # Limpiar miniaturas antiguas antes de actualizar (por si se eliminaron imágenes externamente)
-                if folder in full_cache["folders"]:
-                    log_event(f"Limpiando miniaturas antes de reescaneo: {folder}", origin="CONFIG", level="DEBUG", reason="LIBRARY")
-                    self._delete_thumbnails_for_folder(full_cache["folders"][folder])
-                # Actualizar caché
-                full_cache["folders"][folder] = {"h": new_h, "v": new_v}
-                stats["added_h"] += len(new_h)
-                stats["added_v"] += len(new_v)
-                # Actualizar índice respetando su estado 'active'
-                current_active = scan_index.get(folder, [0, True])[1] if isinstance(scan_index.get(folder), list) else True
-                scan_index[folder] = [active_folders_mtime[folder], current_active]
-
-            except (PermissionError, FileNotFoundError):
-                continue
+        for folder in folders_to_reconcile:
+            old_folder_data = full_cache["folders"].get(folder, {"h": [], "v": []})
+            new_folder_data, delta = self._reconcile_folder_cache(
+                folder, old_folder_data, extensions)
+            full_cache["folders"][folder] = new_folder_data
+            for key in stats:
+                stats[key] += delta[key]
 
         # --- 5. PERSISTENCIA Y REPORTE ---
+        # Persistir primero el estado materializado final; scan_index sólo conserva
+        # después la estructura lógica Active/Inactive.
         self.save_json("cache", full_cache)
         self.save_json("index", scan_index)
-        log_event(f"Índice guardado: {len(scan_index)} entradas", origin="CONFIG", level="DEBUG", reason="LIBRARY")
+        log_event(f"Índice guardado: {len(scan_index)} entradas",
+            origin="CONFIG", level="DEBUG", reason="LIBRARY")
+
+        if stats["modified"] > 0:
+            self._refresh_bookmarks_single_metadata(full_cache)
 
         detail_msg = self._notify_detailed_changes(stats, full_cache)  # Ahora devuelve el detalle o None
         h, v = self._get_cache_totals(full_cache)
@@ -1104,104 +1241,143 @@ class ConfigHandler:
             stats["added_h"] > 0,
             stats["added_v"] > 0,
             stats["removed_h"] > 0,
-            stats["removed_v"] > 0
+            stats["removed_v"] > 0,
+            stats["modified"] > 0
         ))
         return h, v, has_changes, detail_msg
 
-        log_event(f"cache folders keys = {list(full_cache.get('folders', {}).keys())}", origin="CONFIG", level="DEBUG", reason="LIBRARY")
-
-        return self._get_cache_totals(full_cache)
-
-    def _process_next_folder_async(self):
+    def _process_sync_worker(self):
         """
-        Procesa una carpeta de la lista de reescaneo.
-        Al terminar, programa la siguiente o finaliza el proceso.
+        Reconcilia secuencialmente las carpetas fuera del main thread.
+
+        El worker sólo realiza trabajo de filesystem/imágenes y actualiza
+        el estado privado del Sync. GTK, progreso y commit permanecen
+        delegados al main thread mediante GLib.idle_add().
         """
         try:
             state = self._async_state
-            i = state['index']
-            folders = state['folders_to_rescan']
+            folders = state['folders_to_reconcile']
+            full_cache = state['full_cache']
+            stats = state['stats']
+            total = len(folders)
+
+            for i, folder in enumerate(folders):
+                # La UI sigue perteneciendo al main thread.
+                GLib.idle_add(state['on_folder'], folder)
+
+                old_folder_data = full_cache["folders"].get(
+                    folder, {"h": [], "v": []})
+                new_folder_data, delta = self._reconcile_folder_cache(
+                    folder, old_folder_data, state["extensions"])
+
+                full_cache["folders"][folder] = new_folder_data
+                for key in stats:
+                    stats[key] += delta[key]
+
+                # El progreso conserva su granularidad histórica: una carpeta.
+                GLib.idle_add(
+                    self._report_sync_worker_progress,
+                    i + 1,
+                    total
+                )
+
+            # Sin carpetas que reconciliar sólo puede quedar cleanup pendiente.
+            if not folders:
+                GLib.idle_add(self._commit_sync_async)
+
+        except Exception as e:
+            GLib.idle_add(self._report_sync_worker_error, str(e))
+
+    def _commit_sync_async(self):
+        """
+        Finaliza en el main thread el Sync realizado por _process_sync_worker().
+
+        Mantiene deliberadamente el orden histórico de cleanup, persistencia,
+        progress y on_complete; RUNTIME-10 audita ese lifecycle por separado.
+        """
+        try:
+            state = self._async_state
+            folders = state['folders_to_reconcile']
             full_cache = state['full_cache']
             stats = state['stats']
             scan_index = state['scan_index']
 
-            # Si quedan carpetas, procesamos la siguiente
-            if i < len(folders):
-                folder = folders[i]
-                # Notificar a la UI qué carpeta se está procesando
-                state['on_folder'](folder)
+            # El worker sólo reconcilia carpetas activas. La autoridad para
+            # eliminar estado persistente permanece en el COMMIT del main thread.
+            for f in state['deleted_folders']:
+                if f in full_cache["folders"]:
+                    stats["removed_h"] += len(full_cache["folders"][f]['h'])
+                    stats["removed_v"] += len(full_cache["folders"][f]['v'])
+                    self._delete_thumbnails_for_folder(full_cache["folders"][f])
+                    del full_cache["folders"][f]
+                if f in scan_index:
+                    del scan_index[f]
 
-                # Limpiar caché previo de la carpeta
-                if folder in full_cache["folders"]:
-                    stats["removed_h"] += len(full_cache["folders"][folder]['h'])
-                    stats["removed_v"] += len(full_cache["folders"][folder]['v'])
-                    self._delete_thumbnails_for_folder(full_cache["folders"][folder])
+            # Una hija Inactive pierde materialización, pero conserva su identidad
+            # lógica en scan_index para permitir una futura reactivación.
+            for f in state['inactive_folders']:
+                if f in full_cache["folders"]:
+                    stats["removed_h"] += len(full_cache["folders"][f]['h'])
+                    stats["removed_v"] += len(full_cache["folders"][f]['v'])
+                    self._delete_thumbnails_for_folder(full_cache["folders"][f])
+                    del full_cache["folders"][f]
 
-                new_h, new_v = [], []
-                try:
-                    for filename in os.listdir(folder):
-                        if filename.lower().endswith(state['extensions']):
-                            f_path = os.path.join(folder, filename)
-                            if os.path.isfile(f_path):
-                                orient, w, h = self._process_image(f_path)
-                                if orient == "h":
-                                    new_h.append([f_path, w, h])
-                                elif orient == "v":
-                                    new_v.append([f_path, w, h])
+            # El cierre async conserva el contrato autoritativo:
+            # cache físico primero, índice lógico después.
+            self.save_json("cache", full_cache)
+            self.save_json("index", scan_index)
 
-                    full_cache["folders"][folder] = {"h": new_h, "v": new_v}
-                    stats["added_h"] += len(new_h)
-                    stats["added_v"] += len(new_v)
+            if stats["modified"] > 0:
+                self._refresh_bookmarks_single_metadata(full_cache)
 
-                    # Actualizar índice respetando su estado 'active'
-                    current_active = scan_index.get(folder, [0, True])[1] if isinstance(scan_index.get(folder), list) else True
-                    scan_index[folder] = [state['active_folders_mtime'][folder], current_active]
+            self._notify_detailed_changes(stats, full_cache)
 
-                except (PermissionError, FileNotFoundError):
-                    pass
+            del self._async_state
 
-                # Actualizar progreso
-                state['on_progress'](i + 1, len(folders))
+            if state.get('on_complete'):
+                state['on_complete']()
 
-                # Preparar siguiente carpeta
-                state['index'] = i + 1
-                GLib.idle_add(self._process_next_folder_async)
-
-            else:
-                # --- TODAS LAS CARPETAS PROCESADAS ---
-                # Fase de limpieza de carpetas eliminadas/desactivadas
-                for f in state['deleted_folders']:
-                    if f in full_cache["folders"]:
-                        stats["removed_h"] += len(full_cache["folders"][f]['h'])
-                        stats["removed_v"] += len(full_cache["folders"][f]['v'])
-                        self._delete_thumbnails_for_folder(full_cache["folders"][f])
-                        del full_cache["folders"][f]
-                    if not os.path.exists(f):
-                        del scan_index[f]
-
-                # Persistencia final
-                self.save_json("cache", full_cache)
-                self.save_json("index", scan_index)
-                self._notify_detailed_changes(stats, full_cache)
-
-                # Notificar fin a la UI (current == total)
-                state['on_progress'](len(folders), len(folders))
-
-                # Limpiar estado temporal
-                del self._async_state
-                if state.get('on_complete'):
-                    state['on_complete']()
-                log_event(f"Escaneo asíncrono completado: {len(folders)} carpetas procesadas", origin="CONFIG", level="INFO", reason="LIBRARY")
+            log_event(f"Escaneo asíncrono completado: {len(folders)} carpetas procesadas",
+                origin="CONFIG", level="INFO", reason="LIBRARY")
 
         except Exception as e:
-            log_event(f"Fallo en escaneo asíncrono: {e}", origin="CONFIG", level="ERROR", reason="LIBRARY")
-            # Forzar el callback final para que el semáforo se destrabe
-            if hasattr(self, '_async_state'):
-                total = len(self._async_state.get('folders_to_rescan', []))
-                if self._async_state.get('on_progress'):
-                    self._async_state['on_progress'](total, total)
+            log_event(f"Fallo en escaneo asíncrono: {e}",
+                origin="CONFIG", level="ERROR", reason="LIBRARY")
 
-        return False  # Para que GLib.idle_add no repita
+            if hasattr(self, '_async_state'):
+                state = self._async_state
+                del self._async_state
+
+                if state.get('on_error'):
+                    state['on_error'](str(e))
+
+        return False  # GLib.idle_add debe ejecutar el COMMIT una sola vez
+
+    def _report_sync_worker_progress(self, current, total):
+        """Entrega el progreso del worker y encadena el commit desde el main thread."""
+        state = self._async_state
+        state['on_progress'](current, total)
+
+        # La última actualización reproduce la frontera actual de RUNTIME-10:
+        # primero N/N y después se encola el commit, sin mover su lógica.
+        if current >= total:
+            GLib.idle_add(self._commit_sync_async)
+
+        return False
+
+    def _report_sync_worker_error(self, message):
+        """Cierra en main thread un Sync cuyo WORK ha fallado."""
+        log_event(f"Fallo en escaneo asíncrono: {message}",
+            origin="CONFIG", level="ERROR", reason="LIBRARY")
+
+        if hasattr(self, '_async_state'):
+            state = self._async_state
+            del self._async_state
+
+            if state.get('on_error'):
+                state['on_error'](message)
+
+        return False
 
     # --- [SECCIÓN: GESTIÓN DE FUENTES] ---
 
@@ -1241,10 +1417,8 @@ class ConfigHandler:
         sources_list = data.get("sources", [])
 
         original_count = len(sources_list)
-        sources_list = [
-            s for s in sources_list
-            if not (s.get('path') == path and not s.get('locked', False))
-        ]
+        sources_list = [s for s in sources_list
+            if not (s.get('path') == path and not s.get('locked', False))]
 
         if len(sources_list) < original_count:
             data["sources"] = sources_list
@@ -1253,7 +1427,8 @@ class ConfigHandler:
             self.sync_library()
             return True
 
-        log_event(f"No se pudo eliminar la fuente: {path}", origin="CONFIG", level="WARN", reason="LIBRARY")
+        log_event(f"No se pudo eliminar la fuente: {path}",
+            origin="CONFIG", level="WARN", reason="LIBRARY")
         return False
 
     def purge_folder_cache(self, folder_path):
@@ -1273,6 +1448,92 @@ class ConfigHandler:
             return deleted
         return 0
 
+    def has_folder_cache(self, folder_path):
+        """Retorna True si la carpeta sigue presente en image_cache."""
+        cache = self.load_json("cache")
+        return folder_path in cache.get("folders", {})
+
+    def has_child_cache(self, parent_path):
+        """Retorna True si alguna carpeta hija conserva entrada en image_cache."""
+        cache = self.load_json("cache")
+        root = os.path.abspath(parent_path)
+
+        return any(
+            os.path.abspath(path).startswith(root) and os.path.abspath(path) != root
+            for path in cache.get("folders", {})
+        )
+
+    def needs_sources_resync(self):
+        """Retorna True si el estado materializado no coincide con el ámbito actual de Sources."""
+        index = self.load_json("index")
+        cache = self.load_json("cache")
+        sources = self.load_json("sources").get("sources", [])
+
+        # Compara el ámbito lógico que debería estar materializado
+        # con las carpetas que existen realmente en image_cache.
+        expected_paths = {path for path in index
+            if self._is_covered_by_any_source(path, sources)
+            and self.get_index_active(path, index)}
+
+        cached_paths = set(cache.get("folders", {}))
+        return expected_paths != cached_paths
+
+    def materialize_folder_cache(self, folder_path):
+        """Reconstruye image_cache para una única carpeta activa."""
+        index = self.load_json("index")
+        if not self.get_index_active(folder_path, index, default=False):
+            return False, 0
+
+        if not os.path.isdir(folder_path):
+            log_event(f"No se puede materializar la carpeta: {folder_path}",
+                origin="CONFIG", level="WARN", reason="LIBRARY")
+            return False, 0
+
+        cache = self.load_json("cache")
+        # Operación local y explícita: reconstruye sólo esta carpeta.
+        # No sustituye a Sync ni resuelve otras Sources pendientes.
+        if "folders" not in cache:
+            cache = {"folders": {}}
+
+        new_h = []
+        new_v = []
+
+        try:
+            for filename in os.listdir(folder_path):
+                if not filename.lower().endswith(self.img_extensions):
+                    continue
+
+                image_path = os.path.join(folder_path, filename)
+                if not os.path.isfile(image_path):
+                    continue
+
+                try:
+                    mtime_ns = os.stat(image_path).st_mtime_ns
+                except OSError:
+                    continue
+
+                orient, width, height = self._process_image(image_path)
+                if orient == "h":
+                    new_h.append([image_path, width, height, mtime_ns])
+                elif orient == "v":
+                    new_v.append([image_path, width, height, mtime_ns])
+
+            cache["folders"][folder_path] = {"h": new_h, "v": new_v}
+            index[folder_path] = True
+
+            self.save_json("cache", cache)
+            self.save_json("index", index)
+
+            total = len(new_h) + len(new_v)
+            log_event(f"Carpeta materializada: {folder_path} ({total} imágenes)",
+                origin="CONFIG", level="INFO", reason="LIBRARY")
+            return True, total
+
+        except (PermissionError, FileNotFoundError, OSError) as e:
+            log_event(f"Error materializando carpeta {folder_path}: {e}",
+                origin="CONFIG", level="ERROR", reason="LIBRARY")
+            return False, 0
+
     def get_children_state(self, parent_path):
         """
         Retorna el estado global de los hijos de parent_path:
@@ -1284,11 +1545,7 @@ class ConfigHandler:
         has_inactive = False
         for path, entry in index.items():
             if path.startswith(prefix) and path != parent_path:
-                # entry puede ser lista [mtime, active] o solo mtime (float)
-                if isinstance(entry, list) and len(entry) > 1:
-                    active = entry[1]
-                else:
-                    active = True  # por defecto activo si no se especifica
+                active = self.get_index_active(path, index)
                 if active:
                     has_active = True
                 else:
@@ -1303,11 +1560,215 @@ class ConfigHandler:
             # Sin hijos, consideramos all_active para que "Desactivar" esté habilitada
             return "all_active"
 
+    def _delete_thumbnail_for_image(self, img_path):
+        """Elimina únicamente la miniatura derivada de una imagen."""
+        m = hashlib.md5(img_path.encode()).hexdigest()
+        # El nombre del thumbnail depende únicamente de la ruta origen:
+        # invalidar una imagen no requiere recorrer ni reconstruir la carpeta.
+        thumb_path = os.path.join(self.thumbnails_dir, f"{m}.jpg")
+
+        if not os.path.exists(thumb_path):
+            return False
+
+        try:
+            os.remove(thumb_path)
+            return True
+
+        except OSError as e:
+            log_event(f"No se pudo eliminar miniatura {thumb_path}: {e}",
+                origin="CONFIG", level="WARN", reason="LIBRARY")
+            return False
+
+    def _reconcile_folder_cache(self, folder, folder_data, extensions):
+        """
+        Reconcilia una carpeta física contra su image_cache.
+
+        Reutiliza las imágenes cuya ruta y mtime_ns no han cambiado.
+        Reprocesa únicamente imágenes nuevas o modificadas.
+        Elimina del cache las que ya no existen.
+
+        Si detecta cache legacy sin mtime_ns, mantiene la migración
+        acordada: reconstrucción completa de la carpeta una sola vez.
+
+        Retorna:
+            (nuevo_folder_data, stats_delta)
+        """
+        delta = {
+            "added_h": 0,
+            "added_v": 0,
+            "removed_h": 0,
+            "removed_v": 0,
+            "unchanged": 0,
+            "new": 0,
+            "modified": 0,
+            "deleted": 0,
+        }
+
+        folder_data = folder_data or {"h": [], "v": []}
+
+        old_by_path = {}
+        legacy = False
+
+        for orientation in ("h", "v"):
+            for entry in folder_data.get(orientation, []):
+                if not isinstance(entry, list) or len(entry) < 4:
+                    legacy = True
+
+                if isinstance(entry, list) and entry:
+                    old_by_path[entry[0]] = (entry, orientation)
+
+        try:
+            filenames = os.listdir(folder)
+        except (PermissionError, FileNotFoundError, OSError) as e:
+            log_event(f"No se pudo inspeccionar carpeta {folder}: {e}",
+                origin="CONFIG", level="WARN", reason="LIBRARY")
+            return folder_data, delta
+
+        # ------------------------------------------------------
+        # MIGRACIÓN LEGACY: reconstrucción completa de carpeta
+        # ------------------------------------------------------
+        # Una sola entrada sin mtime_ns convierte la carpeta en legacy:
+        # se migra completa para no dejar un cache parcialmente actualizado.
+        if legacy:
+            new_h = []
+            new_v = []
+
+            for filename in filenames:
+                if not filename.lower().endswith(extensions):
+                    continue
+
+                image_path = os.path.join(folder, filename)
+
+                try:
+                    file_stat = os.stat(image_path)
+                except OSError:
+                    # No convertir un fallo temporal de stat en una
+                    # migración parcial de la carpeta legacy.
+                    return folder_data, delta
+
+                if not stat.S_ISREG(file_stat.st_mode):
+                    continue
+
+                orient, width, height = self._process_image(image_path)
+                # El thumbnail es derivado de esa versión física:
+                # invalidar únicamente el de esta imagen.
+                if orient == "h":
+                    new_h.append([image_path, width, height, file_stat.st_mtime_ns])
+                elif orient == "v":
+                    new_v.append([image_path, width, height, file_stat.st_mtime_ns])
+
+            self._delete_thumbnails_for_folder(folder_data)
+
+            # La migración legacy es la única excepción al borrado selectivo:
+            # toda la carpeta cambia de contrato y sus derivados se regeneran.
+            delta["removed_h"] = len(folder_data.get("h", []))
+            delta["removed_v"] = len(folder_data.get("v", []))
+            delta["added_h"] = len(new_h)
+            delta["added_v"] = len(new_v)
+
+            return {"h": new_h, "v": new_v}, delta
+
+        # ------------------------------------------------------
+        # RECONCILIACIÓN DIFERENCIAL
+        # ------------------------------------------------------
+        new_h = []
+        new_v = []
+        seen_paths = set()
+
+        for filename in filenames:
+            if not filename.lower().endswith(extensions):
+                continue
+
+            image_path = os.path.join(folder, filename)
+
+            try:
+                file_stat = os.stat(image_path)
+            except OSError:
+                # Un fallo temporal de stat no demuestra que una imagen conocida
+                # haya desaparecido: conservar su entrada evita un borrado falso.
+                # Si ya conocíamos la imagen, conservar su cache.
+                old_info = old_by_path.get(image_path)
+
+                if old_info:
+                    old_entry, old_orientation = old_info
+                    seen_paths.add(image_path)
+
+                    if old_orientation == "h":
+                        new_h.append(old_entry)
+                    else:
+                        new_v.append(old_entry)
+
+                continue
+
+            if not stat.S_ISREG(file_stat.st_mode):
+                continue
+
+            seen_paths.add(image_path)
+            current_mtime_ns = file_stat.st_mtime_ns
+            old_info = old_by_path.get(image_path)
+
+            # Misma ruta + mismo mtime_ns: reutilizar cache sin abrir la imagen.
+            if old_info:
+                old_entry, old_orientation = old_info
+                if old_entry[3] == current_mtime_ns:
+                    delta["unchanged"] += 1
+                    if old_orientation == "h":
+                        new_h.append(old_entry)
+                    else:
+                        new_v.append(old_entry)
+                    continue
+
+                # Misma ruta + distinto mtime_ns: misma identidad, nueva versión física.
+                delta["modified"] += 1
+                orient, width, height = self._process_image(image_path)
+                self._delete_thumbnail_for_image(image_path)
+                if orient == "h":
+                    new_h.append([image_path, width, height, current_mtime_ns])
+                elif orient == "v":
+                    new_v.append([image_path, width, height, current_mtime_ns])
+
+                continue
+
+            # Imagen nueva.
+            delta["new"] += 1
+            orient, width, height = self._process_image(image_path)
+            if orient == "h":
+                new_h.append([image_path, width, height, current_mtime_ns])
+                delta["added_h"] += 1
+            elif orient == "v":
+                new_v.append([image_path, width, height, current_mtime_ns])
+                delta["added_v"] += 1
+
+        # Imágenes que estaban cacheadas y ya no existen.
+        for old_path, (_, old_orientation) in old_by_path.items():
+            if old_path in seen_paths:
+                continue
+
+            delta["deleted"] += 1
+            delta[f"removed_{old_orientation}"] += 1
+            self._delete_thumbnail_for_image(old_path)
+
+        parts = []
+
+        if delta["unchanged"]:
+            parts.append(f"{delta['unchanged']} reutilizadas")
+        if delta["new"]:
+            parts.append(f"{delta['new']} nuevas")
+        if delta["modified"]:
+            parts.append(f"{delta['modified']} modificadas")
+        if delta["deleted"]:
+            parts.append(f"{delta['deleted']} eliminadas")
+        if delta["new"] or delta["modified"] or delta["deleted"]:
+            log_event(f"Reconciliación de carpeta: {folder} — " + ", ".join(parts),
+                origin="CONFIG", level="DEBUG", reason="LIBRARY")
+
+        return {"h": new_h, "v": new_v}, delta
+
     def _delete_thumbnails_for_folder(self, folder_data):
         """
         Elimina los archivos de miniatura de todas las imágenes de una carpeta.
-        folder_data es el valor asociado a una clave en cache['folders'],
-        por ejemplo: {'h': [['/ruta/img.jpg', 1920, 1080], ...], 'v': [...]}
+        folder_data es el valor asociado a una clave en cache['folders'].
+        Cada imagen usa [path, width, height, mtime_ns].
         """
         thumb_dir = self.thumbnails_dir
         deleted_count = 0
@@ -1321,8 +1782,12 @@ class ConfigHandler:
                         os.remove(thumb_path)
                         deleted_count += 1
                     except OSError as e:
-                        log_event(f"No se pudo eliminar miniatura {thumb_path}: {e}", origin="CONFIG", level="WARN", reason="LIBRARY")
-        log_event(f"{deleted_count} miniaturas eliminadas", origin="CONFIG", level="INFO", reason="LIBRARY")
+                        log_event(f"No se pudo eliminar miniatura {thumb_path}: {e}",
+                            origin="CONFIG", level="WARN", reason="LIBRARY")
+
+        log_event(f"{deleted_count} miniaturas eliminadas",
+            origin="CONFIG", level="INFO", reason="LIBRARY")
+
         return deleted_count
 
     def _cleanup_blur_thumbnails(self):
@@ -1341,9 +1806,11 @@ class ConfigHandler:
                     os.remove(fpath)
                     deleted += 1
                 except OSError as e:
-                    log_event(f"No se pudo eliminar miniatura blur {fpath}: {e}", origin="CONFIG", level="WARN", reason="LIBRARY")
+                    log_event(f"No se pudo eliminar miniatura blur {fpath}: {e}",
+                        origin="CONFIG", level="WARN", reason="LIBRARY")
         if deleted > 0:
-            log_event(f"{deleted} miniaturas blur eliminadas al inicio", origin="CONFIG", level="INFO", reason="LIBRARY")
+            log_event(f"{deleted} miniaturas blur eliminadas al inicio",
+                origin="CONFIG", level="INFO", reason="LIBRARY")
 
     # --- [SIGUIENTE SECCIÓN: HISTORIAL Y LOGS] ---
 
@@ -1364,13 +1831,10 @@ class ConfigHandler:
         if os.path.exists(log_path):
             with open(log_path, "r", encoding="utf-8") as f:
                 lines = f.readlines()
-
         # Añadir nueva entrada al principio
         lines.insert(0, entry)
-
         # Mantener solo las últimas 10
         lines = lines[:10]
-
         # Guardar
         with open(log_path, "w", encoding="utf-8") as f:
             f.writelines(lines)
@@ -1475,14 +1939,11 @@ class ConfigHandler:
 
         # 1. Filtro: Misma orientación Y que no esté ya en pantalla
         pool = [img for img in vault_data if len(img) >= 4 and img[3] == orientation and img[0] not in exclude]
-
         # Si no hay de esa orientación (libres), buscamos cualquiera que no esté en pantalla
         if not pool:
             pool = [img for img in vault_data if img[0] not in exclude]
-
         # Si todo falla (caso extremo), usamos todo el vault
         if not pool: pool = vault_data
-
         # 2. Filtro Anti-Repetición (Historial Global)
         history = self.load_json("history_vault").get("log", [])
         log_event(f"history_len={len(history)}, vault_total={len(vault_data)}", origin="CONFIG", level="DEBUG")
@@ -1500,7 +1961,8 @@ class ConfigHandler:
         # 1. Obtener datos base
         h_list, v_list = self.get_flat_lists()
         history = self.load_json("history").get("history_log", [])
-        log_event(f"history_len={len(history)}, total_h={len(h_list)}, total_v={len(v_list)}", origin="CONFIG", level="DEBUG", reason="LIBRARY")
+        log_event(f"history_len={len(history)}, total_h={len(h_list)}, total_v={len(v_list)}",
+            origin="CONFIG", level="DEBUG", reason="LIBRARY")
         # 2. Intentar selección ideal (Misma orientación - Historial)
         candidates = v_list if orientation == "v" else h_list
         # En modo spanned (lienzo panorámico), usar todas las horizontales
@@ -1508,7 +1970,8 @@ class ConfigHandler:
             pool = [item[0] for item in candidates]  # todas las horizontales, sin filtro de ratio
         else:
             pool = self._filter_by_smart_ratio(candidates, target_w, target_h, orientation)
-        log_event(f"candidates_total={len(candidates)}, after_filter={len(pool)}, target_ratio={target_w/target_h:.2f}", origin="CONFIG", level="DEBUG", reason="LIBRARY")
+        log_event(f"candidates_total={len(candidates)}, after_filter={len(pool)}, target_ratio={target_w/target_h:.2f}",
+            origin="CONFIG", level="DEBUG", reason="LIBRARY")
         # Quitamos lo que ya ha salido recientemente
         fresh_pool = [p for p in pool if p not in history]
 
@@ -1543,30 +2006,35 @@ class ConfigHandler:
 
     def get_thumbnail(self, img_path):
         """Delega en ImageEngine la generación de miniaturas."""
-        return ImageEngine.generate_thumbnail(img_path, self.thumbnail_max_height, self.thumbnail_max_width, thumb_dir=self.thumbnails_dir)
+        return ImageEngine.generate_thumbnail(img_path, self.thumbnail_max_height,
+            self.thumbnail_max_width, thumb_dir=self.thumbnails_dir)
 
     def get_composite_thumbnail(self, img_path, target_w, target_h):
         """Delega en ImageEngine la generación de miniaturas compuestas con blur."""
-        return ImageEngine.generate_composite_thumbnail(img_path, target_w, target_h, thumb_dir=self.thumbnails_dir)
+        return ImageEngine.generate_composite_thumbnail(
+            img_path, target_w, target_h, thumb_dir=self.thumbnails_dir)
 
-    def open_in_file_manager(self, path):
+    def open_file(self, path, capability=None, **params):
         """
         Abre la ruta con la aplicación predeterminada del sistema.
-        La comprobación de existencia y el manejo de errores se mantienen aquí.
-        La ejecución se delega en PlatformManager.
+        Puede solicitar capacidades adicionales soportadas por la plataforma.
         """
         try:
             if os.path.exists(path):
-                self._platform.open_file(path)
+                self._platform.open_file(path, capability=capability, **params)
                 return True
             return False
+
         except Exception as e:
-            log_event(f"No se pudo abrir archivo: {e}", origin="CONFIG", level="ERROR", reason="LIBRARY")
+
+            log_event(f"No se pudo abrir archivo: {e}",
+                origin="CONFIG", level="ERROR", reason="LIBRARY")
+
             return False
 
     def _notify_detailed_changes(self, stats, cache):
-        """Construye un informe basado en entradas y salidas reales."""
-        # Calculamos el movimiento total (Añadidas + Eliminadas)
+        """Construye un informe basado en entradas, salidas y modificaciones reales."""
+        # Calculamos el movimiento total (Añadidas + Eliminadas + Modificadas)
         total_changes = sum(stats.values())
 
         # Si el movimiento es 0, salimos sin devolver nada
@@ -1588,6 +2056,11 @@ class ConfigHandler:
             if stats["removed_h"] > 0: removed.append(f"<b>-{stats['removed_h']}</b> H")
             if stats["removed_v"] > 0: removed.append(f"<b>-{stats['removed_v']}</b> V")
             msg_lines.append(_("Removed") + ": " + ' • '.join(removed))
+
+        # Bloque de Modificaciones
+        # Modified conserva identidad por ruta: no se representa como alta + baja.
+        if stats["modified"] > 0:
+            msg_lines.append(_("Modified") + f": <b>{stats['modified']}</b>")
 
         # Totales actuales para contexto
         total_h, total_v = self._get_cache_totals(cache)
@@ -1629,7 +2102,8 @@ class ConfigHandler:
         try:
             self._platform.send_notification(fixed_title, full_message, selected_icon)
         except Exception as e:
-            log_event(f"Error en notificación: {e}", origin="CONFIG", level="ERROR", reason="NOTIFY")
+            log_event(f"Error en notificación: {e}",
+                origin="CONFIG", level="ERROR", reason="NOTIFY")
 
 # --- DEBUGGER & DIAGNOSTIC MODE ---
 if __name__ == "__main__":

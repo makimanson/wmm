@@ -55,7 +55,7 @@ def unlock_file(f):
     import msvcrt
     msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
 
-def open_file(path):
+def open_file(path, capability=None, **params):
     """
     Abre un archivo o directorio con la aplicación predeterminada en Windows.
     """
@@ -159,7 +159,7 @@ def ensure_keybindings(app_dir):
         app_dir: Ruta de instalación de WMM.
 
     Nota sobre Windows:
-        - Se puede crear un acceso directo en %APPDATA%\Microsoft\Windows\Start Menu\Programs
+        - Se puede crear un acceso directo en %APPDATA%\\Microsoft\\Windows\\Start Menu\\Programs
           con el comando: python send_command.py '{"action":"force_rotation"}' "HOTKEY"
         - También se puede registrar un atajo global usando RegisterHotKey de user32.
     """

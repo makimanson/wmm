@@ -59,8 +59,9 @@ PlasmoidItem {
     // (por ejemplo mostrando estados del motor).
     // ==========================================================
 
-    property string currentIcon: "video-display"
+    property string currentIcon: motorBusy ? "view-refresh" : "video-display"
     Plasmoid.icon: currentIcon
+
     toolTipMainText: "WMM: " + _("Wallpaper Multi-Monitor Manager")
 
     property bool spannedEnabled: false
@@ -109,8 +110,9 @@ PlasmoidItem {
 
    property var cachedSettings: ({ })
    property var cachedBookmarks: ({ })
+   property bool motorBusy: true
 
-    DBus.SignalWatcher {
+   DBus.SignalWatcher {
         service: "org.maki.wmm"
         path: "/org/maki/wmm"
         iface: "org.maki.wmm"
@@ -120,38 +122,22 @@ PlasmoidItem {
                 var data = JSON.parse(jsonData)
                 cachedSettings = data.global || data
                 applySettings()
-                buildMenu()
             }
-            catch(e) {
-                console.error("WMM: Invalid SettingsChanged:", e)
-            }
+            catch(e) {console.error("WMM: Invalid SettingsChanged:", e)}
         }
 
         function dbusBookmarksChanged(jsonData) {
-            try {
-                cachedBookmarks = JSON.parse(jsonData)
-            }
-            catch(e) {
-                console.error("WMM: Invalid BookmarksChanged:", e)
-            }
+            try {cachedBookmarks = JSON.parse(jsonData)}
+            catch(e) {console.error("WMM: Invalid BookmarksChanged:", e)}
+        }
+
+        function dbusBusyChanged(busy) {
+            motorBusy = busy
         }
     }
-    // ==========================================================
-    // ESTADO DEL MENÚ
-    // ==========================================================
-    //
-    // Lista de acciones que Plasma utilizará para construir el
-    // menú contextual.
-    //
-    // buildMenu() genera completamente este array cada vez que
-    // Plasma solicita abrir el menú.
-    //
-    // ==========================================================
-
-    property var menuActions: [ ]
 
     // ==========================================================
-    // COMUNICACIÓN CON EL MOTOR
+    // COMUNICACIÓN D-BUS
     // ==========================================================
     //
     // Todas las órdenes enviadas al motor pasan por esta capa.
@@ -171,14 +157,24 @@ PlasmoidItem {
 
     function sendCommand(action, params)
     {
+        // FRONTEND GUARD:
+        // force_rotation es deliberadamente no acumulativo.
+        // El frontend descarta nuevas peticiones mientras conoce
+        // que una rotación está activa.
+        if (action === "force_rotation") {
+            if (motorBusy)
+                return
+
+                // Cerrar inmediatamente la ventana entre el click local
+                // y la recepción posterior de BusyChanged(true).
+                motorBusy = true
+        }
+
         var cmd = {
             action: action
         }
 
-        if (params) {
-            for (var key in params)
-                cmd[key] = params[key]
-        }
+        if (params) { for (var key in params) cmd[key] = params[key] }
 
         var json = JSON.stringify(cmd)
         var reply = DBus.SessionBus.asyncCall({
@@ -187,13 +183,40 @@ PlasmoidItem {
             iface: "org.maki.wmm",
             member: action,
             signature: "(s)",
-            arguments: [ json ]
+                                              arguments: [ json ]
         })
 
         reply.finished.connect(function() {
             if (reply.isError) {
                 console.error("WMM:", action, reply.error.message)
+
+                if (action === "force_rotation")
+                    refreshBusyState()
             }
+
+            reply.destroy()
+        })
+    }
+
+    //----------------------------------------------------------
+    // Activa una herramienta independiente del engine
+    //----------------------------------------------------------
+
+    function activateIndependentService(serviceName)
+    {
+        var reply = DBus.SessionBus.asyncCall({
+            service: "org.freedesktop.DBus",
+            path: "/org/freedesktop/DBus",
+            iface: "org.freedesktop.DBus",
+            member: "StartServiceByName",
+            signature: "(su)",
+            arguments: [serviceName, new DBus.uint32(0)]
+        })
+
+        reply.finished.connect(function() {
+            if (reply.isError) {
+                console.error("WMM: Could not activate service:", serviceName, reply.error.message)}
+
             reply.destroy()
         })
     }
@@ -213,13 +236,8 @@ PlasmoidItem {
         reply.finished.connect(function() {
 
             if (!reply.isError && reply.value) {
-                try {
-                    var data = JSON.parse(reply.value)
-                    cachedSettings = data.global || data
-                }
-                catch(e) {
-                    console.error(e)
-                }
+                try { var data = JSON.parse(reply.value); cachedSettings = data.global || data }
+                catch(e) { console.error(e) }
             }
             if (callback)
                 callback()
@@ -238,43 +256,57 @@ PlasmoidItem {
             iface: "org.maki.wmm",
             member: "GetBookmarks"
         })
+
         reply.finished.connect(function() {
             if (!reply.isError && reply.value) {
                 try {
                     cachedBookmarks = JSON.parse(reply.value)
-                    console.log(
-                        "Bookmarks cargados:",
-                        Object.keys(cachedBookmarks).length
-                    )
+                    console.log("Bookmarks cargados:", Object.keys(cachedBookmarks).length)
                 }
-                catch(e) {
-                    console.error(e)
-                }
+                catch(e) { console.error(e) }
             }
-            if (callback)
-                callback()
+
+            if (callback) callback()
             reply.destroy()
         })
     }
 
     //----------------------------------------------------------
-    // Sincroniza todos los datos necesarios para construir menú
+    // Obtiene el estado busy del engine
     //----------------------------------------------------------
 
-    function refreshMenuData(callback)
-    {
-        var pending = 2
+    function refreshBusyState(callback){
+        var reply = DBus.SessionBus.asyncCall({
+            service: "org.maki.wmm",
+            path: "/org/maki/wmm",
+            iface: "org.maki.wmm",
+            member: "GetBusy"
+        })
 
-        function finished()
-        {
-            pending--
+        reply.finished.connect(function() {
+            if (!reply.isError)
+                motorBusy = Boolean(reply.value)
 
-            if (pending === 0 && callback)
+                if (callback) callback()
+                    reply.destroy()
+        })
+    }
+
+    //----------------------------------------------------------
+    // Sincroniza los datos necesarios para la interfaz
+    //----------------------------------------------------------
+
+    function refreshMenuData(callback) {
+        var pending = 3
+
+        function finished() {
+            if (--pending === 0 && callback)
                 callback()
         }
 
         refreshSettings(finished)
         refreshBookmarks(finished)
+        refreshBusyState(finished)
     }
 
     //----------------------------------------------------------
@@ -288,366 +320,104 @@ PlasmoidItem {
         if (!settings)
             return
 
-            slideshowEnabled = settings.slideshow_enabled
-            slideshowInterval = settings.slideshow_interval
-            slideshowMaxInterval = settings.slideshow_max_interval
-            slideshowBookmark = settings.slideshow_bookmark
-            syncMode = (settings.slideshow_mode === "sync")
-            spannedEnabled = settings.spanned_enabled
+        slideshowEnabled = settings.slideshow_enabled
+        slideshowInterval = settings.slideshow_interval
+        slideshowMaxInterval = settings.slideshow_max_interval
+        slideshowBookmark = settings.slideshow_bookmark
+        syncMode = (settings.slideshow_mode === "sync")
+        spannedEnabled = settings.spanned_enabled
 
-            console.log(
-                "WMM UI state:",
-                "slideshow=", slideshowEnabled,
-                "interval=", slideshowInterval,
-                "bookmark=", slideshowBookmark,
-                "sync=", syncMode,
-                "spanned=", spannedEnabled
-            )
-    }
-
-    // ==========================================================
-    // CONSTRUCTORES DE LA INTERFAZ
-    // ==========================================================
-    //
-    // Estos helpers encapsulan la creación de los distintos
-    // elementos utilizados por el menú contextual.
-    //
-    // buildMenu() nunca crea objetos directamente.
-    //
-    // Toda la construcción del menú pasa por estas funciones.
-    //
-    // ==========================================================
-
-    //----------------------------------------------------------
-    // Acción estándar
-    //----------------------------------------------------------
-
-    function createAction(text, iconName, callback){
-        var component = Qt.createComponent("Action.qml")
-        if (component.status === Component.Ready) {
-            var obj = component.createObject(root, {
-                text: text,
-                icon: {
-                    name: iconName
-                }
-            })
-            if (obj) {
-                obj.triggered.connect(callback)
-                return obj
-            }
-        }
-
-        //------------------------------------------------------
-        // Fallback
-        //------------------------------------------------------
-
-        var qml =
-                'import org.kde.plasma.core 2.0 as PlasmaCore;' +
-                'PlasmaCore.Action {' +
-                'text: "' + text + '";' +
-                'icon.name: "' + iconName + '"' +
-                '}'
-        var fallback =
-                Qt.createQmlObject(
-                    qml,
-                    root,
-                    "ActionFallback"
-                )
-        if (fallback) {
-            fallback.triggered.connect(callback)
-            return fallback
-        }
-        return null
-    }
-
-    //----------------------------------------------------------
-    // Separador
-    //----------------------------------------------------------
-
-    function createSeparator(){
-        var separator =
-                createAction(
-                    "────────────────────────",
-                    "",
-                    function(){}
-                )
-        separator.enabled = false
-        return separator
-    }
-
-    //----------------------------------------------------------
-    // Cabecera de sección
-    //----------------------------------------------------------
-
-    function createHeader(title){
-        var header =
-                createAction(
-                    title,
-                    "",
-                    function(){}
-                )
-        header.enabled = false
-        return header
-    }
-
-    //----------------------------------------------------------
-    // Entrada informativa
-    //----------------------------------------------------------
-
-    function createLabel(text){
-        var label =
-                createAction(
-                    text,
-                    "",
-                    function(){}
-                )
-        label.enabled = false
-        return label
-    }
-
-    //----------------------------------------------------------
-    // Checkbox: Slideshow bookmarks
-    //----------------------------------------------------------
-
-    function createSlideshowBookmarksAction()
-    {
-        var action = createAction(
-            _("Favorites Only"),
-            "bookmark",
-            function() {
-                root.slideshowBookmark = !root.slideshowBookmark
-                action.checked = root.slideshowBookmark
-                sendCommand(
-                    "update_timer_settings",
-                    {
-                        slideshow_bookmark: root.slideshowBookmark
-                    }
-                )
-            }
-        )
-
-        action.checkable = true
-        action.checked = root.slideshowBookmark
-
-        return action
-    }
-
-    //----------------------------------------------------------
-    // Cargar favorito
-    //----------------------------------------------------------
-
-    function createBookmarkAction(bookmarkName)
-    {
-        return createAction(
-            bookmarkName,
-            "bookmark",
-            function() {
-                sendCommand(
-                    "load_bookmark",
-                    {
-                        name: bookmarkName
-                    }
-                )
-            }
-        )
-    }
-
-    //----------------------------------------------------------
-    // Eliminar favorito
-    //----------------------------------------------------------
-
-    function createDeleteBookmarkAction(bookmarkName)
-    {
-        return createAction(
-            _("Delete") + ": " + bookmarkName,
-            "edit-delete",
-            function() {
-                sendCommand(
-                    "delete_bookmark",
-                    {
-                        name: bookmarkName
-                    }
-                )
-            }
-        )
-    }
-
-    //----------------------------------------------------------
-    // Añadir favorito
-    //----------------------------------------------------------
-
-    function createAddBookmarkAction()
-    {
-        return createAction(
-            _("Add bookmark"),
-            "list-add",
-            function() {
-                sendCommand("add_bookmark")
-            }
+        console.log(
+            "WMM UI state:",
+            "slideshow=", slideshowEnabled,
+            "interval=", slideshowInterval,
+            "bookmark=", slideshowBookmark,
+            "sync=", syncMode,
+            "spanned=", spannedEnabled
         )
     }
 
     // ==========================================================
-    // CONSTRUCCIÓN DEL MENÚ CONTEXTUAL
-    // ==========================================================
-    //
-    // Esta función genera completamente el contenido del menú.
-    //
-    // El menú se construye:
-    //
-    //     • durante la inicialización del plasmoide
-    //     • cuando SettingsChanged notifica un cambio externo
-    //
-    // De esta forma las acciones ya contienen el estado correcto
-    // antes de que Plasma abra el menú contextual.
-    //
+    // CIERRE GLOBAL DE WMM
     // ==========================================================
 
-    function buildMenu(){
-        var actions = []
+    function shutdownEngine() {
+        var reply = DBus.SessionBus.asyncCall({
+            service: "org.maki.wmm",
+            path: "/org/maki/wmm",
+            iface: "org.maki.wmm",
+            member: "Shutdown"
+        })
 
-        //------------------------------------------------------
-        // Settings
-        //------------------------------------------------------
-        actions.push(
-            createAction(
-                _("Settings"),
-                "preferences-system",
-                function() {
-                    sendCommand("open_panel")
-                }
-            )
-        )
+        reply.finished.connect(function() {reply.destroy()})
+    }
 
-        //------------------------------------------------------
-        // Displays
-        //------------------------------------------------------
-        function displayModeText() {
-            return _("Displays") + ": " +
-            (root.syncMode
-            ? _("SYNC (All)")
-            : _("ASYNC (One)"))
-        }
+    // ==========================================================
+    // MENÚ CONTEXTUAL
+    // ==========================================================
+    //
+    // Acciones estáticas disponibles desde la inicialización
+    // del plasmoide, independientes del estado del engine.
+    //
+    // ==========================================================
 
-        var displaysAction = createAction(
-            displayModeText(),
-            "",
-            function() {
+     Plasmoid.contextualActions: [
+         PlasmaCore.Action {
+             text: root._("Settings")
+             icon.name: "preferences-system"
+             onTriggered: root.sendCommand("open_panel")
+         },
+         PlasmaCore.Action {
+             text: root._("Sync Library")
+             icon.name: "view-refresh"
+             onTriggered: root.sendCommand("sync_library")
+         },
+         PlasmaCore.Action {
+             text: root._("Install Manager")
+             icon.name: "system-software-install"
+             onTriggered: root.activateIndependentService("org.maki.wmm.InstallManager")
+         },
+         PlasmaCore.Action {
+             text: root._("Debug Log Viewer")
+             icon.name: "text-x-log"
+             onTriggered: root.activateIndependentService("org.maki.wmm.DebugLogViewer")
+         },
+         PlasmaCore.Action {
+             text: root._("Help")
+             icon.name: "help-contents"
+             onTriggered: root.sendCommand("open_help")
+         },
+         PlasmaCore.Action {
+             isSeparator: true
+         },
+         PlasmaCore.Action {
+             text: root._("Exit") + " WMM"
+             icon.name: "application-exit"
+             onTriggered: root.shutdownEngine()
+         }
+     ]
 
-                root.syncMode = !root.syncMode
+     // ==========================================================
+     // LIFECYCLE DEL PLASMOIDE
+     // ==========================================================
+     //
+     // Plasma marca destroyed=true cuando el usuario elimina
+     // permanentemente el plasmoide mediante Applet::destroy().
+     // No utilizar Component.onDestruction para esta decisión:
+     // el QML también puede destruirse durante recargas de Plasma.
+     // ==========================================================
 
-                displaysAction.checked = root.syncMode
-                displaysAction.text = displayModeText()
+     Connections {
+         target: plasmoid
 
-                sendCommand(
-                    "update_timer_settings",
-                    {
-                        mode: root.syncMode ? "sync" : "async"
-                    }
-                )
-            }
-        )
+         function onDestroyedChanged(destroyed) {
+            if (!destroyed)
+                return
 
-        displaysAction.checkable = true
-        displaysAction.checked = root.syncMode
-
-        actions.push(displaysAction)
-
-        //------------------------------------------------------
-        // Spanned Mode
-        //------------------------------------------------------
-
-        var spannedAction = createAction(
-            _("Spanned Mode"),
-            "",
-            function() {
-                root.spannedEnabled = !root.spannedEnabled
-
-                spannedAction.checked = root.spannedEnabled
-
-                sendCommand(
-                    "update_timer_settings",
-                    {
-                        spanned_enabled: root.spannedEnabled
-                    }
-                )
-            }
-        )
-
-        spannedAction.checkable = true
-        spannedAction.checked = root.spannedEnabled
-
-        actions.push(spannedAction)
-
-        //------------------------------------------------------
-        // Sync Library
-        //------------------------------------------------------
-
-        actions.push(
-            createAction(
-                _("Sync Library"),
-                "view-refresh",
-                function() {
-                    sendCommand("sync_library")
-                }
-            )
-        )
-
-        //------------------------------------------------------
-        // Help
-        //------------------------------------------------------
-
-        actions.push(
-            createAction(
-                _("Help"),
-                "help-contents",
-                function() {
-                    sendCommand("open_help")
-                }
-            )
-        )
-
-        //------------------------------------------------------
-        // Exit WMM
-        //------------------------------------------------------
-
-        actions.push(createSeparator())
-
-        actions.push(
-            createAction(
-                _("Exit") + " WMM",
-                         "application-exit",
-                         function() {
-                             var reply = DBus.SessionBus.asyncCall({
-                                 service: "org.maki.wmm",
-                                 path: "/org/maki/wmm",
-                                 iface: "org.maki.wmm",
-                                 member: "Shutdown"
-                             })
-
-                             reply.finished.connect(function() {
-                                 reply.destroy()
-                             })
-                         }
-            )
-        )
-
-        //------------------------------------------------------
-        // Publicar menú
-        //------------------------------------------------------
-        menuActions = actions
+            console.log("WMM: Plasma frontend removed; shutting down engine")
+            root.shutdownEngine()
+         }
      }
-
-     // ==========================================================
-     // MENÚ CONTEXTUAL
-     // ==========================================================
-     //
-     // Plasma utiliza una lista de acciones mantenida previamente
-     // sincronizada con el estado del motor.
-     //
-     // ==========================================================
-
-     Plasmoid.contextualActions: menuActions
 
     // ==========================================================
     // INICIALIZACIÓN
@@ -655,13 +425,7 @@ PlasmoidItem {
 
     Component.onCompleted: {
         console.log("WMM: Plasma frontend initialized")
-
-        refreshMenuData(function() {
-
-            applySettings()
-            buildMenu()
-
-        })
+        refreshMenuData(function() {applySettings()})
     }
 
     // ==========================================================

@@ -34,12 +34,69 @@ import ctypes
 import ctypes.util
 import fcntl
 import gi
-gi.require_version('Gdk', '3.0')
-from gi.repository import Gdk
 
+gi.require_version('Gdk', '3.0')
+gi.require_version('GdkX11', '3.0')
+
+from gi.repository import Gdk, GdkX11
 from monitor_manager import calculate_inches
 from debug_logger import log_event
 
+# ==========================================================
+# ESTRUCTURAS NATIVAS XRandR
+# ==========================================================
+# Deben existir una sola vez a nivel de módulo.
+# ctypes mantiene en caché los tipos creados con POINTER(); redefinir estas
+# estructuras dentro de get_x11_monitors() hacía crecer esa caché en cada
+# detección de monitores.
+class XRRScreenResources(ctypes.Structure):
+    _fields_ = [
+        ("timestamp", ctypes.c_ulong),
+        ("configTimestamp", ctypes.c_ulong),
+        ("ncrtc", ctypes.c_int),
+        ("crtcs", ctypes.POINTER(ctypes.c_ulong)),
+        ("noutput", ctypes.c_int),
+        ("outputs", ctypes.POINTER(ctypes.c_ulong)),
+        ("nmode", ctypes.c_int),
+        ("modes", ctypes.c_void_p),
+    ]
+
+
+class XRROutputInfo(ctypes.Structure):
+    _fields_ = [
+        ("timestamp", ctypes.c_ulong),
+        ("crtc", ctypes.c_ulong),
+        ("name", ctypes.c_char_p),
+        ("nameLen", ctypes.c_int),
+        ("mm_width", ctypes.c_ulong),
+        ("mm_height", ctypes.c_ulong),
+        ("connection", ctypes.c_short),
+        ("subpixel_order", ctypes.c_short),
+        ("ncrtc", ctypes.c_int),
+        ("crtcs", ctypes.POINTER(ctypes.c_ulong)),
+        ("nclone", ctypes.c_int),
+        ("clones", ctypes.POINTER(ctypes.c_ulong)),
+        ("nmode", ctypes.c_int),
+        ("npreferred", ctypes.c_int),
+        ("modes", ctypes.POINTER(ctypes.c_ulong)),
+    ]
+
+
+class XRRCrtcInfo(ctypes.Structure):
+    _fields_ = [
+        ("timestamp", ctypes.c_ulong),
+        ("x", ctypes.c_int),
+        ("y", ctypes.c_int),
+        ("width", ctypes.c_uint),
+        ("height", ctypes.c_uint),
+        ("mode", ctypes.c_ulong),
+        ("rotation", ctypes.c_ushort),
+        ("noutput", ctypes.c_int),
+        ("outputs", ctypes.POINTER(ctypes.c_ulong)),
+        ("rotations", ctypes.c_ushort),
+        ("npossible", ctypes.c_int),
+        ("possible", ctypes.POINTER(ctypes.c_ulong)),
+    ]
 
 # ==========================================================
 # 1. Estrategia para X11 (copiada de linux.get_x11_monitors)
@@ -54,6 +111,25 @@ def get_x11_monitors():
     libX11 = ctypes.cdll.LoadLibrary(ctypes.util.find_library("X11"))
     libXrandr = ctypes.cdll.LoadLibrary(ctypes.util.find_library("Xrandr"))
 
+    # Definir las firmas nativas de Xlib para preservar correctamente los punteros.
+    libX11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+    libX11.XOpenDisplay.restype = ctypes.c_void_p
+
+    libX11.XDefaultScreen.argtypes = [ctypes.c_void_p]
+    libX11.XDefaultScreen.restype = ctypes.c_int
+
+    libX11.XRootWindow.argtypes = [ctypes.c_void_p, ctypes.c_int]
+    libX11.XRootWindow.restype = ctypes.c_ulong
+
+    libX11.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+    libX11.XInternAtom.restype = ctypes.c_ulong
+
+    libX11.XCloseDisplay.argtypes = [ctypes.c_void_p]
+    libX11.XCloseDisplay.restype = ctypes.c_int
+
+    libX11.XFree.argtypes = [ctypes.c_void_p]
+    libX11.XFree.restype = ctypes.c_int
+
     # Abrir la conexión al servidor X
     display = libX11.XOpenDisplay(None)
     if not display:
@@ -62,155 +138,214 @@ def get_x11_monitors():
     screen = libX11.XDefaultScreen(display)
     root = libX11.XRootWindow(display, screen)
 
-    # Estructuras para XRRScreenResources
-    class XRRScreenResources(ctypes.Structure):
-        _fields_ = [
-            ("timestamp", ctypes.c_ulong),
-            ("configTimestamp", ctypes.c_ulong),
-            ("ncrtc", ctypes.c_int),
-            ("crtcs", ctypes.POINTER(ctypes.c_ulong)),
-            ("noutput", ctypes.c_int),
-            ("outputs", ctypes.POINTER(ctypes.c_ulong)),
-            ("nmode", ctypes.c_int),
-            ("modes", ctypes.c_void_p),
-        ]
-
+    libXrandr.XRRGetScreenResourcesCurrent.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
     libXrandr.XRRGetScreenResourcesCurrent.restype = ctypes.POINTER(XRRScreenResources)
+
+    libXrandr.XRRFreeScreenResources.argtypes = [ctypes.POINTER(XRRScreenResources)]
+    libXrandr.XRRFreeScreenResources.restype = None
+
     resources = libXrandr.XRRGetScreenResourcesCurrent(display, root)
+    if not resources:
+        libX11.XCloseDisplay(display)
+        return {}
 
-    class XRROutputInfo(ctypes.Structure):
-        _fields_ = [
-            ("timestamp", ctypes.c_ulong),
-            ("crtc", ctypes.c_ulong),
-            ("name", ctypes.c_char_p),
-            ("nameLen", ctypes.c_int),
-            ("mm_width", ctypes.c_ulong),
-            ("mm_height", ctypes.c_ulong),
-            ("connection", ctypes.c_short),
-            ("subpixel_order", ctypes.c_short),
-            ("ncrtc", ctypes.c_int),
-            ("crtcs", ctypes.POINTER(ctypes.c_ulong)),
-            ("nclone", ctypes.c_int),
-            ("clones", ctypes.POINTER(ctypes.c_ulong)),
-            ("nmode", ctypes.c_int),
-            ("npreferred", ctypes.c_int),
-            ("modes", ctypes.POINTER(ctypes.c_ulong)),
-        ]
-
-    class XRRCrtcInfo(ctypes.Structure):
-        _fields_ = [
-            ("timestamp", ctypes.c_ulong),
-            ("x", ctypes.c_int),
-            ("y", ctypes.c_int),
-            ("width", ctypes.c_uint),
-            ("height", ctypes.c_uint),
-            ("mode", ctypes.c_ulong),
-            ("rotation", ctypes.c_ushort),
-            ("noutput", ctypes.c_int),
-            ("outputs", ctypes.POINTER(ctypes.c_ulong)),
-            ("rotations", ctypes.c_ushort),
-            ("npossible", ctypes.c_int),
-            ("possible", ctypes.POINTER(ctypes.c_ulong)),
-        ]
-
+    libXrandr.XRRGetOutputInfo.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(XRRScreenResources),
+        ctypes.c_ulong,
+    ]
     libXrandr.XRRGetOutputInfo.restype = ctypes.POINTER(XRROutputInfo)
+
+    libXrandr.XRRFreeOutputInfo.argtypes = [ctypes.POINTER(XRROutputInfo)]
+    libXrandr.XRRFreeOutputInfo.restype = None
+
+    libXrandr.XRRGetCrtcInfo.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(XRRScreenResources),
+        ctypes.c_ulong,
+    ]
     libXrandr.XRRGetCrtcInfo.restype = ctypes.POINTER(XRRCrtcInfo)
+
+    libXrandr.XRRFreeCrtcInfo.argtypes = [ctypes.POINTER(XRRCrtcInfo)]
+    libXrandr.XRRFreeCrtcInfo.restype = None
+
+    libXrandr.XRRGetOutputPrimary.argtypes = [ ctypes.c_void_p, ctypes.c_ulong, ]
     libXrandr.XRRGetOutputPrimary.restype = ctypes.c_ulong
+
+    libXrandr.XRRGetOutputProperty.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_ulong,
+        ctypes.c_ulong,
+        ctypes.c_long,
+        ctypes.c_long,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_ulong,
+        ctypes.POINTER(ctypes.c_ulong),
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_ulong),
+        ctypes.POINTER(ctypes.c_ulong),
+        ctypes.POINTER(ctypes.POINTER(ctypes.c_ubyte)),
+    ]
+    libXrandr.XRRGetOutputProperty.restype = ctypes.c_int
     primary_output = libXrandr.XRRGetOutputPrimary(display, root)
 
     monitors_data = {}
-    for i in range(resources.contents.noutput):
-        output = resources.contents.outputs[i]
-        info = libXrandr.XRRGetOutputInfo(display, resources, output)
-        if not info:
-            continue
-        info = info.contents
-        if info.connection != 0:  # 0 = RR_Connected
-            continue
-        connector = ctypes.string_at(info.name, info.nameLen).decode()
-        if info.crtc == 0:
-            continue
-        crtc = libXrandr.XRRGetCrtcInfo(display, resources, info.crtc)
-        if not crtc:
-            continue
-        crtc = crtc.contents
+    try:
+        for i in range(resources.contents.noutput):
+            output = resources.contents.outputs[i]
+            info_ptr = libXrandr.XRRGetOutputInfo(display, resources, output)
+            if not info_ptr:
+                continue
 
-        # Obtener EDID para hash estable
-        edid_atom_name = ctypes.c_char_p(b"EDID")
-        edid_atom = libX11.XInternAtom(display, edid_atom_name, 0)
-        actual_type = ctypes.c_ulong()
-        actual_format = ctypes.c_int()
-        nitems = ctypes.c_ulong()
-        bytes_after = ctypes.c_ulong()
-        prop = ctypes.POINTER(ctypes.c_ubyte)()
-        status = libXrandr.XRRGetOutputProperty(
-            display, output, edid_atom, 0, 256, 0, 0, 0,
-            ctypes.byref(actual_type), ctypes.byref(actual_format),
-            ctypes.byref(nitems), ctypes.byref(bytes_after), ctypes.byref(prop)
-        )
+            try:
+                info = info_ptr.contents
+                if info.connection != 0:  # 0 = RR_Connected
+                    continue
 
-        unique_id = None
-        if status == 0 and prop and nitems.value >= 128:
-            edid_data = bytes(prop[i] for i in range(nitems.value))
-            for offset in range(54, 126, 18):
-                block = edid_data[offset:offset+18]
-                if len(block) < 18:
-                    break
-                if block[0] == 0 and block[1] == 0 and block[2] == 0:
-                    tag = block[3]
-                    text = block[5:18].replace(b'\n', b'').decode("ascii", errors="ignore").strip()
-                    if tag == 255 and text:
-                        unique_id = text
-                        break
-        if not unique_id:
-            unique_id = connector
+                connector = ctypes.string_at(info.name, info.nameLen).decode()
+                if info.crtc == 0:
+                    continue
 
-        m_hash = hashlib.shake_128(unique_id.encode()).hexdigest(4)
+                crtc_ptr = libXrandr.XRRGetCrtcInfo(display, resources, info.crtc)
+                if not crtc_ptr:
+                    continue
 
-        # Extraer fabricante y modelo
-        manufacturer = None
-        model = None
-        if prop and nitems.value >= 128:
-            edid_data = bytes(prop[i] for i in range(min(128, nitems.value)))
-            mfg_bytes = int.from_bytes(edid_data[8:10], 'big')
-            manufacturer = ''.join([
-                chr(((mfg_bytes >> 10) & 0x1F) + ord('A') - 1),
-                chr(((mfg_bytes >> 5) & 0x1F) + ord('A') - 1),
-                chr((mfg_bytes & 0x1F) + ord('A') - 1)
-            ])
-            for offset in range(54, 126, 18):
-                block = edid_data[offset:offset+18]
-                if len(block) < 18:
-                    break
-                if block[0] == 0 and block[1] == 0 and block[3] == 0xFC:
-                    name_bytes = block[5:18]
-                    model = name_bytes.split(b'\x0A')[0].decode('ascii', errors='ignore').strip()
-                    break
+                try:
+                    crtc = crtc_ptr.contents
 
-        if not manufacturer:
-            manufacturer = "Unknown"
+                    # Obtener EDID para hash estable
+                    edid_atom_name = ctypes.c_char_p(b"EDID")
+                    edid_atom = libX11.XInternAtom(display, edid_atom_name, 0)
+                    actual_type = ctypes.c_ulong()
+                    actual_format = ctypes.c_int()
+                    nitems = ctypes.c_ulong()
+                    bytes_after = ctypes.c_ulong()
+                    prop = ctypes.POINTER(ctypes.c_ubyte)()
 
-        orientation = "horizontal" if crtc.width >= crtc.height else "vertical"
-        inches = calculate_inches(info.mm_width, info.mm_height)
+                    try:
+                        status = libXrandr.XRRGetOutputProperty(
+                            display, output, edid_atom, 0, 256, 0, 0, 0,
+                            ctypes.byref(actual_type), ctypes.byref(actual_format),
+                            ctypes.byref(nitems), ctypes.byref(bytes_after), ctypes.byref(prop)
+                        )
 
-        monitors_data[m_hash] = {
-            "connector": connector,
-            "manufacturer": manufacturer,
-            "model": model,
-            "x": crtc.x,
-            "y": crtc.y,
-            "width": crtc.width,
-            "height": crtc.height,
-            "width_mm": info.mm_width,
-            "height_mm": info.mm_height,
-            "inches": inches,
-            "orientation": orientation,
-            "primary": (output == primary_output),
-        }
+                        unique_id = None
+                        if status == 0 and prop and nitems.value >= 128:
+                            edid_data = bytes(prop[i] for i in range(nitems.value))
+                            for offset in range(54, 126, 18):
+                                block = edid_data[offset:offset+18]
+                                if len(block) < 18:
+                                    break
+                                if block[0] == 0 and block[1] == 0 and block[2] == 0:
+                                    tag = block[3]
+                                    text = block[5:18].replace(b'\n', b'').decode("ascii", errors="ignore").strip()
+                                    if tag == 255 and text:
+                                        unique_id = text
+                                        break
 
-    libX11.XCloseDisplay(display)
+                        if not unique_id:
+                            unique_id = connector
+
+                        m_hash = hashlib.shake_128(unique_id.encode()).hexdigest(4)
+
+                        # Extraer fabricante y modelo
+                        manufacturer = None
+                        model = None
+                        if prop and nitems.value >= 128:
+                            edid_data = bytes(prop[i] for i in range(min(128, nitems.value)))
+                            mfg_bytes = int.from_bytes(edid_data[8:10], 'big')
+                            manufacturer = ''.join([
+                                chr(((mfg_bytes >> 10) & 0x1F) + ord('A') - 1),
+                                chr(((mfg_bytes >> 5) & 0x1F) + ord('A') - 1),
+                                chr((mfg_bytes & 0x1F) + ord('A') - 1)
+                            ])
+                            for offset in range(54, 126, 18):
+                                block = edid_data[offset:offset+18]
+                                if len(block) < 18:
+                                    break
+                                if block[0] == 0 and block[1] == 0 and block[3] == 0xFC:
+                                    name_bytes = block[5:18]
+                                    model = name_bytes.split(b'\x0A')[0].decode('ascii', errors='ignore').strip()
+                                    break
+
+                        if not manufacturer:
+                            manufacturer = "Unknown"
+
+                        orientation = "horizontal" if crtc.width >= crtc.height else "vertical"
+                        inches = calculate_inches(info.mm_width, info.mm_height)
+
+                        monitors_data[m_hash] = {
+                            "connector": connector,
+                            "manufacturer": manufacturer,
+                            "model": model,
+                            "x": crtc.x,
+                            "y": crtc.y,
+                            "width": crtc.width,
+                            "height": crtc.height,
+                            "width_mm": info.mm_width,
+                            "height_mm": info.mm_height,
+                            "inches": inches,
+                            "orientation": orientation,
+                            "primary": (output == primary_output),
+                        }
+
+                    finally:
+                        if prop:
+                            libX11.XFree(prop)
+
+                finally:
+                    libXrandr.XRRFreeCrtcInfo(crtc_ptr)
+
+            finally:
+                libXrandr.XRRFreeOutputInfo(info_ptr)
+
+    finally:
+        libXrandr.XRRFreeScreenResources(resources)
+        libX11.XCloseDisplay(display)
+
     return monitors_data
 
+def get_monitor_hash_from_position(x, y, monitors_map):
+    """Devuelve el hash WMM del monitor que contiene una posición absoluta."""
+    if x is None or y is None or not monitors_map:
+        return None
+
+    try:
+        x = float(x)
+        y = float(y)
+    except (TypeError, ValueError):
+        return None
+
+    for m_hash, monitor in monitors_map.items():
+        if monitor["x"] <= x < monitor["x"] + monitor["width"] and monitor["y"] <= y < monitor["y"] + monitor["height"]:
+            return m_hash
+
+    return None
+
+
+def get_monitor_hash_from_xid(xid, monitors_map):
+    """Devuelve el hash WMM del monitor que contiene la ventana X11 indicada."""
+    if not xid or not monitors_map:
+        return None
+
+    try:
+        display = Gdk.Display.get_default()
+        window = GdkX11.X11Window.foreign_new_for_display(display, int(xid))
+        success, x, y = window.get_origin()
+
+        if not success:
+            return None
+
+        m_hash = get_monitor_hash_from_position(x, y, monitors_map)
+        if m_hash:
+            log_event(f"XID {xid} -> posición {x},{y} -> monitor {m_hash}", origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
+            return m_hash
+
+    except Exception as e:
+        log_event(f"No se pudo resolver el XID {xid}: {e}", origin="MON_DETECT", level="WARN", reason="HARDWARE")
+
+    return None
 
 # ==========================================================
 # 2. Estrategia para GNOME Wayland (copiada de gnome.get_monitors_from_dbus)

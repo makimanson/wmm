@@ -33,7 +33,7 @@ PlasmaExtras.Representation {
     required property var rootItem
 
     implicitWidth: 260
-    implicitHeight: 360
+    implicitHeight: 460
 
     contentItem: ColumnLayout {
 
@@ -42,103 +42,88 @@ PlasmaExtras.Representation {
         spacing: 10
 
         // ------------------------------------------------------
-        // Slideshow
+        // Displays
         // ------------------------------------------------------
 
         RowLayout {
-
             Layout.fillWidth: true
-
             PlasmaComponents.Label {
-                text: _("Slideshow")
+                text: _("Displays") + ": " +
+                (rootItem.syncMode ? _("SYNC (All)") : _("ASYNC (One)"))
                 Layout.fillWidth: true
             }
 
             PlasmaComponents.Switch {
-
-                checked: rootItem.slideshowEnabled
-
-                onToggled: {
-                    rootItem.sendCommand(
-                        "update_timer_settings",
-                        {
-                            enabled: checked
-                        }
-                    )
-                }
+                checked: rootItem.syncMode
+                onToggled: rootItem.sendCommand(
+                    "update_timer_settings", {mode: checked ? "sync" : "async"})
             }
         }
 
-        PlasmaComponents.Label {
-            text: rootItem.slideshowInterval + " " + _("minutes")
+        // ------------------------------------------------------
+        // Spanned Mode
+        // ------------------------------------------------------
+
+        RowLayout {
+            Layout.fillWidth: true
+            PlasmaComponents.Label {text:_("Spanned Mode"); Layout.fillWidth: true}
+            PlasmaComponents.Switch {
+                checked: rootItem.spannedEnabled
+                onToggled: rootItem.sendCommand(
+                    "update_timer_settings", {spanned_enabled: checked})
+            }
         }
+
+        PlasmaComponents.MenuSeparator {Layout.fillWidth: true}
+
+        // ------------------------------------------------------
+        // Slideshow
+        // ------------------------------------------------------
+
+        RowLayout {
+            Layout.fillWidth: true
+            PlasmaComponents.Label { text: _("Slideshow"); Layout.fillWidth: true }
+            PlasmaComponents.Switch {
+                checked: rootItem.slideshowEnabled
+                onToggled: {rootItem.sendCommand("update_timer_settings", {enabled: checked})}
+            }
+        }
+
+        PlasmaComponents.Label {text: rootItem.slideshowInterval + " " + _("minutes")}
 
         PlasmaComponents.Slider {
-
             Layout.fillWidth: true
-
             from: 1
             to: rootItem.slideshowMaxInterval
-
             value: rootItem.slideshowInterval
-
             onMoved: {
-
                 rootItem.slideshowInterval = value
-
-                rootItem.sendCommand(
-                    "update_timer_settings",
-                    {
-                        interval: Math.round(value)
-                    }
-                )
+                rootItem.sendCommand("update_timer_settings", {interval: Math.round(value)})
             }
         }
 
-        PlasmaComponents.MenuSeparator {
-            Layout.fillWidth: true
-        }
+        PlasmaComponents.MenuSeparator {Layout.fillWidth: true}
 
         // ------------------------------------------------------
         // Favorites
         // ------------------------------------------------------
 
         RowLayout {
-
             Layout.fillWidth: true
-
-            PlasmaComponents.Label {
-                text: _("Favorites Only")
-                Layout.fillWidth: true
-            }
-
+            PlasmaComponents.Label {text:_("Favorites Only"); Layout.fillWidth: true}
             PlasmaComponents.Switch {
-
                 checked: rootItem.slideshowBookmark
-
                 onToggled: {
-
-                    rootItem.sendCommand(
-                        "update_timer_settings",
-                        {
-                            slideshow_bookmark: checked
-                        }
-                    )
+                    rootItem.sendCommand("update_timer_settings", {slideshow_bookmark: checked})
                 }
             }
         }
 
         PlasmaComponents.Button {
-
             Layout.fillWidth: true
-
             text: _("Add Preset Favorite")
-
             icon.name: "bookmark-new"
-
-            onClicked: {
-                rootItem.sendCommand("add_bookmark")
-            }
+            onClicked: {rootItem.sendCommand("add_bookmark")}
         }
 
         PlasmaComponents.ScrollView {
@@ -147,64 +132,30 @@ PlasmaExtras.Representation {
             Layout.fillHeight: true
 
             ListView {
-
                 model: Object.keys(rootItem.cachedBookmarks)
-
                 delegate: RowLayout {
-
                     width: ListView.view.width
-
                     PlasmaComponents.ItemDelegate {
-
                         Layout.fillWidth: true
-
                         text: modelData
-
-                        onClicked: {
-
-                            rootItem.sendCommand(
-                                "load_bookmark",
-                                {
-                                    name: modelData
-                                }
-                            )
-                        }
+                        onClicked: {rootItem.sendCommand("load_bookmark", {name: modelData})}
                     }
-
                     PlasmaComponents.ToolButton {
-
                         icon.name: "user-trash"
-
-                        onClicked: {
-
-                            rootItem.sendCommand(
-                                "delete_bookmark",
-                                {
-                                    name: modelData
-                                }
-                            )
-                        }
+                        onClicked: { rootItem.sendCommand("delete_bookmark", {name: modelData})}
                     }
                 }
             }
         }
-        PlasmaComponents.MenuSeparator {
-            Layout.fillWidth: true
-        }
+
+        PlasmaComponents.MenuSeparator {Layout.fillWidth: true}
 
         PlasmaComponents.Button {
-
             Layout.fillWidth: true
-
             text: _("Next Background")
-
             icon.name: "view-refresh"
-
-            onClicked: {
-                rootItem.sendCommand(
-                    "force_rotation"
-                )
-            }
+            enabled: !rootItem.motorBusy
+            onClicked: { rootItem.sendCommand("force_rotation")}
         }
     }
 }

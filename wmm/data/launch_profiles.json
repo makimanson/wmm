@@ -1,0 +1,56 @@
+{
+    "xed": {
+        "executables": ["xed"],
+        "open_at_line": ["+{line}", "{file}"]
+    },
+
+    "gnome-text-editor": {
+        "executables": ["gnome-text-editor"],
+        "open_at_line": ["{file}", "+{line}"]
+    },
+
+    "pluma": {
+        "executables": ["pluma"],
+        "open_at_line": ["+{line}", "{file}"]
+    },
+
+    "kate": {
+        "executables": ["kate"],
+        "open_at_line": ["--line", "{line}", "{file}"]
+    },
+
+    "kwrite": {
+        "executables": ["kwrite"],
+        "open_at_line": ["--line", "{line}", "{file}"]
+    },
+
+    "gedit": {
+        "executables": ["gedit"],
+        "open_at_line": ["+{line}", "{file}"]
+    },
+
+    "vscode": {
+        "executables": ["code"],
+        "open_at_line": ["--goto", "{file}:{line}"]
+    },
+
+    "vscodium": {
+        "executables": ["codium"],
+        "open_at_line": ["--goto", "{file}:{line}"]
+    },
+
+    "sublime-text": {
+        "executables": ["subl", "sublime_text"],
+        "open_at_line": ["{file}:{line}"]
+    },
+
+    "geany": {
+        "executables": ["geany"],
+        "open_at_line": ["+{line}", "{file}"]
+    },
+
+    "zed": {
+        "executables": ["zed", "zeditor"],
+        "open_at_line": ["{file}:{line}"]
+    }
+}

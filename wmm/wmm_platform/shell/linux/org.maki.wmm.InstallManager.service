@@ -1,0 +1,29 @@
+
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
+# ==========================================================
+# WMM - Wallpaper Multi-Monitor Manager
+# KDE Install Manager D-Bus Activation Service
+# ==========================================================
+#
+# org.maki.wmm.InstallManager.service
+# Installed only for the KDE integration by install.sh.
+#
+# Installation target (XDG):
+#   ~/.local/share/dbus-1/services/
+#
+# @PYTHON3@ is replaced with the Python interpreter used by WMM.
+# @APP_DIR@ is replaced with the KDE WMM installation directory.
+#
+# This service is intentionally independent from org.maki.wmm so the
+# installation manager remains available when the engine is not running.
+#
+# ==========================================================
+
+[D-BUS Service]
+
+# Independent Install Manager session bus name.
+Name=org.maki.wmm.InstallManager
+
+# Install Manager entry point.
+Exec=@PYTHON3@ @APP_DIR@/wmm_platform/shell/installer/wmm-install_manager.py

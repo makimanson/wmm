@@ -1,0 +1,51 @@
+/*
+ * WMM - Wallpaper Multi-Monitor Manager
+ * MATE Panel Applet styles
+ *
+ * SPDX-FileCopyrightText: 2026 makimanson
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+/* ==========================================================
+ * FAVORITES
+ * ========================================================== */
+
+.wmm-favorite-row {
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.wmm-favorite-row-box {
+    margin: 0 4px 1px 2px;
+}
+
+.wmm-favorite-button {
+    min-height: 0;
+    min-width: 0;
+    margin: 0;
+    padding: 2px 4px;
+}
+
+.wmm-favorite-empty {
+    margin: 1px 2px;
+}
+
+/*
+ * GtkScrolledWindow necesita conservar la scrollbar internamente
+ * para mantener su geometría y GtkAdjustment. WMM gestiona el
+ * desplazamiento mediante la rueda, por lo que la barra se oculta
+ * únicamente a nivel visual.
+ */
+.wmm-hidden-scrollbar {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+}
+
+.wmm-hidden-scrollbar slider {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+}

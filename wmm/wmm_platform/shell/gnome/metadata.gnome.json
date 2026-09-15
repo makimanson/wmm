@@ -4,5 +4,5 @@
   "description": "Wallpaper Multi-Monitor Manager",
   "shell-version": ["45","46", "47", "48", "49", "50"],
   "url": "https://github.com/makimanson/wmm",
-  "version-name": "1.3.0"
+  "version-name": "@VERSION@"
 }

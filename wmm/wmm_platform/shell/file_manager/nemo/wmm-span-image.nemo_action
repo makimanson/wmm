@@ -1,0 +1,19 @@
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
+#################################
+# wmm-span-image.nemo_action: extiende una imagen seleccionada
+#################################
+
+[Nemo Action]
+Name=WMM: Span image across all screens
+Name[es]=WMM: Extender imagen a todas las pantallas
+Name[ca]=WMM: Estén la imatge a totes les pantalles
+Comment=Span the selected image across all screens
+Comment[es]=Extiende la imagen seleccionada a todas las pantallas
+Comment[ca]=Estén la imatge seleccionada a totes les pantalles
+Exec=@PYTHON3@ @APP_DIR@/python/send_command.py '{"action":"shell_spanned_image","image_path":%F}'
+Icon-Name=view-fullscreen
+Selection=single
+Extensions=jpg;jpeg;png;bmp;webp;gif
+Quote=double
+EscapeSpaces=true

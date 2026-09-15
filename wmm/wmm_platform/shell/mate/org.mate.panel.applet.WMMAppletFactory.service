@@ -1,0 +1,28 @@
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
+# ==========================================================
+# WMM - Wallpaper Multi-Monitor Manager
+# MATE Panel Applet D-Bus Activation Service
+# ==========================================================
+#
+# org.mate.panel.applet.WMMAppletFactory.service
+# This file is installed automatically by install.sh.
+#
+# Installation target (XDG):
+#   ~/.local/share/dbus-1/services/
+#
+# The @PYTHON3@ token is replaced during installation with
+# the Python interpreter used by WMM.
+#
+# The @APP_DIR@ token is replaced during installation with
+# the actual installation directory of WMM.
+#
+# ==========================================================
+
+[D-BUS Service]
+
+# MATE Panel applet factory session bus name.
+Name=org.mate.panel.applet.WMMAppletFactory
+
+# MATE Panel applet factory entry point.
+Exec=@PYTHON3@ @APP_DIR@/mate-applet.py

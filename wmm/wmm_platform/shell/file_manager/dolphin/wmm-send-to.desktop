@@ -13,7 +13,7 @@ Encoding=UTF-8
 
 [Desktop Action SendToWMM]
 Name=WMM: Send to monitor
-Name[es]=WMM: Enviat a monitor
+Name[es]=WMM: Enviar a monitor
 Name[ca]=WMM: Envia a la pantalla
-Icon=user-bookmarks
-Exec=$HOME/.local/share/kio/servicemenus/wmm-send-to-monitor.sh %f
+Icon=document-send
+Exec=@APP_DIR@/wmm_platform/shell/file_manager/common/wmm-send-to-monitor.sh %f

@@ -34,8 +34,9 @@ class ThumbnailsSection:
             right_col:    El Gtk.Box derecho donde se empaquetará la sección.
             callbacks:    Diccionario con funciones de callback para
                           comunicarse con otras secciones y el panel:
-                          - 'increment_busy': () -> None
-                          - 'decrement_busy': () -> None
+                          - 'begin_sources_operation': () -> bool
+                          - 'finish_sources_operation': () -> bool
+                          - 'is_sources_operation_active': () -> bool
                           - 'set_progress_active': (active, text=None) -> None
                           - 'load_bookmarks_single': () -> None
                           - 'load_thumbnails': () -> None
@@ -61,6 +62,8 @@ class ThumbnailsSection:
         self._progress_images = []
         self._progress_h_list = []
         self._progress_v_list = []
+        self._favorite_paths = set()
+        self._thumbnail_items = {}
 
         # Construir la interfaz
         self.widget = self._build()
@@ -73,15 +76,17 @@ class ThumbnailsSection:
     # ==========================================================
     # PROPIEDADES DE ACCESO RÁPIDO A CALLBACKS
     # ==========================================================
-    def _increment_busy(self):
-        cb = self._callbacks.get('increment_busy')
-        if cb:
-            cb()
+    def _begin_sources_operation(self):
+        cb = self._callbacks.get('begin_sources_operation')
+        return cb() if cb else False
 
-    def _decrement_busy(self):
-        cb = self._callbacks.get('decrement_busy')
-        if cb:
-            cb()
+    def _finish_sources_operation(self):
+        cb = self._callbacks.get('finish_sources_operation')
+        return cb() if cb else False
+
+    def _is_sources_operation_active(self):
+        cb = self._callbacks.get('is_sources_operation_active')
+        return cb() if cb else False
 
     def _set_progress_active(self, active, text=None):
         cb = self._callbacks.get('set_progress_active')
@@ -103,7 +108,7 @@ class ThumbnailsSection:
     # ==========================================================
     def _build(self):
         """Construye y devuelve el widget principal de la sección."""
-        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
 
         # ----------------------------------------------------------
         # CABECERA: Etiqueta + Navegación H/V + Botón de refresco
@@ -165,8 +170,9 @@ class ThumbnailsSection:
         self.thumbnails_scrolled = Gtk.ScrolledWindow()
         self.thumbnails_flowbox = Gtk.FlowBox()
         self.thumbnails_flowbox.set_homogeneous(False)
-        self.thumbnails_flowbox.set_row_spacing(4)
-        self.thumbnails_flowbox.set_column_spacing(4)
+        self.thumbnails_flowbox.set_row_spacing(2)
+        self.thumbnails_flowbox.set_column_spacing(2)
+        self.thumbnails_flowbox.set_max_children_per_line(128)
         self.thumbnails_flowbox.set_valign(Gtk.Align.START)
         self.thumbnails_scrolled.add(self.thumbnails_flowbox)
         self.thumbnails_stack.add_named(self.thumbnails_scrolled, "library")
@@ -175,8 +181,9 @@ class ThumbnailsSection:
         self.favorites_scrolled = Gtk.ScrolledWindow()
         self.favorites_flowbox = Gtk.FlowBox()
         self.favorites_flowbox.set_homogeneous(False)
-        self.favorites_flowbox.set_row_spacing(4)
-        self.favorites_flowbox.set_column_spacing(4)
+        self.favorites_flowbox.set_row_spacing(2)
+        self.favorites_flowbox.set_column_spacing(2)
+        self.favorites_flowbox.set_max_children_per_line(128)
         self.favorites_flowbox.set_valign(Gtk.Align.START)
         self.favorites_scrolled.add(self.favorites_flowbox)
         self.thumbnails_stack.add_named(self.favorites_scrolled, "favorites")
@@ -189,16 +196,32 @@ class ThumbnailsSection:
     # ==========================================================
     # CARGA DE MINIATURAS
     # ==========================================================
-    def _load_thumbnails(self, widget=None):
+    def _load_thumbnails(self, widget=None, inherited_operation=False):
         """
         Inicia la carga asíncrona de todas las miniaturas de la biblioteca.
-        Si ya hay una carga en curso, no hace nada.
+
+        Si forma parte de Sources, hereda la operación global ya abierta.
+        Una recarga independiente abre su propia operación y la cerrará al FIN.
         """
         if self._thumbnails_loading:
-            return
+            return False
+
+        if inherited_operation:
+            # Sources → Sync → Thumbnails es una sola operación:
+            # esta fase final nunca debe abrir un segundo lifecycle.
+            if not self._is_sources_operation_active():
+                log_event("Thumbnails recibió una operación heredada sin lifecycle activo",
+                    origin="PANEL", level="ERROR", reason="LIBRARY")
+                return False
+        elif not self._begin_sources_operation():
+            return False
+
         self._thumbnails_loading = True
-        log_event("Generación de miniaturas iniciada", origin="PANEL", level="INFO", reason="LIBRARY")
+        log_event("Carga de miniaturas iniciada",
+            origin="PANEL", level="INFO", reason="LIBRARY")
+
         # Limpiar el flowbox actual
+        self._thumbnail_items.clear()
         for child in self.thumbnails_flowbox.get_children():
             self.thumbnails_flowbox.remove(child)
 
@@ -208,40 +231,48 @@ class ThumbnailsSection:
 
         if total == 0:
             self._thumbnails_loading = False
-            self._decrement_busy()
             self._set_progress_active(False)
             placeholder = Gtk.Label(label=_("No images found."))
             self.thumbnails_flowbox.add(placeholder)
-            return
+            self._finish_sources_operation()
+            return False
 
-        self._increment_busy()
         self._set_progress_active(True, _("Generating thumbnails") + "...")
         self._progress_count = 0
         self._progress_total = total
         self._progress_images = all_images
         self._progress_h_list = h_list
         self._progress_v_list = v_list
+        self._thumbnail_mtimes = {}
+        self._thumbnail_paths = {}
         GLib.idle_add(self._generate_next_thumbnail)
+        return False
 
     def _generate_next_thumbnail(self):
         """Genera la siguiente miniatura de la cola de forma asíncrona."""
         if self._progress_count < self._progress_total:
             img_data, orient = self._progress_images[self._progress_count]
             img_path = img_data[0]
-            self.handler.get_thumbnail(img_path)
+            thumb_path = self.handler.get_thumbnail(img_path)
+            self._thumbnail_paths[img_path] = thumb_path
+
+            try:
+                self._thumbnail_mtimes[img_path] = os.stat(thumb_path).st_mtime_ns if thumb_path else 0
+            except OSError:
+                self._thumbnail_mtimes[img_path] = 0
+
             self._progress_count += 1
             fraction = self._progress_count / self._progress_total
             if self.scan_progress:
                 self.scan_progress.set_fraction(fraction)
-                self.scan_progress.set_text(
-                    _("Processing") + " " + str(self._progress_count) + "/" + str(self._progress_total)
-                )
+                self.scan_progress.set_text(_("Processing") + " "
+                    + str(self._progress_count) + "/" + str(self._progress_total))
             return True  # Continuar en el bucle GLib
         else:
             self._build_thumbnail_items()
-            self._decrement_busy()
             self._set_progress_active(False)
-            return False  # Finalizar
+            self._finish_sources_operation()
+            return False  # FIN global: sólo aquí Sources vuelve al usuario
 
     def _build_thumbnail_items(self):
         """Construye los widgets de miniatura a partir de las listas H/V."""
@@ -249,22 +280,33 @@ class ThumbnailsSection:
         self._first_v_item = None
 
         # Conjunto de rutas favoritas para marcar visualmente
-        favorites = set()
+        self._favorite_paths.clear()
         fav_list = self.backend.load_json("bookmarks_single")
+
         for entry in fav_list:
             if entry and len(entry) > 0:
-                favorites.add(entry[0])
+                self._favorite_paths.add(entry[0])
 
-        h_list = self._progress_h_list
-        v_list = self._progress_v_list
+        # Estado de Sources compartido por toda esta reconstrucción.
+        sources_data = self.handler.load_json("sources").get("sources", [])
+        index = self.handler.load_json("index")
+
+        h_list = sorted(self._progress_h_list,
+            key=lambda img: self._thumbnail_mtimes.get(img[0], 0), reverse=True)
+        v_list = sorted(self._progress_v_list,
+            key=lambda img: self._thumbnail_mtimes.get(img[0], 0), reverse=True)
 
         for img in h_list:
-            if self.handler._is_path_active(img[0]):
-                self._add_thumbnail_item(img[0], favorites, self.thumbnails_flowbox)
+            if self.handler._is_path_active(img[0], sources_data, index):
+                self._add_thumbnail_item(
+                    img[0], self._favorite_paths, self.thumbnails_flowbox,
+                    self._thumbnail_paths.get(img[0]))
 
         for img in v_list:
-            if self.handler._is_path_active(img[0]):
-                self._add_thumbnail_item(img[0], favorites, self.thumbnails_flowbox)
+            if self.handler._is_path_active(img[0], sources_data, index):
+                self._add_thumbnail_item(
+                    img[0], self._favorite_paths, self.thumbnails_flowbox,
+                    self._thumbnail_paths.get(img[0]))
 
         children = self.thumbnails_flowbox.get_children()
         if h_list and len(children) > 0:
@@ -278,23 +320,23 @@ class ThumbnailsSection:
 
         self.thumbnails_flowbox.show_all()
         self._thumbnails_loading = False
-        log_event(f"Generación de miniaturas completada: {len(self._progress_h_list)}H / {len(self._progress_v_list)}V",
-                  origin="PANEL", level="INFO", reason="LIBRARY")
-        self._set_progress_active(False)
-        log_event("Thumbnails cargados", origin="PANEL", level="INFO", reason="LIBRARY")
+        log_event(f"Thumbnails cargados: {len(self._progress_h_list)}H / {len(self._progress_v_list)}V",
+            origin="PANEL", level="INFO", reason="LIBRARY")
 
-    def _add_thumbnail_item(self, img_path, favorites, flowbox):
+    def _add_thumbnail_item(self, img_path, favorites, flowbox, thumb_path=None):
         """
         Crea un elemento de miniatura con su imagen, nombre y eventos.
         Args:
             img_path:  Ruta absoluta de la imagen.
             favorites: Conjunto de rutas favoritas para marcar el borde.
         """
-        item_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        item_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         item_box.set_margin_start(4)
         item_box.set_margin_end(4)
 
-        thumb_path = self.handler.get_thumbnail(img_path)
+        if thumb_path is None:
+            thumb_path = self.handler.get_thumbnail(img_path)
+
         img = Gtk.Image.new_from_file(thumb_path)
         img.set_tooltip_text(img_path)
         img.set_size_request(-1, self.handler.thumbnail_max_height)
@@ -308,6 +350,9 @@ class ThumbnailsSection:
 
         if img_path in favorites:
             item_box.get_style_context().add_class("favorite-thumbnail")
+
+        if flowbox is self.thumbnails_flowbox:
+            self._thumbnail_items[img_path] = item_box
 
         event_box = Gtk.EventBox()
         event_box.add(item_box)
@@ -364,7 +409,7 @@ class ThumbnailsSection:
             if not img_path or not os.path.exists(img_path):
                 continue
 
-            self._add_thumbnail_item(img_path, favorites, self.favorites_flowbox)
+            self._add_thumbnail_item(img_path, self._favorite_paths, self.favorites_flowbox)
             visible_count += 1
 
         if visible_count == 0:
@@ -400,7 +445,7 @@ class ThumbnailsSection:
     def _on_thumbnail_double_click(self, widget, event, img_path):
         """Doble clic: abre la imagen con el visor del sistema."""
         if event.type == Gdk.EventType._2BUTTON_PRESS and event.button == 1:
-            self.handler.open_in_file_manager(img_path)
+            self.handler.open_file(img_path)
             return True
         return False
 
@@ -438,15 +483,35 @@ class ThumbnailsSection:
     # ==========================================================
     # GESTIÓN DE FAVORITOS
     # ==========================================================
+    def _refresh_favorite_state(self):
+        """Actualiza el estado visual de favoritos sin reconstruir Thumbnails."""
+        fav_list = self.backend.load_json("bookmarks_single")
+        favorites = {entry[0] for entry in fav_list if entry and len(entry) > 0}
+
+        self._favorite_paths.clear()
+        self._favorite_paths.update(favorites)
+
+        for img_path, item_box in self._thumbnail_items.items():
+            context = item_box.get_style_context()
+
+            if img_path in self._favorite_paths:
+                context.add_class("favorite-thumbnail")
+            else:
+                context.remove_class("favorite-thumbnail")
+
+        return False
+
+    def _notify_single_favorites_changed(self):
+        cb = self._callbacks.get('on_single_favorites_changed')
+        if cb:
+            cb()
+
     def _add_to_favorites(self, widget, img_path):
         """Añade una imagen a la lista plana de favoritos."""
         if self.handler.add_to_favorites(img_path):
-            self._load_bookmarks_single()
-            self._load_thumbnails()
+            self._notify_single_favorites_changed()
 
     def _remove_from_favorites(self, widget, img_path):
-        """Elimina una imagen de favoritos y actualiza ambas vistas."""
+        """Elimina una imagen de favoritos y sincroniza sus vistas."""
         if self.handler.remove_from_favorites(img_path):
-            self._load_bookmarks_single()
-            self._load_favorites_view()
-            self._load_thumbnails()
+            self._notify_single_favorites_changed()

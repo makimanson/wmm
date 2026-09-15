@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Action
+Name=Send to Monitor
+Name[es]=Enviar al monitor
+Name[ca]=Envia a la pantalla
+Icon=send-to
+ToolbarLabel=Send to Monitor
+ToolbarLabel[es]=Enviar al monitor
+ToolbarLabel[ca]=Envia a la pantalla
+Profiles=profile-zero;
+
+[X-Action-Profile profile-zero]
+Exec=@APP_DIR@/wmm_platform/shell/file_manager/common/wmm-send-to-monitor.sh %f
+Basenames=*.gif;*.webp;*.bmp;*.png;*.jpeg;*.jpg;
+Matchcase=false
+MimeTypes=image/*;
+Schemes=file;
