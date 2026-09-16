@@ -79,8 +79,11 @@ Changelog
 - Reworked installation system around `wmm-install.sh` for Install, Upgrade and Reinstall/Repair.
 - `wmm-uninstall.sh` remains official standalone uninstaller.
 - Upgrade and Reinstall now use clean staging while preserving persistent data.
-- After Reinstall/Upgrade, matching frontend is always reloaded; engine starts as a consequence of frontend load.
+- Upgrade/Reinstall now stops the previous engine after unloading the desktop frontend and before activating the staged tree, preventing the old runtime from surviving across replacement.
+- After Reinstall/Upgrade, desktop integration is restored through the native lifecycle of each supported environment.
 - Cinnamon keeps its specific reload cycle for translations.
+- KDE Plasma Reinstall/Upgrade now preserves the installed plasmoid through the atomic swap without invoking `kpackagetool6 --upgrade` on its own installed directory.
+- KDE Plasma restores WMM after Reinstall/Upgrade by reactivating `org.maki.wmm` through D-Bus; the System Tray rematerializes the existing plasmoid instances without restarting `plasmashell`.
 - `about.json` is now primary installed-version source, with fallback to `metadata.json`.
 - Direct `wmm-uninstall.sh` execution now shows header and confirmation.
 - Added internal `--managed` mode.
@@ -217,6 +220,10 @@ Changelog
 - Fixed possibility of signaling an unrelated process when an old engine PID had been recycled.
 - Fixed accidental close/reopen of Favorites menu on GNOME.
 - Fixed KDE plasmoid lifecycle when removed from panel.
+- Fixed Reinstall/Upgrade lifecycle regression where the previous WMM engine could survive the installation swap and prevent the freshly installed engine from starting.
+- Fixed KDE Plasma Reinstall/Upgrade removing the installed WMM plasmoid when `kpackagetool6 --upgrade` was invoked using the plasmoid installation directory itself as the package source.
+- Fixed KDE Plasma Reinstall/Upgrade leaving WMM stopped after replacement; the engine is now reactivated through D-Bus and the System Tray restores the existing plasmoid instances without restarting Plasma Shell.
+- Fixed broken screenshot links in the English and Spanish README files caused by referencing `.png` instead of the actual `.jpg` image.
 - Fixed MATE Crossfade transition when `background-fade` was disabled.
 - Fixed MATE frontend indentation defect that could stay hidden behind an old resident factory.
 - Fixed creation of multiple active MATE applet instances.

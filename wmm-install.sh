@@ -1191,15 +1191,12 @@ install_external() {
             fi
             PLASMOID_SWAPPED=1
 
-            # Actualizar el registro de paquetes de Plasma si la herramienta existe.
-            if command -v kpackagetool6 >/dev/null 2>&1; then
-                if [ -n "$OLD_PLASMOID" ]; then
-                    kpackagetool6 -t Plasma/Applet --upgrade "$PLASMOID_DIR" >/dev/null 2>&1 \
-                        || kpackagetool6 -t Plasma/Applet --install "$PLASMOID_DIR" >/dev/null 2>&1 \
-                        || true
-                else
-                    kpackagetool6 -t Plasma/Applet --install "$PLASMOID_DIR" >/dev/null 2>&1 || true
-                fi
+            # Registrar el paquete sólo cuando no existía una instalación previa.
+            # En Replace, el plasmoide ya se sustituye atómicamente conservando
+            # el mismo ID y la misma ruta. No usar --upgrade sobre PLASMOID_DIR:
+            # KPackage elimina primero esa ruta y destruye así su propia fuente.
+            if command -v kpackagetool6 >/dev/null 2>&1 && [ -z "$OLD_PLASMOID" ]; then
+                kpackagetool6 -t Plasma/Applet --install "$PLASMOID_DIR" >/dev/null 2>&1 || true
             fi
             ;;
     esac
@@ -1210,8 +1207,8 @@ install_external() {
 
 # ----------------------------------------------------------
 # FUNCIÓN: Relanzar frontend
-# Tras Upgrade/Reinstall vuelve a cargar applet/extensión/plasmoide.
-# El frontend es quien pone de nuevo en marcha el engine.
+# Tras Upgrade/Reinstall vuelve a poner operativo el frontend correspondiente.
+# Cada escritorio utiliza su lifecycle nativo de recarga/activación.
 # ----------------------------------------------------------
 relaunch_frontend() {
     info 'Reloading WMM frontend...'
@@ -1235,17 +1232,19 @@ relaunch_frontend() {
                 && { ok 'GNOME extension re-enabled.'; return 0; }
             ;;
         kde)
-            command -v kquitapp6 >/dev/null 2>&1 || {
-                warn 'kquitapp6 unavailable; restart Plasma Shell manually.'
-                return 1
-            }
-
-            kquitapp6 plasmashell >/dev/null 2>&1 || true
-            sleep .3
-            nohup plasmashell --replace >/dev/null 2>&1 &
-
-            ok 'Plasma Shell frontend relaunched.'
-            return 0
+            if "$DBUS_SEND_BIN" \
+                --session \
+                --type=method_call \
+                --print-reply \
+                --dest=org.freedesktop.DBus \
+                /org/freedesktop/DBus \
+                org.freedesktop.DBus.StartServiceByName \
+                string:org.maki.wmm \
+                uint32:0 \
+                >/dev/null 2>&1; then
+                ok 'KDE frontend relaunched.'
+                return 0
+            fi
             ;;
 
         mate)
@@ -1463,6 +1462,12 @@ run_replace() {
     unload_frontend || {
         [ -n "$STAGING" ] && rm -rf "$STAGING"
         fail 'Could not unload the current frontend safely.'
+        return 1
+    }
+
+    stop_wmm || {
+        [ -n "$STAGING" ] && rm -rf "$STAGING"
+        relaunch_frontend || true
         return 1
     }
 
