@@ -47,7 +47,7 @@ if hasattr(platform, "set_process_name"):
     platform.set_process_name("WMM About")
 initialize(platform)
 
-ABOUT_PATH = os.path.join(_PROJECT_ROOT, "data", "about.json")
+ABOUT_PATH = os.path.join(platform.data_dir, "about.json")
 
 # ==========================================================
 # DATOS DE ABOUT
@@ -122,7 +122,7 @@ class AboutWindow(Gtk.ApplicationWindow):
         full_name.set_halign(Gtk.Align.CENTER)
         content.pack_start(full_name, False, False, 0)
 
-        version = Gtk.Label(label=f'{_("Version")}: {data["version"]}')
+        version = Gtk.Label(label=_("Version") + ": " + str(data["version"]))
         version.set_halign(Gtk.Align.CENTER)
         content.pack_start(version, False, False, 0)
 
@@ -138,7 +138,7 @@ class AboutWindow(Gtk.ApplicationWindow):
         legal_box.pack_start(copyright_label, False, False, 0)
 
         license_name = str(data["license"]["name"])
-        license_label = Gtk.Label(label=f'{_("License")}: {license_name}')
+        license_label = Gtk.Label(label=_("License") + ": " + license_name)
         license_label.set_halign(Gtk.Align.CENTER)
         legal_box.pack_start(license_label, False, False, 0)
 

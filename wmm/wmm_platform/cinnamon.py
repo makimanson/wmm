@@ -10,6 +10,7 @@ cinnamon.py - Módulo de plataforma para Cinnamon (Linux).
 ==========================================================
 Contiene solo las implementaciones específicas de este entorno.
 """
+
 import os
 import glob
 import hashlib
@@ -17,7 +18,9 @@ import subprocess
 import time
 import json
 import gi
+
 gi.require_version('Gio', '2.0')
+
 from gi.repository import Gio, GLib
 from PIL import Image
 from debug_logger import log_event
@@ -29,33 +32,6 @@ _monitor = None
 def get_install_path(data_base, app_domain):
     """Devuelve la ruta de instalación para Cinnamon."""
     return os.path.join(data_base, 'cinnamon', 'applets', app_domain)
-
-def refresh_shell_after_translation_update():
-    """Reinicia Cinnamon en X11 para recargar las traducciones recién compiladas."""
-    if os.environ.get("XDG_SESSION_TYPE", "").lower() != "x11" or os.environ.get("WAYLAND_DISPLAY"):
-        return False
-
-    try:
-        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-
-        bus.call_sync(
-            "org.Cinnamon",
-            "/org/Cinnamon",
-            "org.Cinnamon",
-            "RestartCinnamon",
-            GLib.Variant("(b)", (True,)),
-            None,
-            Gio.DBusCallFlags.NONE,
-            1500,
-            None
-        )
-
-        log_event("Reinicio de Cinnamon solicitado para recargar traducciones", origin="CINNAMON", level="INFO", reason="SETTINGS")
-        return True
-
-    except GLib.Error as e:
-        log_event(f"No se pudo reiniciar Cinnamon tras actualizar las traducciones: {e}", origin="CINNAMON", level="WARN", reason="D-BUS")
-        return False
 
 def get_window_available_area(pid):
     """
@@ -99,42 +75,29 @@ def get_window_available_area(pid):
             GLib.Variant("(s)", (script,)),
             GLib.VariantType.new("(bs)"),
             Gio.DBusCallFlags.NONE,
-            1000,
-            None
-        )
+            1000, None)
 
         success, value = result.unpack()
-
         if not success or not value:
-            log_event(f"Muffin no pudo resolver el área útil para PID {pid}", origin="CINNAMON", level="DEBUG", reason="D-BUS")
+            log_event(f"Muffin no pudo resolver el área útil para PID {pid}",
+                origin="CINNAMON", level="DEBUG", reason="D-BUS")
             return None
-
         area = json.loads(value)
-
         if not isinstance(area, dict):
             return None
-
         x = int(area["x"])
         y = int(area["y"])
         width = int(area["width"])
         height = int(area["height"])
-
         if width <= 0 or height <= 0:
             return None
-
-        result_area = {
-            "x": x,
-            "y": y,
-            "width": width,
-            "height": height,
-        }
-
-        log_event(f"Área útil Cinnamon obtenida para PID {pid}: {result_area}", origin="CINNAMON", level="DEBUG", reason="D-BUS")
-
+        result_area = { "x": x, "y": y, "width": width, "height": height, }
+        log_event(f"Área útil Cinnamon obtenida para PID {pid}: {result_area}",
+            origin="CINNAMON", level="DEBUG", reason="D-BUS")
         return result_area
-
     except Exception as e:
-        log_event(f"No se pudo obtener el área útil desde Cinnamon: {e}", origin="CINNAMON", level="WARN", reason="D-BUS")
+        log_event(f"No se pudo obtener el área útil desde Cinnamon: {e}",
+            origin="CINNAMON", level="WARN", reason="D-BUS")
         return None
 
 def preserve_window_position_on_expand(pid):
@@ -175,9 +138,7 @@ def preserve_window_position_on_expand(pid):
             GLib.Variant("(s)", (capture_script,)),
             GLib.VariantType.new("(bs)"),
             Gio.DBusCallFlags.NONE,
-            1000,
-            None
-        )
+            1000, None)
 
         success, value = result.unpack()
 
@@ -221,17 +182,17 @@ def preserve_window_position_on_expand(pid):
                     GLib.Variant("(s)", (restore_script,)),
                     GLib.VariantType.new("(bs)"),
                     Gio.DBusCallFlags.NONE,
-                    1000,
-                    None
-                )
+                    1000, None)
 
                 success, value = result.unpack()
 
                 if success and value and json.loads(value):
-                    log_event(f"Posición restaurada tras expansión para PID {pid}: x={x}, y={y}", origin="CINNAMON", level="DEBUG", reason="LAYOUT")
+                    log_event(f"Posición restaurada tras expansión para PID {pid}: x={x}, y={y}",
+                        origin="CINNAMON", level="DEBUG", reason="LAYOUT")
 
             except Exception as e:
-                log_event(f"No se pudo restaurar la posición tras expansión: {e}", origin="CINNAMON", level="WARN", reason="LAYOUT")
+                log_event(f"No se pudo restaurar la posición tras expansión: {e}",
+                    origin="CINNAMON", level="WARN", reason="LAYOUT")
 
             return False
 
@@ -239,7 +200,8 @@ def preserve_window_position_on_expand(pid):
         GLib.timeout_add(50, restore_position)
 
     except Exception as e:
-        log_event(f"No se pudo preservar la posición antes de expandir: {e}", origin="CINNAMON", level="WARN", reason="LAYOUT")
+        log_event(f"No se pudo preservar la posición antes de expandir: {e}",
+            origin="CINNAMON", level="WARN", reason="LAYOUT")
 
 def correct_initial_window_position(pid):
     """
@@ -278,24 +240,25 @@ def correct_initial_window_position(pid):
             GLib.Variant("(s)", (script,)),
             GLib.VariantType.new("(bs)"),
             Gio.DBusCallFlags.NONE,
-            1000,
-            None
-        )
+            1000, None)
 
         success, value = result.unpack()
 
         if success and value and json.loads(value):
-            log_event(f"Posición inicial corregida para PID {pid}", origin="CINNAMON", level="DEBUG", reason="LAYOUT")
+            log_event(f"Posición inicial corregida para PID {pid}",
+                origin="CINNAMON", level="DEBUG", reason="LAYOUT")
 
     except Exception as e:
-        log_event(f"No se pudo corregir la posición inicial: {e}", origin="CINNAMON", level="WARN", reason="LAYOUT")
+        log_event(f"No se pudo corregir la posición inicial: {e}",
+            origin="CINNAMON", level="WARN", reason="LAYOUT")
 
 def render_master_wallpaper(self, processed_images, monitors_map, config_handler):
     """
     Monta el lienzo a partir de imágenes ya procesadas y lo aplica en Cinnamon.
     """
     if not processed_images:
-        log_event("No hay imágenes procesadas para Cinnamon", origin="CINNAMON", level="ERROR", reason="LIBRARY")
+        log_event("No hay imágenes procesadas para Cinnamon",
+            origin="CINNAMON", level="ERROR", reason="LIBRARY")
         return False
 
     # Calcular dimensiones del canvas
@@ -333,61 +296,59 @@ def _force_desktop_settings(config_handler):
     try:
         subprocess.run(
             ["gsettings", "set", "org.cinnamon.desktop.background", "picture-options", "spanned"],
-            check=False
-        )
-        log_event("Forzando picture-options a 'spanned'", origin="CINNAMON", level="DEBUG", reason="HARDWARE")
+            check=False)
+        log_event("Forzando picture-options a 'spanned'",
+            origin="CINNAMON", level="DEBUG", reason="HARDWARE")
 
         subprocess.run(
             ["gsettings", "set", "org.cinnamon.desktop.background.slideshow", "slideshow-enabled", "false"],
-            check=False
-        )
-        log_event("Forzando slideshow a 'false'", origin="CINNAMON", level="DEBUG", reason="HARDWARE")
+            check=False)
+        log_event("Forzando slideshow a 'false'",
+            origin="CINNAMON", level="DEBUG", reason="HARDWARE")
 
         subprocess.run(
             ["gsettings", "set", "org.cinnamon.desktop.background", "color-shading-type", "solid"],
-            check=False
-        )
-        log_event("Forzando color-shading-type a 'solid'", origin="CINNAMON", level="DEBUG", reason="HARDWARE")
+            check=False)
+        log_event("Forzando color-shading-type a 'solid'",
+            origin="CINNAMON", level="DEBUG", reason="HARDWARE")
 
         issues = []
 
         result = subprocess.run(
             ["gsettings", "get", "org.cinnamon.desktop.background", "picture-options"],
-            capture_output=True, text=True
-        )
+            capture_output=True, text=True)
         if result.stdout.strip().lower().replace("'", "") != "spanned":
             issues.append("Picture aspect")
 
         result = subprocess.run(
             ["gsettings", "get", "org.cinnamon.desktop.background.slideshow", "slideshow-enabled"],
-            capture_output=True, text=True
-        )
+            capture_output=True, text=True)
+
         if result.stdout.strip().lower() != "false":
             issues.append("Slideshow")
 
         result = subprocess.run(
             ["gsettings", "get", "org.cinnamon.desktop.background", "color-shading-type"],
-            capture_output=True, text=True
-        )
+            capture_output=True, text=True)
+
         if result.stdout.strip().lower().replace("'", "") != "solid":
             issues.append("Background color type")
 
         if issues:
-            log_event(
-                f"No se pudieron forzar algunos ajustes: {', '.join(issues)}. Notificando al usuario.",
-                origin="CINNAMON", level="WARN", reason="HARDWARE"
-            )
+            log_event(f"No se pudieron forzar algunos ajustes: {', '.join(issues)}. Notificando al usuario.",
+                origin="CINNAMON", level="WARN", reason="HARDWARE")
             config_handler._send_notification(
                 reason="WMM: " + _("Configuration issue"),
                 detail_msg=_("For WMM to function correctly, please check the following settings in 'System Settings > Backgrounds':")
                 + "\n" + "\n".join(f"• {issue}" for issue in issues),
-                level="warn"
-            )
+                level="warn")
         else:
-            log_event("Todos los ajustes del sistema forzados correctamente", origin="CINNAMON", level="DEBUG", reason="HARDWARE")
+            log_event("Todos los ajustes del sistema forzados correctamente",
+                origin="CINNAMON", level="DEBUG", reason="HARDWARE")
 
     except Exception as e:
-        log_event(f"Error al forzar ajustes de Cinnamon: {e}", origin="CINNAMON", level="ERROR", reason="NOTIFY")
+        log_event(f"Error al forzar ajustes de Cinnamon: {e}",
+            origin="CINNAMON", level="ERROR", reason="NOTIFY")
 
 def set_wallpaper(master_canvas, final_path, config_handler):
     """
@@ -423,14 +384,17 @@ def set_wallpaper(master_canvas, final_path, config_handler):
             time.sleep(2.0)
             os.system(f"gsettings set org.cinnamon.desktop.background picture-uri 'file://{fade_color_path}'")
         master_canvas.save(final_path, "JPEG", quality=95)
-        log_event(f"Lienzo maestro generado en Cinnamon: {final_path}", origin="DESKTOP", level="INFO", reason="LIBRARY")
+        log_event(f"Lienzo maestro generado en Cinnamon: {final_path}",
+            origin="DESKTOP", level="INFO", reason="LIBRARY")
 
         os.system(f"gsettings set org.cinnamon.desktop.background picture-uri 'file://{final_path}'")
 
         if sl_mode == "sync":
-            log_event("Transición Cine aplicada (sync)", origin="CINNAMON", level="INFO", reason="LIBRARY")
+            log_event("Transición Cine aplicada (sync)",
+                origin="CINNAMON", level="INFO", reason="LIBRARY")
         else:
-            log_event("Transicion Crossfade aplicada (async)", origin="CINNAMON", level="INFO", reason="LIBRARY")
+            log_event("Transicion Crossfade aplicada (async)",
+                origin="CINNAMON", level="INFO", reason="LIBRARY")
 
     except Exception as e:
         log_event(f"Cinnamon no respondió: {e}", origin="CINNAMON", level="ERROR", reason="NOTIFY")
@@ -438,7 +402,6 @@ def set_wallpaper(master_canvas, final_path, config_handler):
 def ensure_keybindings(app_dir):
     """
     Instala el atajo de teclado de WMM si todavía no existe.
-
     No modifica atajos existentes del usuario.
     Si el atajo de WMM ya está registrado, simplemente termina.
     """
@@ -459,8 +422,7 @@ def ensure_keybindings(app_dir):
         shlex.quote(sys.executable),
         shlex.quote(send_command_path),
         shlex.quote(json.dumps({"action": "force_rotation"})),
-        shlex.quote("HOTKEY"),
-    ])
+        shlex.quote("HOTKEY"), ])
 
     # Ruta utilizada por versiones anteriores, únicamente para migrar
     # instalaciones existentes sin perder el atajo asignado por el usuario.
@@ -484,28 +446,38 @@ def ensure_keybindings(app_dir):
     # 4. ¿Ya existe un atajo de WMM?
     # ----------------------------------------------------------
     for item in custom_list:
-
         if item == "__dummy__":
             continue
-
         path = f"{base_path}{item}/"
-
         try:
             ks = Gio.Settings.new_with_path(schema_custom, path)
+            existing_name = ks.get_string("name")
 
-            existing_command = ks.get_string("command")
+            # El nombre identifica el atajo de WMM; el comando puede cambiar
+            # entre topologías y por eso no debe usarse como identidad.
+            if existing_name == full_name:
+                existing_command = ks.get_string("command")
+                if existing_command != command:
+                    ks.set_string("command", command)
+                    ks.sync()
 
-            if existing_command == command:
-                log_event("Atajo de WMM ya instalado", origin="CINNAMON", level="INFO", reason="SETTINGS")
+                    # Cinnamon sólo reconstruye los custom keybindings cuando
+                    # custom-list cambia; alternar __dummy__ reproduce el
+                    # mismo mecanismo usado por su panel de configuración.
+                    if "__dummy__" in custom_list:
+                        custom_list.remove("__dummy__")
+                    else:
+                        custom_list.append("__dummy__")
+
+                    settings.set_strv("custom-list", custom_list)
+                    settings.sync()
+
+                    log_event("Comando del atajo WMM actualizado",
+                              origin="CINNAMON", level="INFO", reason="SETTINGS")
+                else:
+                    log_event("Atajo de WMM ya instalado",
+                              origin="CINNAMON", level="INFO", reason="SETTINGS")
                 return
-
-            if existing_command == legacy_script_path:
-                ks.set_string("command", command)
-                ks.sync()
-
-                log_event("Atajo de WMM migrado a send_command.py", origin="CINNAMON", level="INFO", reason="SETTINGS")
-                return
-
         except Exception:
             pass
 
@@ -513,18 +485,14 @@ def ensure_keybindings(app_dir):
     # 5. Buscar primer índice libre
     # ----------------------------------------------------------
     used = []
-
     pattern = re.compile(r"custom(\d+)")
-
     for item in custom_list:
         m = pattern.fullmatch(item)
         if m:
             used.append(int(m.group(1)))
-
     index = 0
     while index in used:
         index += 1
-
     name = f"custom{index}"
     path = f"{base_path}{name}/"
 
@@ -532,11 +500,9 @@ def ensure_keybindings(app_dir):
     # 6. Crear el nuevo atajo
     # ----------------------------------------------------------
     ks = Gio.Settings.new_with_path(schema_custom, path)
-
     ks.set_string("name", full_name)
     ks.set_string("command", command)
     ks.set_strv("binding", [])
-
     ks.sync()
 
     # ----------------------------------------------------------

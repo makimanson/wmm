@@ -169,7 +169,7 @@ def ensure_keybindings(app_dir):
     pass
 
 
-def init_channels():
+def init_channels(data_dir):
     """
     Registra los canales de comunicación soportados por Windows.
     TODO: Implementar canales (archivo, y posiblemente named pipes o mailslots).

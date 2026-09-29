@@ -7,6 +7,199 @@ WMM - Wallpaper Multi-Monitor Manager
 Changelog
 -->
 
+# v1.5.0 - 2026-09-29
+
+WMM 1.5.0 introduces full support for **XFCE 4.20 / X11** and consolidates a common Linux architecture for **Cinnamon, GNOME Shell, KDE Plasma 6, MATE and XFCE**, separating the core, persistent data, cache and desktop-specific frontends.
+
+This release also strengthens the Install, Upgrade, Reinstall and Uninstall lifecycles, expands file manager and desktop integrations, consolidates the Translation Manager, and completes migration from previous layouts without losing user configuration.
+
+## Added
+
+- Added built-in branded wallpaper fallback when the user library contains no images, with automatic horizontal, vertical and Spanned selection.
+- Added dedicated `WMM-presentation.jpg` project artwork while keeping `screenshots/` reserved for the four functional fallback wallpapers.
+
+### XFCE
+
+- Added full support for **XFCE 4.20 / X11**.
+- Added a new wallpaper backend based on a virtual master canvas applied through `xfconf`.
+- Added reactive XRandR integration for monitor topology and primary-monitor changes.
+- Added a dedicated `StatusNotifierItem` frontend without requiring a C plugin or compiled library.
+- Added a main menu with Favorites, Slideshow, ASYNC/SYNC, Spanned Mode and presets.
+- Added automatic frontend recovery after `xfce4-panel` restarts, without polling or artificial delays.
+- Added `org.maki.wmm.xfce.desktop` launcher and autostart integration.
+- Added integration with native XFCE shortcuts while leaving the actual key combination to the user.
+- Added WMM actions to Thunar for:
+  - Add to favorites;
+  - Send to Monitor;
+  - Span image across all screens.
+- Added a Thunarx provider for operating on the wallpaper of the selected monitor directly from the XFCE desktop.
+- Added XFCE-specific preflight checks for xfconf-query and Wnck 3.0 Introspection.
+
+### Desktop integrations
+
+- Added a Cinnamon frontend separated from the common core.
+- Added a GNOME frontend separated from the common core.
+- Added a dedicated MATE runtime unit under `frontends/mate/`.
+- Added `settings_core.ini` to frontends to explicitly resolve the common core and persistent data.
+- Added a Caja desktop context menu with **Span image across all active screens** and **Add to favorites**.
+- Added an independent Nemo desktop context menu for actions on the active wallpaper.
+- Updated Dolphin integration to use the common topology.
+
+### Translation Manager
+
+- Consolidated `pot_manager.py` as a standalone **Translation Manager**.
+- Added POT and Search views.
+- Added POT generation and comparison for Python and JavaScript.
+- Added detection of New and Removed strings.
+- Added search by `msgid`, translations and source references.
+- Added direct editing and validation of `.po` catalogs.
+- Added independent persistence of its visual state.
+
+### Installer
+
+- Added optional dependencies for Nautilus, Caja and Thunarx integrations without blocking the main installation.
+- Added local `wmm-repair.zip` package for Repair/Reinstall.
+- Normalized launcher identities as `org.maki.wmm.<desktop>.desktop`.
+- Added optional Thunarx 3.0 Introspection and thunarx-python dependencies for XFCE desktop integration without blocking the main WMM installation.
+
+## Changed
+
+### Common architecture
+
+- Separated the common WMM core from desktop-specific frontends.
+- The Linux topology now uses:
+  - core: `~/.local/share/wmm@maki/`;
+  - persistent data: `~/.config/wmm@maki/data/`;
+  - cache: `~/.cache/wmm/`;
+  - desktop-specific frontend according to the active environment.
+- ConfigHandler, communication channels and common tools now use platform-resolved paths.
+- About, Debug Log Viewer, Docs Viewer, Install Manager and launch profiles were adapted to the new topology.
+- Main WMM processes now use specific visible process names under Linux instead of appearing generically as `python3`.
+
+### Install / Upgrade / Reinstall
+
+- Upgrade and Reinstall now use clean staging while preserving persistent data.
+- The previous frontend is unloaded before stopping the engine and replacing installed trees.
+- Rollback now stops any newly started runtime before restoring the previous installation.
+- Cinnamon, GNOME, KDE, MATE and XFCE use recovery cycles adapted to their native lifecycle.
+- Legacy resources remain recoverable until `commit()` and are removed only after a successful transition.
+- WMM-owned process shutdown now uses Linux `pidfd` handles with event-driven waiting, preventing PID reuse races and stale runtimes without introducing polling.
+- Replace now aborts safely if an existing WMM runtime cannot be stopped, instead of forcing an unsafe replacement or using a SIGKILL fallback.
+
+### KDE Plasma 6
+
+- KDE now uses the common core while keeping the plasmoid as a native frontend under `plasma/plasmoids/org.maki.wmm`.
+- The current launcher and global-shortcut identity is now `org.maki.wmm.kde.desktop`.
+- KGlobalAccel management now belongs exclusively to `kde.py`; the installer no longer modifies shortcuts.
+- Upgrades from WMM 1.4.x preserve the user's selected key combination while replacing the legacy KGlobalAccel identity.
+- On clean installations with **Plasma >= 6.6.6**, the installer restarts `plasma-plasmashell.service` so WMM can be materialized without ending the user session.
+- On older Plasma versions, or when the automatic restart fails, session restart remains the safe fallback.
+
+### Cinnamon / GNOME / MATE
+
+- Cinnamon automatically migrates older installations using the `wmm-applet@maki` UUID while preserving panel, position and instance.
+- GNOME protects and replaces the extension as a frontend independent from the core.
+- MATE uses its native `--unload/--restore` lifecycle while preserving applet identity and position.
+- Cinnamon and MATE keep their frontends hidden until the engine has prepared translations and acquired `org.maki.wmm`.
+- Cinnamon now also defers its native `finalizeContextMenu()` until translation readiness, preventing Cinnamon's own early `dgettext()` lookup from caching a missing WMM catalog during a completely cold first load.
+
+### File managers
+
+- Centralized preparation of the common wrappers used by Dolphin, Caja and Thunar.
+- Nemo now keeps WMM file actions and wallpaper actions in separate menus.
+- Missing optional integrations no longer prevent WMM from starting or using the remaining functionality.
+
+## Fixed
+
+### XFCE
+
+- Fixed wallpaper refresh when XFCE repeatedly received a logically equivalent path by introducing double buffering.
+- Fixed races between autostart, the engine and `StatusNotifierWatcher`.
+- Fixed icon re-registration after `xfce4-panel -r`.
+- Prevented duplicate frontend instances.
+- Fixed menu geometry when expanding or collapsing sections.
+- Fixed interaction with internal controls under the `Gtk.Menu` grab.
+- Fixed Favorites height, scrolling and alignment.
+- Fixed Replace and Uninstall lifecycle so XFCE processes cannot remain running from deleted code.
+- Validated the post-refactor XFCE Uninstall → Install → Reinstall → startup lifecycle with a clean WMM process inventory.
+- The icon is now shown only when the frontend is fully built, operational and translated.
+
+### Installer / rollback
+
+- Fixed rollback after a failed relaunch so orphaned engines cannot continue running from already removed trees.
+- Fixed detection and recovery of partially dismantled installations.
+- Fixed historical path inconsistencies between the core, persistent data, communication channels and configuration.
+- Fixed the installed README presentation-image path when the package `/wmm` level becomes the installed `APP_DIR` root, while preserving the source/GitHub path unchanged.
+
+### Cinnamon / Nemo
+
+- Fixed Upgrade from Cinnamon installations using the legacy UUID.
+- Preserved the exact applet position and instance during migration.
+- Restored the WMM icon in Cinnamon Settings.
+- Fixed premature UI loading before translations are available.
+- Fixed completely cold Cinnamon first-load translations by deferring the native `finalizeContextMenu()` until `org.maki.wmm` readiness, so Cinnamon cannot cache a failed WMM-domain lookup before the `.mo` catalogs exist.
+- Removed a redundant Cinnamon bootstrap icon assignment while preserving the initial geometry-producing icon and the normal idle/busy icon lifecycle.
+- Fixed duplicate and incomplete WMM action migrations in `actions-tree.json`.
+- Nemo can now refresh its contextual layout without requiring a session restart.
+
+### GNOME
+
+- Fixed migration so core and persistent data remain outside the extension directory.
+- Fixed publication of partially built frontends during Replace or rollback.
+- Recovery is now validated through actual D-Bus availability of both the extension and the engine.
+- Fixed legacy launcher, service and shortcut remnants after Upgrade.
+
+### KDE Plasma 6
+
+- Fixed detection and migration of KDE layouts from WMM <= 1.4.x.
+- Fixed migration of legacy `Exec=` entries in the modern Dolphin Service Menu.
+- Fixed cleanup of current and legacy KDE resources during Uninstall.
+- Fixed KGlobalAccel migration from 1.4.x → 1.5.0:
+  - the user-selected shortcut is temporarily preserved;
+  - the previous identity is removed;
+  - KSycoca is rebuilt;
+  - the current identity is registered;
+  - the user's key combination is restored and confirmed.
+- Validated a real **1.4.0 → 1.5.0** Upgrade while preserving the global shortcut.
+- Validated a clean 1.5.0 installation on Plasma 6.6.6 with a hot Plasma restart and WMM fully operational without starting a new session.
+- Resolved the historical installer limitation caused by KDE bug 515234: on clean installations, Plasma >= 6.6.6 can safely restart `plasma-plasmashell.service` to materialize WMM without ending the session, while older versions retain session restart as the safe fallback.
+
+### MATE / Caja
+
+- Fixed initial popup geometry with a vertical panel and an adjacent monitor.
+- Fixed dynamic menu growth with panels in any orientation.
+- Fixed icon margins so they no longer artificially increase applet thickness.
+- Fixed a regression that prevented the icon from being materialized correctly.
+- Fixed untranslated first load.
+- Fixed MATE frontend runtime paths.
+- Validated the MATE Install/Reinstall/Uninstall lifecycle after the final runtime fixes.
+- Suppressed duplicate DEBUG logging during deliberate MATE fade-transition settings refreshes without changing the visual transition timing.
+- Consolidated the Caja **WMM Manager** context submenu for the active wallpaper.
+
+### Uninstaller
+
+- Full Uninstall now continues even when part of the desktop integration is already missing.
+- Legacy cleanup is limited to artifacts historically proven to belong to WMM.
+- Python extension cleanup removes only WMM bytecode while preserving shared directories.
+- Caja Actions preserves unrelated configuration and actions when removing WMM.
+- Fixed the possibility of accidentally activating the D-Bus service during Uninstall.
+- WMM-owned processes are now terminated through stable `pidfd` handles; Uninstall remains recoverable if a runtime cannot be stopped cleanly and reports when logout/login is the safe final boundary.
+
+## Removed
+
+- Removed direct KGlobalAccel management from the installer; it is now centralized in `kde.py`.
+- Removed historical `APP_DIR/data` hardcodes.
+- Removed the legacy XFCE persistent-data topology.
+- Removed dependency on XFCE's native slideshow.
+- Removed sleeps and polling previously used to wait for frontends.
+- Removed the possibility of leaving XFCE frontends indefinitely waiting for D-Bus names.
+- Removed the dependency on `Gtk.ImageMenuItem` and the duplicate `xfce-frontend.css`.
+- Removed the old `wmm-test.py` PoC; XFCE Desktop integration is now formally implemented through Thunarx.
+- Removed assumed MATE legacy resources that were never part of a published release.
+- Removed dependency on a self-contained GNOME extension embedding core and persistent data.
+- Removed old Caja provider names as runtime authorities; they are retained only for legacy cleanup.
+- Removed premature UI materialization before translations are available.
+
 # v1.4.0 - 2026-09-16
 
 ## Added

@@ -82,7 +82,8 @@ class FavoritesSection:
         self.favorites_toggle = Gtk.EventBox()
         self.favorites_toggle.set_events(Gdk.EventMask.BUTTON_PRESS_MASK)
         self.favorites_label = Gtk.Label()
-        self.favorites_label.set_markup(f"<span weight='bold' size='large'>▼ {_('Favorites')}</span>")
+        self.favorites_label.set_markup(
+            "<span weight='bold' size='large'>▼ " + _("Favorites") + "</span>")
         self.favorites_label.set_halign(Gtk.Align.START)
         self.favorites_toggle.add(self.favorites_label)
         self.favorites_toggle.connect("button-press-event", self._on_favorites_toggle)
@@ -200,7 +201,8 @@ class FavoritesSection:
         """Aplica el estado de despliegue de Favoritos sin persistirlo."""
         self.favorites_container.set_visible(expanded)
         arrow = "▼ " if expanded else "▶ "
-        self.favorites_label.set_markup(f"<span weight='bold' size='large'>{arrow}{_('Favorites')}</span>")
+        self.favorites_label.set_markup(
+            "<span weight='bold' size='large'>" + arrow + _("Favorites") + "</span>")
 
         parent = self.widget.get_parent()
         if parent:

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-09-14 12:17+0200\n"
+"POT-Creation-Date: 2026-09-29 11:55+0200\n"
 "PO-Revision-Date: 2026-09-14 12:29+0200\n"
 "Last-Translator: \n"
 "Language-Team: \n"
@@ -18,1273 +18,1327 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "X-Generator: Poedit 3.9\n"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/debug_log_viewer.py:55
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:190
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:470
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:242
+#: python/config_handler.py:58
+msgid "Scaled"
+msgstr "Ajustado"
+
+#: python/config_handler.py:59
+msgid "Zoom"
+msgstr "Zoom"
+
+#: python/config_handler.py:60
+msgid "Stretched"
+msgstr "Estirado"
+
+#: python/config_handler.py:63
+msgid "Solid color"
+msgstr "Color sólido"
+
+#: python/config_handler.py:64
+msgid "Gradient H"
+msgstr "Degradado H"
+
+#: python/config_handler.py:65
+msgid "Gradient V"
+msgstr "Degradado V"
+
+#: python/config_handler.py:68
+msgid "None"
+msgstr "Ninguno"
+
+#: python/config_handler.py:69
+msgid "Sepia"
+msgstr "Sépia"
+
+#: python/config_handler.py:70
+msgid "Black and White"
+msgstr "Blanco y Negro"
+
+#: python/config_handler.py:73
+msgid "Blur effect"
+msgstr "Desenfoque"
+
+#: python/config_handler.py:74
+msgid "Color"
+msgstr "Color"
+
+#: python/config_handler.py:471 python/config_handler.py:499
+#: python/config_handler.py:502
+msgid "Generic Monitor"
+msgstr "Monitor genérico"
+
+#: python/config_handler.py:2103 wmm_platform/shell/po/pot_manager.py:577
+#: wmm_platform/shell/po/pot_manager.py:1822
+#: wmm_platform/shell/po/pot_manager.py:1834
+#: wmm_platform/shell/po/pot_manager.py:1840
+msgid "New"
+msgstr "Nuevas"
+
+#: python/config_handler.py:2110 wmm_platform/shell/po/pot_manager.py:578
+#: wmm_platform/shell/po/pot_manager.py:1823
+#: wmm_platform/shell/po/pot_manager.py:1837
+#: wmm_platform/shell/po/pot_manager.py:1841
+msgid "Removed"
+msgstr "Eliminadas"
+
+#: python/config_handler.py:2115
+msgid "Modified"
+msgstr "Modificadas"
+
+#: python/config_handler.py:2121 python/main.py:495
+msgid "Total library"
+msgstr "Total Biblioteca"
+
+#: python/config_handler.py:2148
+msgid "Action"
+msgstr "Acción"
+
+#: python/debug_log_viewer.py:56 wmm_platform/shell/mate/mate-applet.py:309
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:285
+#: wmm_platform/shell/gnome/extension.gnome.js:498
 msgid "Debug Log Viewer"
 msgstr "Visor de registros de depuración"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/debug_log_viewer.py:86
+#: python/debug_log_viewer.py:85
 msgid "Origin"
 msgstr "Origen"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/debug_log_viewer.py:99
+#: python/debug_log_viewer.py:98
 msgid "Level"
 msgstr "Nivel"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/debug_log_viewer.py:112
+#: python/debug_log_viewer.py:111
 msgid "Reason"
 msgstr "Razón"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/debug_log_viewer.py:125
+#: python/debug_log_viewer.py:124 wmm_platform/shell/po/pot_manager.py:324
+#: wmm_platform/shell/po/pot_manager.py:332
 msgid "Search"
 msgstr "Buscar"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/debug_log_viewer.py:128
+#: python/debug_log_viewer.py:127 wmm_platform/shell/po/pot_manager.py:336
 msgid "Filter by text"
 msgstr "Filtrar por texto"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/debug_log_viewer.py:185
+#: python/debug_log_viewer.py:184
 msgid "Clear log"
 msgstr "Borrar registo"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/debug_log_viewer.py:193
+#: python/debug_log_viewer.py:192
 msgid "Auto-scroll"
 msgstr "Desplazamiento automático"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/debug_log_viewer.py:206
+#: python/debug_log_viewer.py:205
 msgid "Reverse order"
 msgstr "Orden inverso"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/debug_log_viewer.py:356
+#: python/debug_log_viewer.py:402
 msgid "Clear debug log?"
 msgstr "¿Borrar el registro de depuración?"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/debug_log_viewer.py:358
+#: python/debug_log_viewer.py:404
 msgid "All log entries will be permanently deleted."
 msgstr "Todas las entradas del registro se eliminarán permanentemente."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/shell_send_to_monitor.py:70
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/file_manager/nautilus/wmm-nautilus.py:120
-msgid "Send to Monitor"
-msgstr "Enviar a monitor"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/shell_send_to_monitor.py:88
-msgid "Select a monitor:"
-msgstr "Seleccione un monitor:"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/shell_send_to_monitor.py:100
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/add_bookmark.py:148
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:665
-msgid "Cancel"
-msgstr "Cancelar"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/shell_send_to_monitor.py:101
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/add_bookmark.py:154
-msgid "OK"
-msgstr "Aceptar"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/shell_send_to_monitor.py:201
-msgid "No monitors"
-msgstr "Sin monitores"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/shell_send_to_monitor.py:202
-msgid "No active monitors found"
-msgstr "No se encontraron monitores activos"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/shell_send_to_monitor.py:243
-msgid "Image sent to monitor"
-msgstr "Imagen enviada al monitor"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/shell_send_to_monitor.py:244
-#, python-brace-format
-msgid "Image '{name}' assigned to monitor {monitor}."
-msgstr "Imagen '{name}' asignada al monitor {monitor}."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/image_selection.py:428
+#: python/image_selection.py:428
 #, python-brace-format
 msgid "Image: '{image}' from preset: '{preset}' not found."
 msgstr "Imagen: '{image}' del Preset: '{preset}' no encontrada."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/image_selection.py:431
+#: python/image_selection.py:431
 msgid "PRESET image not found"
 msgstr "Imagen del Preset no encontrada"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/image_selection.py:432
+#: python/image_selection.py:432
 msgid "Assigning a random one"
 msgstr "Asignando una aleatoria"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/add_bookmark.py:65
-msgid "Add Favorite Preset"
-msgstr "Añadir Preset a favoritos"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/add_bookmark.py:114
-msgid "Error loading data. Please restart panel"
-msgstr "Error al cargar los datos. Reinicie el panel"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/add_bookmark.py:129
-msgid "Preset name:"
-msgstr "Nombre del Preset:"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/add_bookmark.py:169
-msgid "The name cannot be empty."
-msgstr "El nombre no puede estar vacío."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/add_bookmark.py:198
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/favorites_section.py:293
-msgid "A Preset with that name already exists!"
-msgstr "Ya existe un Preset con este nombre!"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/add_bookmark.py:200
-msgid "Error saving"
-msgstr "Error al guardar"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/restart_engine.py:75
-msgid "Engine restarted"
-msgstr "Motor reiciniado"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/restart_engine.py:76
-msgid "The engine has been restarted successfully."
-msgstr "El motor se ha reiniciado correctamente."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/restart_engine.py:87
-msgid "Engine restart failed"
-msgstr "Error al reiniciar el motor"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/restart_engine.py:88
-msgid "The engine could not be started. Check the debug log."
-msgstr "No se pudo iniciar el motor. Consulte el registro de depuración."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:58
-msgid "Scaled"
-msgstr "Ajustado"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:59
-msgid "Zoom"
-msgstr "Zoom"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:60
-msgid "Stretched"
-msgstr "Estirado"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:63
-msgid "Solid color"
-msgstr "Color sólido"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:64
-msgid "Gradient H"
-msgstr "Degradado H"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:65
-msgid "Gradient V"
-msgstr "Degradado V"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:68
-msgid "None"
-msgstr "Ninguno"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:69
-msgid "Sepia"
-msgstr "Sépia"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:70
-msgid "Black and White"
-msgstr "Blanco y Negro"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:73
-msgid "Blur effect"
-msgstr "Desenfoque"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:74
-msgid "Color"
-msgstr "Color"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:469
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:497
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:500
-msgid "Generic Monitor"
-msgstr "Monitor genérico"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:2052
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:240
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:554
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:563
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:565
-msgid "New"
-msgstr "Nuevas"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:2059
-msgid "Removed"
-msgstr "Eliminadas"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:2064
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:241
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:555
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:566
-msgid "Modified"
-msgstr "Modificadas"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:2070
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/main.py:465
-msgid "Total library"
-msgstr "Total Biblioteca"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/config_handler.py:2097
-msgid "Action"
-msgstr "Acción"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/about.py:100
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:479
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:244
+#: python/about.py:98 wmm_platform/shell/mate/mate-applet.py:311
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:300
+#: wmm_platform/shell/gnome/extension.gnome.js:507
 msgid "About"
 msgstr "Acerca de"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/about.py:128
+#: python/about.py:125
 msgid "Version"
-msgstr "Version"
+msgstr "Versión"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/about.py:144
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/about.py:158
+#: python/about.py:141 python/about.py:155
 msgid "License"
 msgstr "Licencia"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/about.py:156
-msgid "Issues"
-msgstr "Incidencias"
+#: python/about.py:153
+msgid "Changelog"
+msgstr "Registro de cambios"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/about.py:157
-msgid "Wiki"
-msgstr "Wiki"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/help_viewer.py:55
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:195
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:474
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:243
+#: python/about.py:154 wmm_platform/shell/mate/mate-applet.py:310
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:290
+#: wmm_platform/shell/gnome/extension.gnome.js:502
 msgid "Help"
 msgstr "Ayuda"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/help_viewer.py:73
-msgid "Contents"
-msgstr "Contenido"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/help_viewer.py:204
-msgid "Help file not found."
-msgstr "Archivo de Ayuda no encontrado."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/help_viewer.py:211
-msgid "Could not read help file:"
-msgstr "No se pudo leer el archivo de ayuda:"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/shell_add_bookmark.py:71
+#: python/shell_add_bookmark.py:71
 msgid "Error adding to favorites"
 msgstr "Error al añadir favorito"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/shell_add_bookmark.py:72
+#: python/shell_add_bookmark.py:72
 msgid "Could not process image:"
 msgstr "No se pudo procesar la imagen:"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/shell_add_bookmark.py:83
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/thumbnails_section.py:422
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/file_manager/nautilus/wmm-nautilus.py:108
+#: python/shell_add_bookmark.py:83 python/panel/thumbnails_section.py:438
+#: wmm_platform/shell/file_manager/caja/wmm-desktop-actions.py:107
+#: wmm_platform/shell/file_manager/nautilus/wmm-nautilus.py:90
+#: wmm_platform/shell/file_manager/thunar/wmm-xfce-desktop.py:81
 msgid "Add to favorites"
 msgstr "Añadir a favortitos"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/shell_add_bookmark.py:84
+#: python/shell_add_bookmark.py:84
 msgid "Image is already in favorites."
 msgstr "La imagen ya está en favoritos."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/main.py:426
+#: python/panel.py:129
+msgid "Control Center"
+msgstr "Panel de Control"
+
+#: python/panel.py:180
+msgid "Create/update preset on accept"
+msgstr "Crear/Actualizar Preset al Aceptar"
+
+#: python/panel.py:184
+msgid "Save composition as preset"
+msgstr "Guardar composición como Preset"
+
+#: python/panel.py:477
+msgid "Expand side panel"
+msgstr "Expandir panel lateral"
+
+#: python/panel.py:482 python/panel/options_section.py:141
+msgid "Open Help"
+msgstr "Abir Ayuda"
+
+#: python/panel.py:488 python/panel/options_section.py:146
+msgid "Open Debug Log Viewer"
+msgstr "Abrir Visor de depuración"
+
+#: python/panel.py:493 python/panel/options_section.py:151
+msgid "Restart engine and panel"
+msgstr "Reiniciar el motor y el panel"
+
+#: python/panel.py:866
+msgid "Editing"
+msgstr "Editando"
+
+#: python/restart_engine.py:75
+msgid "Engine restarted"
+msgstr "Motor reiciniado"
+
+#: python/restart_engine.py:76
+msgid "The engine has been restarted successfully."
+msgstr "El motor se ha reiniciado correctamente."
+
+#: python/restart_engine.py:87
+msgid "Engine restart failed"
+msgstr "Error al reiniciar el motor"
+
+#: python/restart_engine.py:88
+msgid "The engine could not be started. Check the debug log."
+msgstr "No se pudo iniciar el motor. Consulte el registro de depuración."
+
+#: python/add_bookmark.py:65
+msgid "Add Favorite Preset"
+msgstr "Añadir Preset a favoritos"
+
+#: python/add_bookmark.py:114
+msgid "Error loading data. Please restart panel"
+msgstr "Error al cargar los datos. Reinicie el panel"
+
+#: python/add_bookmark.py:129
+msgid "Preset name:"
+msgstr "Nombre del Preset:"
+
+#: python/add_bookmark.py:148 python/shell_send_to_monitor.py:100
+#: python/panel/sources_section.py:660
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: python/add_bookmark.py:154 python/shell_send_to_monitor.py:101
+msgid "OK"
+msgstr "Aceptar"
+
+#: python/add_bookmark.py:169
+msgid "The name cannot be empty."
+msgstr "El nombre no puede estar vacío."
+
+#: python/add_bookmark.py:198 python/panel/favorites_section.py:295
+msgid "A Preset with that name already exists!"
+msgstr "Ya existe un Preset con este nombre!"
+
+#: python/add_bookmark.py:200 wmm_platform/shell/po/pot_manager.py:872
+#: wmm_platform/shell/po/pot_manager.py:1272
+msgid "Error saving"
+msgstr "Error al guardar"
+
+#: python/shell_send_to_monitor.py:70
+#: wmm_platform/shell/file_manager/nautilus/wmm-nautilus.py:95
+msgid "Send to Monitor"
+msgstr "Enviar a monitor"
+
+#: python/shell_send_to_monitor.py:88
+msgid "Select a monitor:"
+msgstr "Seleccione un monitor:"
+
+#: python/shell_send_to_monitor.py:201
+msgid "No monitors"
+msgstr "Sin monitores"
+
+#: python/shell_send_to_monitor.py:202
+msgid "No active monitors found"
+msgstr "No se encontraron monitores activos"
+
+#: python/shell_send_to_monitor.py:243
+msgid "Image sent to monitor"
+msgstr "Imagen enviada al monitor"
+
+#: python/shell_send_to_monitor.py:244
+#, python-brace-format
+msgid "Image '{name}' assigned to monitor {monitor}."
+msgstr "Imagen '{name}' asignada al monitor {monitor}."
+
+#: python/main.py:456
 msgid "Favorite deleted"
 msgstr "Favorito eliminado"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/main.py:427
+#: python/main.py:457
 msgid "Preset"
 msgstr "Preset"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/main.py:427
+#: python/main.py:457
 msgid "deleted successfully."
 msgstr "eliminado correctamente."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/main.py:460
+#: python/main.py:490
 msgid "Changes detected"
 msgstr "Cambios detectados"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/main.py:462
+#: python/main.py:492
 msgid "No changes"
 msgstr "Sin cambios"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/main.py:469
+#: python/main.py:499
 msgid "Synchronization"
 msgstr "Sincronización"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/main.py:534
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/main.py:545
+#: python/main.py:564 python/main.py:575
 msgid "Unknown"
 msgstr "Desconocido"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/main.py:538
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/main.py:549
+#: python/main.py:568 python/main.py:579
 msgid "Favorite added"
 msgstr "Favorito añadido"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/main.py:539
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/main.py:550
+#: python/main.py:569 python/main.py:580
 msgid "added successfully."
 msgstr "añadida correctamente."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/main.py:793
+#: python/main.py:823
 msgid "Cycle aborted: not enough images available to complete selection."
 msgstr ""
 "Ciclo abortado: no hay imagenes disponubles para completar la selección."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/main.py:796
+#: python/main.py:826
 msgid "No images available"
 msgstr "No hay imágenes disponibles"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/main.py:797
+#: python/main.py:827
 msgid "Check status of Image Sources in Control Panel."
-msgstr ""
-"Compruebe el estado de las fuentes de imagen en el Panel de control."
+msgstr "Compruebe el estado de las fuentes de imagen en el Panel de control."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel.py:132
-msgid "Control Center"
-msgstr "Panel de Control"
+#: python/panel/thumbnails_section.py:118
+msgid "Thumbnails"
+msgstr "Miniaturas"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel.py:183
-msgid "Create/update preset on accept"
-msgstr "Crear/Actualizar Preset al Aceptar"
+#: python/panel/thumbnails_section.py:131
+msgid "Horizontal"
+msgstr "Horizontal"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel.py:187
-msgid "Save composition as preset"
-msgstr "Guardar composición como Preset"
+#: python/panel/thumbnails_section.py:140
+msgid "Vertical"
+msgstr "Vertical"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel.py:476
-msgid "Expand side panel"
-msgstr "Expandir panel lateral"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel.py:481
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:139
-msgid "Open Help"
-msgstr "Abir Ayuda"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel.py:487
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:144
-msgid "Open Debug Log Viewer"
-msgstr "Abrir Visor de depuración"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel.py:492
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:149
-msgid "Restart engine and panel"
-msgstr "Reiniciar el motor y el panel"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel.py:820
-msgid "Editing"
-msgstr "Editando"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/favorites_section.py:85
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/favorites_section.py:146
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/favorites_section.py:203
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:499
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/thumbnails_section.py:146
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:100
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:335
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:230
+#: python/panel/thumbnails_section.py:149 python/panel/options_section.py:521
+#: python/panel/favorites_section.py:86 python/panel/favorites_section.py:147
+#: python/panel/favorites_section.py:205
+#: wmm_platform/shell/xfce/xfce-frontend.py:1184
+#: wmm_platform/shell/mate/mate-applet.py:297
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:195
+#: wmm_platform/shell/gnome/extension.gnome.js:363
 msgid "Favorites"
 msgstr "Favoritos"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/favorites_section.py:92
-msgid "Slideshow only among favorite images"
-msgstr "Rotación solo entre imágenes de favoritos"
+#: python/panel/thumbnails_section.py:158
+msgid "Reload thumbnails"
+msgstr "Recargar miniaturas"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/favorites_section.py:108
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:496
-msgid "Presets"
-msgstr "Presets"
+#: python/panel/thumbnails_section.py:235
+#: python/panel/thumbnails_section.py:318
+msgid "No images found."
+msgstr "No se han encontrados imágenes."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/favorites_section.py:117
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/favorites_section.py:156
-msgid "Name"
-msgstr "Nombre"
+#: python/panel/thumbnails_section.py:240
+msgid "Generating thumbnails"
+msgstr "Generando miniaturas"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/favorites_section.py:134
-msgid "Delete selected preset/image"
-msgstr "Eliminar preset/imagen seleccionada"
+#: python/panel/thumbnails_section.py:268
+msgid "Processing"
+msgstr "Procesando"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/favorites_section.py:172
-msgid "Delete selected image from favorites"
-msgstr "Eliminar imagen seleccionada de favoritos"
+#: python/panel/thumbnails_section.py:416
+msgid "No favorite images."
+msgstr "Sin favoritos."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/favorites_section.py:251
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/favorites_section.py:366
-msgid "empty"
-msgstr "vacío"
+#: python/panel/thumbnails_section.py:435
+msgid "Remove from favorites"
+msgstr "Eliminar de favoritos"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/favorites_section.py:316
-msgid "Delete preset"
-msgstr "Eliminar preset"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/favorites_section.py:318
-msgid "Load on screens"
-msgstr "Cargar en monitores"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/favorites_section.py:325
-msgid "Delete image"
-msgstr "Eliminar imagen"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/favorites_section.py:445
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/favorites_section.py:447
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:405
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:771
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:1044
-msgid "Delete"
-msgstr "Eliminar"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/favorites_section.py:447
-msgid "images"
-msgstr "imágenes"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:150
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:136
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:166
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:230
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:431
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:436
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:544
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:233
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:901
-msgid "Displays"
-msgstr "Monitores"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:156
-msgid "Side Left"
-msgstr "Lado izquierdo"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:160
-msgid "Center"
-msgstr "Centrar"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:164
-msgid "Side Right"
-msgstr "Lado derecho"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:232
-msgid "Enable/disable screen editing mode"
-msgstr "Activar/desactivar modo edición de monitores"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:239
-msgid "Enable"
-msgstr "Activar"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:239
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:243
-msgid "Editing Mode"
-msgstr "Modo Edición"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:243
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:300
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:160
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:212
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:397
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:518
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:896
-msgid "Enabled"
-msgstr "Activado"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:257
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/file_manager/nautilus/wmm-nautilus.py:132
-msgid "Span image across all active screens"
-msgstr "Extender la imagen a todos los monitores activos"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:263
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:191
-msgid "Picture aspect"
-msgstr "Relación de aspecto"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:263
-msgid "for current composition"
-msgstr "para la composición actual"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:277
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:185
-msgid "Spanned"
-msgstr "Panorámico"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:286
-msgid "Aspect ratio"
-msgstr "Rel. aspecto"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:293
-msgid "Effects"
-msgstr "Efectos"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:320
-msgid "Refresh real display status"
-msgstr "Actualizar estado real de los monitores"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:538
-msgid "Primary monitor"
-msgstr "Monitor principal"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:545
-msgid "Enable/disable image"
-msgstr "Activar/Desactivar imagen"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:582
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:837
-msgid "Display"
-msgstr "Monitor"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/monitors_section.py:837
-msgid "editing"
-msgstr "editando"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:127
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:319
+#: python/panel/options_section.py:129 python/panel/options_section.py:337
 msgid "Options"
 msgstr "Opciones"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:155
+#: python/panel/options_section.py:157
 msgid "Collapse side panel"
 msgstr "Contraer panel lateral"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:173
+#: python/panel/options_section.py:176
 msgid ""
 "If enabled, the wallpaper is changed at startup; if disabled, the last "
 "wallpaper is kept."
 msgstr ""
-"Si se activa, se cambia el fondo de pantalla al iniciar; si se "
-"desactiva, se mantiene el último fondo de pantalla."
+"Si se activa, se cambia el fondo de pantalla al iniciar; si se desactiva, se "
+"mantiene el último fondo de pantalla."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:176
+#: python/panel/options_section.py:180
 msgid "Change wallpaper on startup"
 msgstr "Cambiar fondo al inicio"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:182
+#: python/panel/options_section.py:187
 msgid "Span image across all active screens (Only if more than one)"
-msgstr ""
-"Extender imágen a todos los monitores activos (Sólo si hay mas de uno)"
+msgstr "Extender imágen a todos los monitores activos (Sólo si hay mas de uno)"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:207
+#: python/panel/options_section.py:191 python/panel/monitors_section.py:277
+msgid "Spanned"
+msgstr "Panorámico"
+
+#: python/panel/options_section.py:198 python/panel/monitors_section.py:263
+msgid "Picture aspect"
+msgstr "Relación de aspecto"
+
+#: python/panel/options_section.py:215
 msgid "Image Effect:"
 msgstr "Efecto de Imagen:"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:218
+#: python/panel/options_section.py:227
 msgid "Background Effect:"
 msgstr "Efecto de Fondo:"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:224
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:235
+#: python/panel/options_section.py:234 python/panel/options_section.py:245
 msgid "Background color"
 msgstr "Color de fondo"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:240
+#: python/panel/options_section.py:250
 msgid "Horizontal gradient start color"
 msgstr "Color de inicio del degradado horizontal"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:243
+#: python/panel/options_section.py:253
 msgid "Horizontal gradient end color"
 msgstr "Color final del degradado horizontal"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:246
+#: python/panel/options_section.py:256
 msgid "Vertical gradient start color"
 msgstr "Color de inicio del degradado vertical"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:249
+#: python/panel/options_section.py:259
 msgid "Vertical gradient end color"
 msgstr "Color final del degradado vertical"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:260
+#: python/panel/options_section.py:270
 msgid "Enable/Disable Timer"
 msgstr "Activa/Desactiva Presentacion de Diapositivas"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:263
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:118
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:379
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:231
+#: python/panel/options_section.py:274
+#: wmm_platform/shell/xfce/xfce-frontend.py:1237
+#: wmm_platform/shell/mate/mate-applet.py:298
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:213
+#: wmm_platform/shell/gnome/extension.gnome.js:407
 msgid "Slideshow"
 msgstr "Presentación Diapositivas"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:269
+#: python/panel/options_section.py:281
 msgid "Max. Frequency"
 msgstr "Frecuencia máx."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:269
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:279
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:152
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:236
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:409
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:419
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:554
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:411
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:761
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:911
+#: python/panel/options_section.py:281 python/panel/options_section.py:293
+#: wmm_platform/shell/xfce/xfce-frontend.py:682
+#: wmm_platform/shell/xfce/xfce-frontend.py:827
+#: wmm_platform/shell/xfce/xfce-frontend.py:1267
+#: wmm_platform/shell/mate/mate-applet.py:485
+#: wmm_platform/shell/mate/mate-applet.py:900
+#: wmm_platform/shell/mate/mate-applet.py:1050
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:247
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:350
+#: wmm_platform/shell/gnome/extension.gnome.js:437
+#: wmm_platform/shell/gnome/extension.gnome.js:447
+#: wmm_platform/shell/gnome/extension.gnome.js:582
 msgid "minutes"
 msgstr "minutos"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:279
+#: python/panel/options_section.py:293
 msgid "Slideshow every"
 msgstr "Rotación cada"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:289
+#: python/panel/options_section.py:304
 msgid "Sync: All Screens change at once"
 msgstr "Síncrono: Todos los monitores cambian a la vez"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:289
+#: python/panel/options_section.py:304
 msgid "Async: Change by turns"
 msgstr "Asíncrono: Los monitores cambian por turnos"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:293
+#: python/panel/options_section.py:309
 msgid "Slideshow mode:"
 msgstr "Modo de rotación:"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:495
+#: python/panel/options_section.py:517
 msgid "Synchronized"
-msgstr "Sincronizado"
+msgstr "Sincrono"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:496
+#: python/panel/options_section.py:518 python/panel/favorites_section.py:109
+msgid "Presets"
+msgstr "Presets"
+
+#: python/panel/options_section.py:518
 msgid "All"
 msgstr "Todos"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:498
+#: python/panel/options_section.py:520
 msgid "Asynchronous"
-msgstr "Asincróno"
+msgstr "Asincrono"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/options_section.py:499
+#: python/panel/options_section.py:521
 msgid "Single"
 msgstr "Alterno"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/thumbnails_section.py:115
-msgid "Thumbnails"
-msgstr "Miniaturas"
+#: python/panel/monitors_section.py:150
+#: wmm_platform/shell/xfce/xfce-frontend.py:632
+#: wmm_platform/shell/xfce/xfce-frontend.py:1287
+#: wmm_platform/shell/mate/mate-applet.py:300
+#: wmm_platform/shell/mate/mate-applet.py:1040
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:231
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:261
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:344
+#: wmm_platform/shell/gnome/extension.gnome.js:459
+#: wmm_platform/shell/gnome/extension.gnome.js:464
+#: wmm_platform/shell/gnome/extension.gnome.js:572
+msgid "Displays"
+msgstr "Monitores"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/thumbnails_section.py:128
-msgid "Horizontal"
-msgstr "Horizontal"
+#: python/panel/monitors_section.py:156
+msgid "Side Left"
+msgstr "Lado izquierdo"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/thumbnails_section.py:137
-msgid "Vertical"
-msgstr "Vertical"
+#: python/panel/monitors_section.py:160
+msgid "Center"
+msgstr "Centrar"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/thumbnails_section.py:155
-msgid "Reload thumbnails"
-msgstr "Recargar miniaturas"
+#: python/panel/monitors_section.py:164
+msgid "Side Right"
+msgstr "Lado derecho"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/thumbnails_section.py:219
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/thumbnails_section.py:301
-msgid "No images found."
-msgstr "No se han encontrados imágenes."
+#: python/panel/monitors_section.py:232
+msgid "Enable/disable screen editing mode"
+msgstr "Activar/desactivar modo edición de monitores"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/thumbnails_section.py:224
-msgid "Generating thumbnails"
-msgstr "Generando miniaturas"
+#: python/panel/monitors_section.py:239
+msgid "Enable"
+msgstr "Activar"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/thumbnails_section.py:251
-msgid "Processing"
-msgstr "Procesando"
+#: python/panel/monitors_section.py:239 python/panel/monitors_section.py:243
+msgid "Editing Mode"
+msgstr "Modo Edición"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/thumbnails_section.py:400
-msgid "No favorite images."
-msgstr "Sin favoritos."
+#: python/panel/monitors_section.py:243 python/panel/sources_section.py:300
+#: wmm_platform/shell/xfce/xfce-frontend.py:679
+#: wmm_platform/shell/xfce/xfce-frontend.py:805
+#: wmm_platform/shell/mate/mate-applet.py:1035
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:255
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:326
+#: wmm_platform/shell/gnome/extension.gnome.js:425
+#: wmm_platform/shell/gnome/extension.gnome.js:546
+msgid "Enabled"
+msgstr "Activado"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/thumbnails_section.py:419
-msgid "Remove from favorites"
-msgstr "Eliminar de favoritos"
+#: python/panel/monitors_section.py:257
+#: wmm_platform/shell/file_manager/caja/wmm-desktop-actions.py:99
+#: wmm_platform/shell/file_manager/nautilus/wmm-nautilus.py:100
+msgid "Span image across all active screens"
+msgstr "Extender la imagen a todos los monitores activos"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:71
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:179
+#: python/panel/monitors_section.py:263
+msgid "for current composition"
+msgstr "para la composición actual"
+
+#: python/panel/monitors_section.py:286
+msgid "Aspect ratio"
+msgstr "Rel. aspecto"
+
+#: python/panel/monitors_section.py:293
+msgid "Effects"
+msgstr "Efectos"
+
+#: python/panel/monitors_section.py:320
+msgid "Refresh real display status"
+msgstr "Actualizar estado real de los monitores"
+
+#: python/panel/monitors_section.py:538
+msgid "Primary monitor"
+msgstr "Monitor principal"
+
+#: python/panel/monitors_section.py:545
+msgid "Enable/disable image"
+msgstr "Activar/Desactivar imagen"
+
+#: python/panel/monitors_section.py:582 python/panel/monitors_section.py:837
+msgid "Display"
+msgstr "Monitor"
+
+#: python/panel/monitors_section.py:837
+msgid "editing"
+msgstr "editando"
+
+#: python/panel/favorites_section.py:93
+msgid "Slideshow only among favorite images"
+msgstr "Rotación solo entre imágenes de favoritos"
+
+#: python/panel/favorites_section.py:118 python/panel/favorites_section.py:157
+msgid "Name"
+msgstr "Nombre"
+
+#: python/panel/favorites_section.py:135
+msgid "Delete selected preset/image"
+msgstr "Eliminar preset/imagen seleccionada"
+
+#: python/panel/favorites_section.py:173
+msgid "Delete selected image from favorites"
+msgstr "Eliminar imagen seleccionada de favoritos"
+
+#: python/panel/favorites_section.py:253 python/panel/favorites_section.py:368
+msgid "empty"
+msgstr "vacío"
+
+#: python/panel/favorites_section.py:318
+msgid "Delete preset"
+msgstr "Eliminar preset"
+
+#: python/panel/favorites_section.py:320
+msgid "Load on screens"
+msgstr "Cargar en monitores"
+
+#: python/panel/favorites_section.py:327
+msgid "Delete image"
+msgstr "Eliminar imagen"
+
+#: python/panel/favorites_section.py:447 python/panel/favorites_section.py:449
+#: wmm_platform/shell/xfce/xfce-frontend.py:1141
+#: wmm_platform/shell/mate/mate-applet.py:1183
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:519
+#: wmm_platform/shell/gnome/extension.gnome.js:799
+msgid "Delete"
+msgstr "Eliminar"
+
+#: python/panel/favorites_section.py:449
+msgid "images"
+msgstr "imágenes"
+
+#: python/panel/sources_section.py:70 python/panel/sources_section.py:179
 msgid "Image Sources"
 msgstr "Fuentes de Imágenes"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:97
+#: python/panel/sources_section.py:96
 msgid "Source"
 msgstr "Fuente"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:109
+#: python/panel/sources_section.py:108
 msgid "Recursive"
 msgstr "Recursivo"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:124
+#: python/panel/sources_section.py:123
 msgid "Resync Image Sources"
 msgstr "Resincronizar Fuentes de Imágenes"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:131
+#: python/panel/sources_section.py:130
 msgid "Sources need resynchronization"
 msgstr "Resincroniza fuentes"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:141
+#: python/panel/sources_section.py:140
 msgid "Add Image Source"
 msgstr "Añadir Fuente de Imágen"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:144
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:406
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:416
+#: python/panel/sources_section.py:143 python/panel/sources_section.py:406
+#: python/panel/sources_section.py:416
 msgid "Delete image source"
 msgstr "Eliminar Fuente de Imagen"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:300
+#: python/panel/sources_section.py:300
 msgid "Adds all subdirectories to the library."
 msgstr "Añade todos los subrirectorios a la biblioteca."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:301
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:122
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:160
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:212
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:383
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:397
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:518
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:397
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:896
+#: python/panel/sources_section.py:301
+#: wmm_platform/shell/xfce/xfce-frontend.py:679
+#: wmm_platform/shell/xfce/xfce-frontend.py:805
+#: wmm_platform/shell/xfce/xfce-frontend.py:1248
+#: wmm_platform/shell/mate/mate-applet.py:471
+#: wmm_platform/shell/mate/mate-applet.py:1035
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:217
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:255
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:326
+#: wmm_platform/shell/gnome/extension.gnome.js:411
+#: wmm_platform/shell/gnome/extension.gnome.js:425
+#: wmm_platform/shell/gnome/extension.gnome.js:546
 msgid "Disabled"
 msgstr "Desactivada"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:301
+#: python/panel/sources_section.py:301
 msgid "Removes subdirectories from the library."
 msgstr "Elimina todos los subrirectorios de la biblioteca."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:422
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:519
+#: python/panel/sources_section.py:422 python/panel/sources_section.py:499
 msgid "Deactivate folder"
 msgstr "Desactivar carpeta"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:425
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:519
+#: python/panel/sources_section.py:425 python/panel/sources_section.py:499
 msgid "Activate folder"
 msgstr "Activar carpeta"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:490
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:691
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:698
+#: python/panel/sources_section.py:478 python/panel/sources_section.py:690
 msgid "Scanning"
 msgstr "Escaneando"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:490
+#: python/panel/sources_section.py:478
 msgid "folders"
 msgstr "carpetas"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:509
+#: python/panel/sources_section.py:489
 msgid "Activate subfolders"
 msgstr "Activar subcarpetas"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:513
+#: python/panel/sources_section.py:493
 msgid "Deactivate subfolders"
 msgstr "Desactivar subcarpetas"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:528
+#: python/panel/sources_section.py:508
 msgid "Generate thumbnails"
 msgstr "Generando miniaturas"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:535
+#: python/panel/sources_section.py:515
 msgid "Delete cache"
 msgstr "Eliminar caché"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:570
+#: python/panel/sources_section.py:550
 msgid "Delete cache of this folder?"
 msgstr "¿Eliminar caché de esta carpeta?"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:573
+#: python/panel/sources_section.py:553
 msgid "Will be removed from your library"
 msgstr "Se eliminarán de la biblioteca"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:575
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:734
+#: python/panel/sources_section.py:555 python/panel/sources_section.py:737
 msgid "Images will no longer be available"
 msgstr "Las imágenes dejarán de estar disponibles"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:584
+#: python/panel/sources_section.py:564
 msgid "Cache deleted"
 msgstr "Caché eliminada"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:585
+#: python/panel/sources_section.py:565
 msgid "thumbnails have been removed from cache"
 msgstr "miniaturas se han eliminado de la caché"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:589
+#: python/panel/sources_section.py:569
 msgid "No cache"
 msgstr "Sin caché"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:590
+#: python/panel/sources_section.py:570
 msgid "No thumbnails found in cache for this folder."
 msgstr "No se encontraron miniaturas en la caché de esta carpeta."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:596
+#: python/panel/sources_section.py:579
 msgid "Scanning folder"
 msgstr "Escaneando carpetas"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:643
-msgid "Resynchronizing library"
-msgstr "Resincronizando biblioteca"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:644
+#: python/panel/sources_section.py:630
 msgid "Scanning sources"
 msgstr "Escaneando fuentes"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:661
+#: python/panel/sources_section.py:656
 msgid "Select Image Folder"
 msgstr "Seleccionar Carpeta de Imágenes"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:666
+#: python/panel/sources_section.py:661
 msgid "Add Source"
 msgstr "Añadir Fuente"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:676
+#: python/panel/sources_section.py:671
 msgid "Include subfolders (Recursive)"
 msgstr "Incluir subdirectorios (Recursivo)"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:730
+#: python/panel/sources_section.py:733
 msgid "Delete image source?"
 msgstr "¿Eliminar fuente de imágenes?"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/python/panel/sources_section.py:733
+#: python/panel/sources_section.py:736
 msgid "will be removed from your library"
 msgstr "se eliminarán de la biblioteca"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:186
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:185
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:466
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:240
-msgid "Install Manager"
-msgstr "Gestor de instalación"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:223
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:372
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:382
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:403
-msgid "Installed version"
-msgstr "Versión instalada"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:224
-msgid "Desktop"
-msgstr "Escritorio"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:225
-msgid "Session"
-msgstr "Sesión"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:235
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:414
-msgid "Upgrade"
-msgstr "Actualizar"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:240
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:610
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:612
-msgid "Reinstall"
-msgstr "Reinstalar"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:245
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:704
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:707
-msgid "Uninstall"
-msgstr "Desinstalar"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:277
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:293
-msgid "Maintenance status"
-msgstr "Estado de la instalación"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:293
-msgid "WMM is ready for maintenance operations."
-msgstr "WMM está listo para realizar operaciones de mantenimiento."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:325
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:793
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:931
-msgid "Show details"
-msgstr "Ver"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:330
-msgid "Close"
-msgstr "Cerrar"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:360
-msgid "Update check unavailable"
-msgstr "No se pudo comprobar si hay actualizaciones"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:361
-msgid "WMM could not check GitHub for updates."
-msgstr "WMM no pudo comprobar en GitHub si hay actualizaciones."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:371
-msgid "Update available"
-msgstr "Actualización disponible"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:372
-msgid "WMM {} is available."
-msgstr "La versión {} de WMM está disponible."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:376
-msgid "WMM is up to date"
-msgstr "WMM está actualizado"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:377
-msgid "You are running the latest published version:"
-msgstr "Estás usando la última versión publicada:"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:381
-msgid "Development version"
-msgstr "Versión de desarrollo"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:383
-msgid "Latest published version"
-msgstr "Última versión publicada"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:400
-msgid "A new version of WMM is available."
-msgstr "Nueva versión de WMM disponible."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:402
-msgid "Upgrade WMM"
-msgstr "Actualizar WMM"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:404
-msgid "Available version"
-msgstr "Versión disponible"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:405
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:705
-msgid "Do you want to continue?"
-msgstr "¿Quieres continuar?"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:434
-msgid "Preparing WMM upgrade"
-msgstr "Preparando la actualización de WMM"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:435
-msgid "The update package is being downloaded and prepared."
-msgstr "El paquete de actualización se está descargando y preparando."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:439
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:675
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:738
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:934
-msgid "Hide details"
-msgstr "Ocultar"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:583
-msgid "Upgrade preparation failed"
-msgstr "Error al preparar la actualización"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:584
-msgid "The WMM update package could not be prepared:"
-msgstr "No se pudo preparar el paquete de actualización de WMM:"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:598
-msgid "Repair package unavailable"
-msgstr "Paquete de reparación no disponible"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:599
-msgid "The local WMM repair package could not be found."
-msgstr "No se pudo encontrar el paquete local de reparación de WMM."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:609
-msgid "WMM will be reinstalled using a clean copy of the current version."
+#: wmm_platform/shell/file_manager/caja/wmm-desktop-actions.py:100
+#: wmm_platform/shell/file_manager/thunar/wmm-xfce-desktop.py:74
+msgid "Span the image currently shown on this monitor across all monitors"
 msgstr ""
-"WMM se reinstalará utilizando una copia limpia de la versión actual."
+"Extiende la imagen mostrada actualmente en este monitor a todos los monitores"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:611
-msgid "Your WMM settings and persistent data will be preserved."
-msgstr "La configuración y los datos persistentes de WMM se conservarán."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:655
-msgid "Unable to prepare reinstall"
-msgstr "No se pudo preparar la reinstalación"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:656
-msgid "The WMM repair package could not be prepared:"
-msgstr "No se pudo preparar el paquete de reparación de WMM:"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:669
-msgid "Reinstalling WMM"
-msgstr "Reinstalando WMM"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:670
-msgid "The reinstall process is running."
-msgstr "El proceso de reinstalación está en curso."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:692
-msgid "WMM uninstaller was not found."
-msgstr "No se encontró el desinstalador de WMM."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:702
-msgid "WMM and its desktop integration will be removed from this system."
+#: wmm_platform/shell/file_manager/caja/wmm-desktop-actions.py:108
+#: wmm_platform/shell/file_manager/thunar/wmm-xfce-desktop.py:82
+msgid "Add the image currently shown on this monitor to favorites"
 msgstr ""
-"WMM y su integración con el escritorio se eliminarán de este sistema."
+"Añadir a favoritos la imagen que se muestra actualmente en este monitor."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:733
-msgid "Uninstalling WMM"
-msgstr "Desinstalando WMM"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:733
-msgid "The uninstall process is running."
-msgstr "El proceso de desinstalación está en curso."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:781
-msgid "Unable to start upgrade"
-msgstr "No se puede iniciar la actualización"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:782
-msgid "The WMM upgrade process could not be started:"
-msgstr "No se pudo iniciar el proceso de actualización de WMM:"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:784
-msgid "Unable to start reinstall"
-msgstr "No se puede iniciar la reinstalación"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:785
-msgid "The WMM reinstall process could not be started:"
-msgstr "No se pudo iniciar el proceso de reinstalación de WMM:"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:787
-msgid "Unable to start the uninstaller"
-msgstr "No se pudo iniciar el desinstalador"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:788
-msgid "The WMM uninstaller could not be started:"
-msgstr "No se pudo iniciar el desinstalador de WMM:"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:813
-msgid "Uninstallation completed"
-msgstr "Desinstalación completada"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:814
-msgid "WMM has been successfully uninstalled."
-msgstr "WMM se ha desinstalado correctamente."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:823
-msgid "Uninstallation incomplete"
-msgstr "Desinstalación incompleta"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:824
-msgid "WMM could not be completely uninstalled."
-msgstr "WMM no se pudo desinstalar por completo."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:825
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:852
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:875
-msgid "Review the terminal output for details."
-msgstr "Revisa la salida del terminal para obtener más detalles."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:842
-msgid "Reinstallation completed"
-msgstr "Reinstalación completada"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:843
-msgid "WMM has been successfully reinstalled."
-msgstr "WMM se ha reinstalado correctamente."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:850
-msgid "Reinstallation incomplete"
-msgstr "Reinstalación incompleta"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:851
-msgid "WMM could not be completely reinstalled."
-msgstr "WMM no se pudo reinstalar por completo."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:869
-msgid "Upgrade completed"
-msgstr "Actualización completada"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:870
-msgid "WMM has been successfully upgraded to version:"
-msgstr "WMM se ha actualizado correctamente a la versión:"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:873
-msgid "Upgrade incomplete"
-msgstr "Actualización incompleta"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:874
-msgid "WMM could not be completely upgraded."
-msgstr "WMM no se pudo actualizar por completo."
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:898
-msgid "Copy"
-msgstr "Copiar"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/installer/wmm-install_manager.py:903
-msgid "Paste"
-msgstr "Pegar"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:46
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:140
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:172
-msgid "Wallpaper Multi-Monitor Manager"
-msgstr "Administrador de fondos de pantalla para múltiples monitores"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:47
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:141
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:173
-msgid "Click action"
-msgstr "Clic"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:47
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:141
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:319
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:173
-msgid "Next Background"
-msgstr "Siguiente fondo"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:48
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:142
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:174
-msgid "Secondary Click"
-msgstr "Clic secundario"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:48
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:142
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:174
-msgid "Context Menu"
-msgstr "Menú contextual"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:104
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:339
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:301
-msgid "Favorites Only"
-msgstr "Sólo Favoritos"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:112
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:362
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:310
-msgid "Add Preset Favorite"
-msgstr "Añadir Preset a favorito"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:136
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:166
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:230
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:431
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:436
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:544
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:233
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:901
-msgid "ASYNC (One)"
-msgstr "ASYNC (una)"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:140
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:442
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:234
-msgid "Spanned Mode"
-msgstr "Modo Panorámico"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:166
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:230
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:436
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:544
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:901
-msgid "SYNC (All)"
-msgstr "SYNC (Todos)"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:173
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:454
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:235
-msgid "Tools"
-msgstr "Herramientas"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:177
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:458
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:236
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:884
-msgid "Settings"
-msgstr "Ajustes"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:181
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:462
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:238
-msgid "Sync Library"
-msgstr "Sincronizar biblioteca"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:258
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:569
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:944
-msgid "No saved favorites"
-msgstr "Sin favortos guradados"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/cinnamon/applet.cinnamon.js:404
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:771
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/mate/mate-applet.py:1046
-msgid "Delete favorite"
-msgstr "Eliminar Favorito"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/gnome/extension.gnome.js:490
-msgid "Exit"
-msgstr "Salir de"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/file_manager/caja/wmm-spanned-current.py:95
+#: wmm_platform/shell/file_manager/thunar/wmm-xfce-desktop.py:73
 msgid "Span Current Image"
 msgstr "Extender imagen actual"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/file_manager/caja/wmm-spanned-current.py:96
-msgid "Span the image currently shown on this monitor across all monitors"
-msgstr ""
-"Extiende la imagen mostrada actualmente en este monitor a todos los "
-"monitores"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:205
+#: wmm_platform/shell/po/pot_manager.py:298
 msgid "Translation Manager"
 msgstr "Gestor de Traducciones"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:219
-msgid "Generate temporary .pot"
-msgstr "Generar .pot temporal"
+#: wmm_platform/shell/po/pot_manager.py:350
+msgid "Selected string"
+msgstr "Cadena seleccionada"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:223
-msgid "Apply changes"
-msgstr "Aplicar cambios"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:238
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:509
-msgid "Current"
-msgstr "Actual"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:239
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:510
-msgid "Temporary"
-msgstr "Temporal"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:267
-msgid "Type"
-msgstr "Tipo"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:275
-msgid "String"
-msgstr "Cadena"
-
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:283
+#: wmm_platform/shell/po/pot_manager.py:368
+#: wmm_platform/shell/po/pot_manager.py:612
+#: wmm_platform/shell/po/pot_manager.py:1125
 msgid "Location"
 msgstr "Ubicación"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:308
+#: wmm_platform/shell/po/pot_manager.py:391
+#: wmm_platform/shell/po/pot_manager.py:529
+msgid "Translations"
+msgstr "Traducciones"
+
+#: wmm_platform/shell/po/pot_manager.py:463
+#: wmm_platform/shell/po/pot_manager.py:681
+msgid "New strings"
+msgstr "Nuevas cadenas"
+
+#: wmm_platform/shell/po/pot_manager.py:497
+#: wmm_platform/shell/po/pot_manager.py:685
+msgid "Pending strings"
+msgstr "Cadenas pendientes"
+
+#: wmm_platform/shell/po/pot_manager.py:555
+msgid "Generate temporary .pot"
+msgstr "Generar .pot temporal"
+
+#: wmm_platform/shell/po/pot_manager.py:559
+msgid "Apply changes"
+msgstr "Aplicar cambios"
+
+#: wmm_platform/shell/po/pot_manager.py:575
+#: wmm_platform/shell/po/pot_manager.py:1740
+msgid "Current"
+msgstr "Actual"
+
+#: wmm_platform/shell/po/pot_manager.py:576
+#: wmm_platform/shell/po/pot_manager.py:1741
+msgid "Temporary"
+msgstr "Temporal"
+
+#: wmm_platform/shell/po/pot_manager.py:598
+msgid "Type"
+msgstr "Tipo"
+
+#: wmm_platform/shell/po/pot_manager.py:605
+msgid "String"
+msgstr "Cadena"
+
+#: wmm_platform/shell/po/pot_manager.py:643
 msgid "Ready."
 msgstr "Listo."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:509
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:510
+#: wmm_platform/shell/po/pot_manager.py:750
+#: wmm_platform/shell/po/pot_manager.py:824
+#: wmm_platform/shell/po/pot_manager.py:850
+#: wmm_platform/shell/po/pot_manager.py:1077
+#: wmm_platform/shell/po/pot_manager.py:1224
+msgid "Save"
+msgstr "Guardar"
+
+#: wmm_platform/shell/po/pot_manager.py:889
+#: wmm_platform/shell/po/pot_manager.py:1277
+msgid "Saved"
+msgstr "Guardado"
+
+#: wmm_platform/shell/po/pot_manager.py:893
+#: wmm_platform/shell/po/pot_manager.py:1279
+msgid "Translation saved"
+msgstr "Traducción guardada"
+
+#: wmm_platform/shell/po/pot_manager.py:1136
+msgid "Error updating"
+msgstr "Error al actualizar"
+
+#: wmm_platform/shell/po/pot_manager.py:1725
+msgid "Line"
+msgstr "Línea"
+
+#: wmm_platform/shell/po/pot_manager.py:1740
+#: wmm_platform/shell/po/pot_manager.py:1741
 msgid "strings"
 msgstr "cadenas"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:517
+#: wmm_platform/shell/po/pot_manager.py:1748
 msgid "Generating temporary .pot..."
 msgstr "Generando .pot temporal..."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:544
+#: wmm_platform/shell/po/pot_manager.py:1808
 msgid "Temporary .pot generated successfully."
 msgstr "Archivo .pot temporal generado con éxito."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:546
+#: wmm_platform/shell/po/pot_manager.py:1811
 msgid "Error generating temporary .pot: "
 msgstr "Error al generar .pot temporal: "
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:567
+#: wmm_platform/shell/po/pot_manager.py:1842
 msgid "No official .pot to compare."
 msgstr "No hay .pot oficial para comparar."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:576
+#: wmm_platform/shell/po/pot_manager.py:1851
 msgid "No temporary .pot to apply."
 msgstr "No hay ningún .pot temporal que aplicar."
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:583
+#: wmm_platform/shell/po/pot_manager.py:1858
 msgid "Backup"
 msgstr "Respaldo"
 
-#: /home/maki/.local/share/plasma/org.maki.wmm/wmm_platform/shell/po/pot_manager.py:587
+#: wmm_platform/shell/po/pot_manager.py:1876
 msgid "Changes applied successfully."
 msgstr "Los cambios se aplicaron correctamente."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:189
+#: wmm_platform/shell/mate/mate-applet.py:307
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:280
+#: wmm_platform/shell/gnome/extension.gnome.js:494
+msgid "Install Manager"
+msgstr "Gestor de instalación"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:226
+#: wmm_platform/shell/installer/wmm-install_manager.py:375
+#: wmm_platform/shell/installer/wmm-install_manager.py:385
+#: wmm_platform/shell/installer/wmm-install_manager.py:406
+msgid "Installed version"
+msgstr "Versión instalada"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:227
+msgid "Desktop"
+msgstr "Escritorio"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:228
+msgid "Session"
+msgstr "Sesión"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:238
+#: wmm_platform/shell/installer/wmm-install_manager.py:417
+msgid "Upgrade"
+msgstr "Actualizar"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:243
+#: wmm_platform/shell/installer/wmm-install_manager.py:613
+#: wmm_platform/shell/installer/wmm-install_manager.py:615
+msgid "Reinstall"
+msgstr "Reinstalar"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:248
+#: wmm_platform/shell/installer/wmm-install_manager.py:707
+#: wmm_platform/shell/installer/wmm-install_manager.py:710
+msgid "Uninstall"
+msgstr "Desinstalar"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:280
+#: wmm_platform/shell/installer/wmm-install_manager.py:296
+msgid "Maintenance status"
+msgstr "Estado de la instalación"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:296
+msgid "WMM is ready for maintenance operations."
+msgstr "WMM está listo para realizar operaciones de mantenimiento."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:328
+#: wmm_platform/shell/installer/wmm-install_manager.py:798
+#: wmm_platform/shell/installer/wmm-install_manager.py:950
+msgid "Show details"
+msgstr "Ver"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:333
+msgid "Close"
+msgstr "Cerrar"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:363
+msgid "Update check unavailable"
+msgstr "No se pudo comprobar si hay actualizaciones"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:364
+msgid "WMM could not check GitHub for updates."
+msgstr "WMM no pudo comprobar en GitHub si hay actualizaciones."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:374
+msgid "Update available"
+msgstr "Actualización disponible"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:375
+msgid "WMM {} is available."
+msgstr "La versión {} de WMM está disponible."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:379
+msgid "WMM is up to date"
+msgstr "WMM está actualizado"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:380
+msgid "You are running the latest published version:"
+msgstr "Estás usando la última versión publicada:"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:384
+msgid "Development version"
+msgstr "Versión de desarrollo"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:386
+msgid "Latest published version"
+msgstr "Última versión publicada"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:403
+msgid "A new version of WMM is available."
+msgstr "Nueva versión de WMM disponible."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:405
+msgid "Upgrade WMM"
+msgstr "Actualizar WMM"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:407
+msgid "Available version"
+msgstr "Versión disponible"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:408
+#: wmm_platform/shell/installer/wmm-install_manager.py:708
+msgid "Do you want to continue?"
+msgstr "¿Quieres continuar?"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:437
+msgid "Preparing WMM upgrade"
+msgstr "Preparando la actualización de WMM"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:438
+msgid "The update package is being downloaded and prepared."
+msgstr "El paquete de actualización se está descargando y preparando."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:442
+#: wmm_platform/shell/installer/wmm-install_manager.py:678
+#: wmm_platform/shell/installer/wmm-install_manager.py:741
+#: wmm_platform/shell/installer/wmm-install_manager.py:953
+msgid "Hide details"
+msgstr "Ocultar"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:586
+msgid "Upgrade preparation failed"
+msgstr "Error al preparar la actualización"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:587
+msgid "The WMM update package could not be prepared:"
+msgstr "No se pudo preparar el paquete de actualización de WMM:"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:601
+msgid "Repair package unavailable"
+msgstr "Paquete de reparación no disponible"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:602
+msgid "The local WMM repair package could not be found."
+msgstr "No se pudo encontrar el paquete local de reparación de WMM."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:612
+msgid "WMM will be reinstalled using a clean copy of the current version."
+msgstr "WMM se reinstalará utilizando una copia limpia de la versión actual."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:614
+msgid "Your WMM settings and persistent data will be preserved."
+msgstr "La configuración y los datos persistentes de WMM se conservarán."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:658
+msgid "Unable to prepare reinstall"
+msgstr "No se pudo preparar la reinstalación"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:659
+msgid "The WMM repair package could not be prepared:"
+msgstr "No se pudo preparar el paquete de reparación de WMM:"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:672
+msgid "Reinstalling WMM"
+msgstr "Reinstalando WMM"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:673
+msgid "The reinstall process is running."
+msgstr "El proceso de reinstalación está en curso."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:695
+msgid "WMM uninstaller was not found."
+msgstr "No se encontró el desinstalador de WMM."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:705
+msgid "WMM and its desktop integration will be removed from this system."
+msgstr "WMM y su integración con el escritorio se eliminarán de este sistema."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:736
+msgid "Uninstalling WMM"
+msgstr "Desinstalando WMM"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:736
+msgid "The uninstall process is running."
+msgstr "El proceso de desinstalación está en curso."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:786
+msgid "Unable to start upgrade"
+msgstr "No se puede iniciar la actualización"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:787
+msgid "The WMM upgrade process could not be started:"
+msgstr "No se pudo iniciar el proceso de actualización de WMM:"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:789
+msgid "Unable to start reinstall"
+msgstr "No se puede iniciar la reinstalación"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:790
+msgid "The WMM reinstall process could not be started:"
+msgstr "No se pudo iniciar el proceso de reinstalación de WMM:"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:792
+msgid "Unable to start the uninstaller"
+msgstr "No se pudo iniciar el desinstalador"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:793
+msgid "The WMM uninstaller could not be started:"
+msgstr "No se pudo iniciar el desinstalador de WMM:"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:826
+msgid "Uninstallation completed with warnings"
+msgstr "La desinstalación se completó con advertencias"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:827
+#: wmm_platform/shell/installer/wmm-install_manager.py:832
+msgid "WMM has been successfully uninstalled."
+msgstr "WMM se ha desinstalado correctamente."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:828
+msgid ""
+"Log out and log back in to ensure no previous WMM process remains active."
+msgstr "Cierra la sesión y vuelve a iniciarla para asegurarte de que no quede ningún proceso anterior de WMM activo."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:831
+msgid "Uninstallation completed"
+msgstr "Desinstalación completada"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:842
+msgid "Uninstallation incomplete"
+msgstr "Desinstalación incompleta"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:843
+msgid "WMM could not be completely uninstalled."
+msgstr "WMM no se pudo desinstalar por completo."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:844
+#: wmm_platform/shell/installer/wmm-install_manager.py:871
+#: wmm_platform/shell/installer/wmm-install_manager.py:894
+msgid "Review the terminal output for details."
+msgstr "Revisa la salida del terminal para obtener más detalles."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:861
+msgid "Reinstallation completed"
+msgstr "Reinstalación completada"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:862
+msgid "WMM has been successfully reinstalled."
+msgstr "WMM se ha reinstalado correctamente."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:869
+msgid "Reinstallation incomplete"
+msgstr "Reinstalación incompleta"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:870
+msgid "WMM could not be completely reinstalled."
+msgstr "WMM no se pudo reinstalar por completo."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:888
+msgid "Upgrade completed"
+msgstr "Actualización completada"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:889
+msgid "WMM has been successfully upgraded to version:"
+msgstr "WMM se ha actualizado correctamente a la versión:"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:892
+msgid "Upgrade incomplete"
+msgstr "Actualización incompleta"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:893
+msgid "WMM could not be completely upgraded."
+msgstr "WMM no se pudo actualizar por completo."
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:917
+msgid "Copy"
+msgstr "Copiar"
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:922
+msgid "Paste"
+msgstr "Pegar"
+
+#: wmm_platform/shell/xfce/xfce-frontend.py:369
+#: wmm_platform/shell/mate/mate-applet.py:218
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:144
+#: wmm_platform/shell/gnome/extension.gnome.js:169
+msgid "Click action"
+msgstr "Clic"
+
+#: wmm_platform/shell/xfce/xfce-frontend.py:369
+msgid "Main Menu"
+msgstr "Menú principal"
+
+#: wmm_platform/shell/xfce/xfce-frontend.py:370
+msgid "Middle Click"
+msgstr "Clic central"
+
+#: wmm_platform/shell/xfce/xfce-frontend.py:370
+#: wmm_platform/shell/xfce/xfce-frontend.py:1299
+#: wmm_platform/shell/mate/mate-applet.py:218
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:144
+#: wmm_platform/shell/gnome/extension.gnome.js:169
+#: wmm_platform/shell/gnome/extension.gnome.js:347
+msgid "Next Background"
+msgstr "Siguiente fondo"
+
+#: wmm_platform/shell/xfce/xfce-frontend.py:371
+#: wmm_platform/shell/mate/mate-applet.py:219
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:145
+#: wmm_platform/shell/gnome/extension.gnome.js:170
+msgid "Secondary Click"
+msgstr "Clic secundario"
+
+#: wmm_platform/shell/xfce/xfce-frontend.py:371
+#: wmm_platform/shell/mate/mate-applet.py:219
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:145
+#: wmm_platform/shell/gnome/extension.gnome.js:170
+msgid "Context Menu"
+msgstr "Menú contextual"
+
+#: wmm_platform/shell/xfce/xfce-frontend.py:631
+#: wmm_platform/shell/mate/mate-applet.py:1040
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:261
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:344
+#: wmm_platform/shell/gnome/extension.gnome.js:464
+#: wmm_platform/shell/gnome/extension.gnome.js:572
+msgid "SYNC (All)"
+msgstr "SYNC (Todos)"
+
+#: wmm_platform/shell/xfce/xfce-frontend.py:631
+#: wmm_platform/shell/xfce/xfce-frontend.py:1287
+#: wmm_platform/shell/mate/mate-applet.py:300
+#: wmm_platform/shell/mate/mate-applet.py:1040
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:231
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:261
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:344
+#: wmm_platform/shell/gnome/extension.gnome.js:459
+#: wmm_platform/shell/gnome/extension.gnome.js:464
+#: wmm_platform/shell/gnome/extension.gnome.js:572
+msgid "ASYNC (One)"
+msgstr "ASYNC (una)"
+
+#: wmm_platform/shell/xfce/xfce-frontend.py:1034
+#: wmm_platform/shell/mate/mate-applet.py:1083
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:372
+#: wmm_platform/shell/gnome/extension.gnome.js:597
+msgid "No saved favorites"
+msgstr "Sin favortos guradados"
+
+#: wmm_platform/shell/xfce/xfce-frontend.py:1143
+#: wmm_platform/shell/mate/mate-applet.py:1185
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:518
+#: wmm_platform/shell/gnome/extension.gnome.js:799
+msgid "Delete favorite"
+msgstr "Eliminar Favorito"
+
+#: wmm_platform/shell/xfce/xfce-frontend.py:1194
+#: wmm_platform/shell/mate/mate-applet.py:368
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:199
+#: wmm_platform/shell/gnome/extension.gnome.js:367
+msgid "Favorites Only"
+msgstr "Sólo Favoritos"
+
+#: wmm_platform/shell/xfce/xfce-frontend.py:1206
+#: wmm_platform/shell/mate/mate-applet.py:377
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:207
+#: wmm_platform/shell/gnome/extension.gnome.js:390
+msgid "Add Preset Favorite"
+msgstr "Añadir Preset a favorito"
+
+#: wmm_platform/shell/xfce/xfce-frontend.py:1291
+#: wmm_platform/shell/mate/mate-applet.py:301
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:235
+#: wmm_platform/shell/gnome/extension.gnome.js:470
+msgid "Spanned Mode"
+msgstr "Modo Panorámico"
+
+#: wmm_platform/shell/mate/mate-applet.py:217
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:143
+#: wmm_platform/shell/gnome/extension.gnome.js:168
+msgid "Wallpaper Multi-Monitor Manager"
+msgstr "Administrador de fondos de pantalla para múltiples monitores"
+
+#: wmm_platform/shell/mate/mate-applet.py:302
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:268
+#: wmm_platform/shell/gnome/extension.gnome.js:482
+msgid "Tools"
+msgstr "Herramientas"
+
+#: wmm_platform/shell/mate/mate-applet.py:303
+#: wmm_platform/shell/mate/mate-applet.py:1023
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:272
+#: wmm_platform/shell/gnome/extension.gnome.js:486
+msgid "Settings"
+msgstr "Ajustes"
+
+#: wmm_platform/shell/mate/mate-applet.py:305
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:276
+#: wmm_platform/shell/gnome/extension.gnome.js:490
+msgid "Sync Library"
+msgstr "Sincronizar biblioteca"
+
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:304
+#: wmm_platform/shell/gnome/extension.gnome.js:518
+msgid "Exit"
+msgstr "Salir de"
+
+#~ msgid "Contents"
+#~ msgstr "Contenido"
+
+#~ msgid "Help file not found."
+#~ msgstr "Archivo de Ayuda no encontrado."
+
+#~ msgid "Could not read help file:"
+#~ msgstr "No se pudo leer el archivo de ayuda:"
+
+#~ msgid "Resynchronizing library"
+#~ msgstr "Resincronizando biblioteca"

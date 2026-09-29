@@ -52,12 +52,40 @@ export default class WMMExtension {
     constructor(metadata) {
         this.metadata = metadata;
         this.appletPath = metadata.path;
-        this.enginePath = this.appletPath + '/python/main.py';
-        this.installManagerPath = this.appletPath + '/wmm_platform/shell/installer/wmm-install_manager.py';
-        this.debugLogViewerPath = this.appletPath + '/python/debug_log_viewer.py';
-        this.commandsPath = this.appletPath + '/data/commands.json';
-        this.settingsPath = this.appletPath + '/data/settings.json';
-        this.bookmarksPath = this.appletPath + '/data/bookmarks.json';
+
+        // Desde v1.5.0 la extensión contiene únicamente el frontend GNOME.
+        // settings_core.ini enlaza ese frontend con el core y los datos comunes.
+        let coreFile = Gio.File.new_for_path(this.appletPath + '/settings_core.ini');
+        let [success, contents] = coreFile.load_contents(null);
+
+        if (!success)
+            throw new Error('Could not read settings_core.ini');
+
+        let coreConfig = {};
+
+        new TextDecoder().decode(contents).split('\n').forEach(line => {
+            line = line.trim();
+            if (!line || line.startsWith('#') || line.startsWith(';'))
+                return;
+            let separator = line.indexOf('=');
+            if (separator < 0)
+                return;
+            coreConfig[line.slice(0, separator).trim()] =
+                line.slice(separator + 1).trim();
+        });
+
+        this.appDir = coreConfig.app_dir;
+        this.dataDir = coreConfig.data_dir;
+
+        if (!this.appDir || !this.dataDir)
+            throw new Error('settings_core.ini does not define app_dir/data_dir');
+
+        this.enginePath = this.appDir + '/python/main.py';
+        this.installManagerPath = this.appDir + '/wmm_platform/shell/installer/wmm-install_manager.py';
+        this.debugLogViewerPath = this.appDir + '/python/debug_log_viewer.py';
+        this.commandsPath = this.dataDir + '/commands.json';
+        this.settingsPath = this.dataDir + '/settings.json';
+        this.bookmarksPath = this.dataDir + '/bookmarks.json';
         this._cachedSettings = null;
         this._cachedBookmarks = null;
         this._currentMaxInterval = 60;
@@ -89,7 +117,7 @@ export default class WMMExtension {
         this._button.add_child(this._icon);
         Main.panel.addToStatusArea('wmm-indicator', this._button);
 
-        let cssFile = Gio.File.new_for_path(this.metadata.path + '/wmm_platform/shell/gnome/stylesheet.css');
+        let cssFile = Gio.File.new_for_path(this.appletPath + '/stylesheet.css');
         St.ThemeContext.get_for_stage(global.stage).get_theme().load_stylesheet(cssFile);
 
         // Export the workarea bridge used by the GNOME platform backend.
@@ -817,7 +845,7 @@ export default class WMMExtension {
     _sendActionToEngine(command) {
         try {
             let cmd = JSON.stringify(command);
-            GLib.spawn_async(null, ["python3", this.appletPath + "/python/send_command.py", cmd], null, GLib.SpawnFlags.SEARCH_PATH, null);
+             GLib.spawn_async(null, ["python3", this.appDir + "/python/send_command.py", cmd], null, GLib.SpawnFlags.SEARCH_PATH, null);
             return true;
         } catch (e) {
             log('WMM send: ' + e.message);

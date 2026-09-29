@@ -1,0 +1,84 @@
+/*
+ * WMM - Wallpaper Multi-Monitor Manager
+ * XFCE frontend styles
+ *
+ * SPDX-FileCopyrightText: 2026 makimanson
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+/* ==========================================================
+ * MENU ICONS
+ * ========================================================== */
+
+/*
+ * Algunos items reutilizan la columna nativa de Gtk.CheckMenuItem para
+ * conservar la alineación histórica de Gtk.ImageMenuItem sin depender
+ * de esa API obsoleta. El check aporta sólo la geometría de la columna.
+ */
+.wmm-menu-icon check {
+    background: none;
+    border: none;
+    box-shadow: none;
+}
+
+/* Cabeceras desplegables Favorites / Slideshow. */
+.wmm-inline-header check {
+    -gtk-icon-source: -gtk-icontheme('pan-end-symbolic');
+}
+
+.wmm-inline-header:checked check {
+    -gtk-icon-source: -gtk-icontheme('pan-down-symbolic');
+}
+
+/* Acción estática Add Preset Favorite. */
+.wmm-add-favorite check {
+    -gtk-icon-source: -gtk-icontheme('list-add');
+}
+
+/* Acción estática Next Background. */
+.wmm-next-background check {
+    -gtk-icon-source: -gtk-icontheme('view-refresh');
+}
+
+/* ==========================================================
+ * FAVORITES
+ * ========================================================== */
+
+.wmm-favorite-row {
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.wmm-favorite-row-box {
+    margin: 0 4px 1px 2px;
+}
+
+.wmm-favorite-button {
+    min-height: 0;
+    min-width: 0;
+    margin: 0;
+    padding: 2px 4px;
+}
+
+.wmm-favorite-empty {
+    margin: 1px 2px;
+}
+
+/*
+ * GtkScrolledWindow conserva la scrollbar para mantener su geometría
+ * y GtkAdjustment. WMM gestiona el desplazamiento mediante la rueda,
+ * por lo que la barra se oculta únicamente a nivel visual.
+ */
+.wmm-hidden-scrollbar {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    opacity: 0;
+}
+
+.wmm-hidden-scrollbar slider {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+}

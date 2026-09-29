@@ -20,6 +20,10 @@ import types
 
 from debug_logger import log_event
 
+# Identidad común del core WMM. No confundir con app_domain,
+# que pertenece a la integración/frontend activo.
+WMM_ID = 'wmm@maki'
+
 def _read_ini(filepath):
     """Lee un archivo .ini y devuelve un diccionario con las claves y valores."""
     config = {}
@@ -60,16 +64,27 @@ class PlatformManager:
         # Si no existe (primera instalación desde Spices), lo crea
         # detectando el SO y el escritorio automáticamente.
         config = self._ensure_platform_config()
+        config = self._resolve_common_paths(config)
 
         self.platform = config['platform']
         self.desktop = config['desktop']
         session_type = os.environ.get('XDG_SESSION_TYPE', '').lower()
         self.graphics_engine = session_type if session_type in ('x11', 'wayland') else 'x11'
+
+        self.wmm_id = config.get('wmm_id', '')
         self.app_domain = config.get('app_domain', 'wmm@maki')
-        self.app_dir = config.get('app_dir', '')
+
         self.data_base = config.get('data_base', '')
+        self.config_base = config.get('config_base', '')
+        self.cache_base = config.get('cache_base', '')
+
+        self.app_dir = config.get('app_dir', '')
+        self.app_config = config.get('app_config', '')
+        self.data_dir = config.get('data_dir', '')
+        self.frontend_dir = config.get('frontend_dir', '')
         self.cache_dir = config.get('cache_dir', '')
         self.locale_dir = config.get('locale_dir', '')
+
         platform_name = config['platform']
         desktop = config.get('desktop', '')
 
@@ -95,8 +110,11 @@ class PlatformManager:
         # que se ejecuten sobre este SO. Se exponen como atributos
         # para que el motor pueda llamarlas sin saber en qué SO está.
 
-        # Abrir archivos/carpetas con la aplicación predeterminada del SO
-        self.open_file = so_module.open_file
+        # Abrir archivos/carpetas con la aplicación predeterminada del SO.
+        # DATA_DIR pertenece al núcleo; la capa de SO sólo lo consume cuando
+        # necesita recursos de datos propios de WMM.
+        self.open_file = lambda path, capability=None, **params: so_module.open_file(
+            path, capability=capability, data_dir=self.data_dir, **params)
 
         # Enviar notificaciones de escritorio nativas del SO
         self.send_notification = so_module.send_notification
@@ -146,7 +164,7 @@ class PlatformManager:
 
         # Inicialización de los canales soportados por el SO.
         if hasattr(so_module, "init_channels"):
-            self.init_channels = so_module.init_channels
+            self.init_channels = lambda: so_module.init_channels(self.data_dir)
 
         # Monitorización de cambios de hardware mediante el orquestador común.
         from python.monitor_events import init_monitor_events
@@ -191,6 +209,7 @@ class PlatformManager:
                 desktop_module = importlib.import_module(f'.{desktop}', package='wmm_platform')
                 log_event(f"Módulo escritorio '{desktop}' cargado",
                           origin="CORE", level="DEBUG", reason="MODULE")
+
                 # Obtener la geometría de los monitores (Gdk, D-Bus, Win32...)
                 # Si el SO (linux.py) ya proporciona get_monitors, úsalo.
                 # Si no, usa el del escritorio.
@@ -213,21 +232,26 @@ class PlatformManager:
                 # (Cinnamon instala las de Nemo, GNOME las de Nautilus, etc.)
                 if hasattr(desktop_module, 'ensure_shell_actions'):
                     self.ensure_shell_actions = desktop_module.ensure_shell_actions
+
                 # --- CREAR ATAJO EN PRIMERA INSTALACIÓN ---
                 if hasattr(desktop_module, 'ensure_keybindings'):
                     self.ensure_keybindings = desktop_module.ensure_keybindings
+
                 # Área útil de la ventana según el compositor del escritorio
                 if hasattr(desktop_module, 'get_window_available_area'):
                     self.get_window_available_area = desktop_module.get_window_available_area
+
                 # Publica el tamaño máximo permitido para la ventana del panel
                 if hasattr(desktop_module, 'set_window_size_limit'):
                     self.set_window_size_limit = desktop_module.set_window_size_limit
+
                 # Correcciones específicas del gestor de ventanas durante
                 # expansiones del panel.
                 if hasattr(desktop_module, 'preserve_window_position_on_expand'):
                     self.preserve_window_position_on_expand = desktop_module.preserve_window_position_on_expand
                 if hasattr(desktop_module, 'correct_initial_window_position'):
                     self.correct_initial_window_position = desktop_module.correct_initial_window_position
+
                 # ----------------------------------------------------------
                 # ACTUALIZACIÓN DEL SHELL TRAS CAMBIOS DE TRADUCCIÓN
                 # ----------------------------------------------------------
@@ -254,6 +278,40 @@ class PlatformManager:
         log_event(f"[DIAG] PlatformManager: _ini_was_generated={getattr(self, '_ini_was_generated', 'NO EXISTE')}",
                   origin="CORE", level="DEBUG", reason="SETTINGS")
 
+    def _resolve_common_paths(self, config):
+        """
+        Resuelve en memoria las rutas comunes derivables de WMM.
+
+        No persiste settings_core.ini: los entrypoints standalone necesitan
+        estas rutas sin apropiarse del lifecycle de finalización del engine.
+        """
+        resolved = dict(config)
+
+        wmm_id = resolved.get('wmm_id') or WMM_ID
+        data_base = resolved.get('data_base') or ''
+        config_base = resolved.get('config_base') or ''
+        cache_base = resolved.get('cache_base') or ''
+
+        resolved['wmm_id'] = wmm_id
+
+        if not resolved.get('app_dir'):
+            resolved['app_dir'] = (os.path.join(data_base, wmm_id) if data_base
+                else os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+        if not resolved.get('app_config') and config_base:
+            resolved['app_config'] = os.path.join(config_base, wmm_id)
+
+        if not resolved.get('data_dir') and resolved.get('app_config'):
+            resolved['data_dir'] = os.path.join(resolved['app_config'], 'data')
+
+        if not resolved.get('cache_dir') and cache_base:
+            resolved['cache_dir'] = os.path.join(cache_base, 'wmm')
+
+        if not resolved.get('locale_dir') and data_base:
+            resolved['locale_dir'] = os.path.join(data_base, 'locale')
+
+        return resolved
+
     def _ensure_platform_config(self, app_root=None):
         """
         Lee o genera el archivo settings_core.ini y devuelve un
@@ -262,7 +320,54 @@ class PlatformManager:
         """
         import sys
 
-        config_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'settings_core.ini')
+        # ----------------------------------------------------------
+        # 0. RESOLVER RAÍZ Y ESCRITORIO ACTIVOS
+        # ----------------------------------------------------------
+        # La ubicación de settings_core.ini pertenece al frontend activo.
+        # MATE y XFCE lo alojan dentro del core común; los demás escritorios,
+        # en sus respectivos directorios externos de integración.
+        if app_root is None:
+            app_root = os.path.dirname(os.path.dirname(__file__))
+
+        raw_platform = sys.platform
+        try:
+            so_module = importlib.import_module(f'.{raw_platform}', package='wmm_platform')
+            desktop = so_module.detect_desktop()
+            if hasattr(so_module, 'normalize_desktop'):
+                desktop = so_module.normalize_desktop(desktop)
+        except ImportError:
+            so_module = None
+            desktop = 'generic'
+
+        if desktop == 'mate':
+            config_path = os.path.join(
+                app_root, 'frontends', 'mate', 'settings_core.ini')
+
+        elif desktop == 'xfce':
+            config_path = os.path.join(
+                app_root, 'frontends', 'xfce', 'settings_core.ini')
+
+        elif desktop == 'cinnamon':
+            paths = so_module.get_system_paths()
+            desktop_module = importlib.import_module('.cinnamon', package='wmm_platform')
+            frontend_dir = desktop_module.get_install_path(paths.get('data_base'), WMM_ID)
+            config_path = os.path.join(frontend_dir, 'settings_core.ini')
+
+        elif desktop == 'gnome':
+            paths = so_module.get_system_paths()
+            desktop_module = importlib.import_module('.gnome', package='wmm_platform')
+            frontend_dir = desktop_module.get_install_path(paths.get('data_base'), WMM_ID)
+            config_path = os.path.join(frontend_dir, 'settings_core.ini')
+
+        elif desktop == 'kde':
+            paths = so_module.get_system_paths()
+            desktop_module = importlib.import_module('.kde', package='wmm_platform')
+            frontend_dir = desktop_module.get_install_path(paths.get('data_base'), WMM_ID)
+            config_path = os.path.join(frontend_dir, 'settings_core.ini')
+
+        else:
+            config_path = os.path.join(app_root, 'data', 'settings_core.ini')
+
         self._config_path = config_path
 
         # ----------------------------------------------------------
@@ -280,29 +385,23 @@ class PlatformManager:
             return config
 
         # ----------------------------------------------------------
-        # 2. Si no existe, detectar el entorno delegando en los módulos
+        # 2. Si no existe, completar la detección del entorno
         # ----------------------------------------------------------
         log_event("Generando settings_core.ini por primera vez",
                   origin="CORE", level="INFO", reason="SETTINGS")
 
-        # --- Plataforma (SO) ---
-        raw_platform = sys.platform
-        try:
-            so_module = importlib.import_module(f'.{raw_platform}', package='wmm_platform')
+        if so_module is not None:
             platform = so_module.normalize_platform(raw_platform)
             paths = so_module.get_system_paths()
             data_base = paths.get('data_base')
+            config_base = paths.get('config_base')
             cache_base = paths.get('cache_base')
 
             # Estas rutas derivadas se calcularán posteriormente en
             # _complete_ini_if_needed(), igual que ocurre tras install.sh.
             # locale_dir = paths.get('locale_dir')
 
-            desktop = so_module.detect_desktop()
-            if hasattr(so_module, 'normalize_desktop'):
-                desktop = so_module.normalize_desktop(desktop)
-
-        except ImportError:
+        else:
             platform = raw_platform
             log_event(
                 f"No se pudo importar módulo para plataforma '{raw_platform}', usando fallback genérico",
@@ -310,15 +409,12 @@ class PlatformManager:
             )
             data_base = None
             cache_base = None
-            # locale_dir = None
+            config_base = None
             desktop = 'generic'
 
         # ----------------------------------------------------------
-        # 3. Dominio de la aplicación
+        # 3. Identidad de la aplicación
         # ----------------------------------------------------------
-        if app_root is None:
-            app_root = os.path.dirname(os.path.dirname(__file__))
-
         app_domain = os.path.basename(app_root)
 
         # ----------------------------------------------------------
@@ -341,17 +437,22 @@ class PlatformManager:
         # cache_dir = os.path.join(cache_base or '', 'wmm')
 
         # ----------------------------------------------------------
-        # 4. Construir el INI mínimo (equivalente al generado por install.sh)
+        # 4. Construir el INI mínimo de bootstrap
         # ----------------------------------------------------------
         config = {
             'platform': platform,
             'desktop': desktop,
+            'wmm_id': WMM_ID,
             'app_domain': app_domain,
             'data_base': data_base or '',
+            'config_base': config_base or '',
             'cache_base': cache_base or '',
 
             # Claves derivadas (se completan posteriormente)
             # 'app_dir': app_dir,
+            # 'app_config': app_config,
+            # 'data_dir': data_dir,
+            # 'frontend_dir': frontend_dir,
             # 'locale_dir': locale_dir or '',
             # 'cache_dir': cache_dir,
         }

@@ -98,6 +98,115 @@ class XRRCrtcInfo(ctypes.Structure):
         ("possible", ctypes.POINTER(ctypes.c_ulong)),
     ]
 
+class XEvent(ctypes.Union):
+    _fields_ = [
+        ("type", ctypes.c_int),
+        ("pad", ctypes.c_long * 24),
+    ]
+
+
+class XRRNotifyEvent(ctypes.Structure):
+    _fields_ = [
+        ("type", ctypes.c_int),
+        ("serial", ctypes.c_ulong),
+        ("send_event", ctypes.c_int),
+        ("display", ctypes.c_void_p),
+        ("window", ctypes.c_ulong),
+        ("subtype", ctypes.c_int),
+    ]
+
+
+# Eventos XRandR relevantes para WMM.
+RRNotify = 1
+RRCrtcChangeNotifyMask = 1 << 1
+RROutputChangeNotifyMask = 1 << 2
+RRResourceChangeNotifyMask = 1 << 6
+
+RRNotify_CrtcChange = 0
+RRNotify_OutputChange = 1
+RRNotify_ResourceChange = 5
+
+
+_libX11 = None
+_libXrandr = None
+
+
+def get_x11_randr_api():
+    """
+    Devuelve la API nativa X11/XRandR común utilizada por detección y eventos.
+
+    Las bibliotecas y sus firmas ctypes se inicializan una sola vez. Las
+    conexiones Display siguen perteneciendo a cada consumidor: detección usa
+    conexiones puntuales y monitor_events mantendrá la suya persistente.
+    """
+    global _libX11, _libXrandr
+
+    if _libX11 is not None and _libXrandr is not None:
+        return _libX11, _libXrandr
+
+    libX11 = ctypes.cdll.LoadLibrary(ctypes.util.find_library("X11"))
+    libXrandr = ctypes.cdll.LoadLibrary(ctypes.util.find_library("Xrandr"))
+
+    # Xlib común
+    libX11.XOpenDisplay.argtypes = [ctypes.c_char_p]
+    libX11.XOpenDisplay.restype = ctypes.c_void_p
+    libX11.XDefaultScreen.argtypes = [ctypes.c_void_p]
+    libX11.XDefaultScreen.restype = ctypes.c_int
+    libX11.XRootWindow.argtypes = [ctypes.c_void_p, ctypes.c_int]
+    libX11.XRootWindow.restype = ctypes.c_ulong
+    libX11.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
+    libX11.XInternAtom.restype = ctypes.c_ulong
+    libX11.XConnectionNumber.argtypes = [ctypes.c_void_p]
+    libX11.XConnectionNumber.restype = ctypes.c_int
+    libX11.XPending.argtypes = [ctypes.c_void_p]
+    libX11.XPending.restype = ctypes.c_int
+    libX11.XNextEvent.argtypes = [ctypes.c_void_p, ctypes.POINTER(XEvent)]
+    libX11.XNextEvent.restype = ctypes.c_int
+    libX11.XFlush.argtypes = [ctypes.c_void_p]
+    libX11.XFlush.restype = ctypes.c_int
+    libX11.XCloseDisplay.argtypes = [ctypes.c_void_p]
+    libX11.XCloseDisplay.restype = ctypes.c_int
+    libX11.XFree.argtypes = [ctypes.c_void_p]
+    libX11.XFree.restype = ctypes.c_int
+
+    # XRandR: detección
+    libXrandr.XRRGetScreenResourcesCurrent.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+    libXrandr.XRRGetScreenResourcesCurrent.restype = ctypes.POINTER(XRRScreenResources)
+    libXrandr.XRRFreeScreenResources.argtypes = [ctypes.POINTER(XRRScreenResources)]
+    libXrandr.XRRFreeScreenResources.restype = None
+    libXrandr.XRRGetOutputInfo.argtypes = [ctypes.c_void_p, ctypes.POINTER(XRRScreenResources), ctypes.c_ulong]
+    libXrandr.XRRGetOutputInfo.restype = ctypes.POINTER(XRROutputInfo)
+    libXrandr.XRRFreeOutputInfo.argtypes = [ctypes.POINTER(XRROutputInfo)]
+    libXrandr.XRRFreeOutputInfo.restype = None
+    libXrandr.XRRGetCrtcInfo.argtypes = [ctypes.c_void_p, ctypes.POINTER(XRRScreenResources), ctypes.c_ulong]
+    libXrandr.XRRGetCrtcInfo.restype = ctypes.POINTER(XRRCrtcInfo)
+    libXrandr.XRRFreeCrtcInfo.argtypes = [ctypes.POINTER(XRRCrtcInfo)]
+    libXrandr.XRRFreeCrtcInfo.restype = None
+    libXrandr.XRRGetOutputPrimary.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
+    libXrandr.XRRGetOutputPrimary.restype = ctypes.c_ulong
+    libXrandr.XRRGetOutputProperty.argtypes = [
+        ctypes.c_void_p, ctypes.c_ulong, ctypes.c_ulong,
+        ctypes.c_long, ctypes.c_long, ctypes.c_int, ctypes.c_int, ctypes.c_ulong,
+        ctypes.POINTER(ctypes.c_ulong), ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_ulong), ctypes.POINTER(ctypes.c_ulong),
+        ctypes.POINTER(ctypes.POINTER(ctypes.c_ubyte)),
+    ]
+    libXrandr.XRRGetOutputProperty.restype = ctypes.c_int
+
+    # XRandR: eventos
+    libXrandr.XRRQueryExtension.argtypes = [
+        ctypes.c_void_p,
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_int),
+    ]
+    libXrandr.XRRQueryExtension.restype = ctypes.c_int
+    libXrandr.XRRSelectInput.argtypes = [ctypes.c_void_p, ctypes.c_ulong, ctypes.c_int]
+    libXrandr.XRRSelectInput.restype = None
+
+    _libX11 = libX11
+    _libXrandr = libXrandr
+    return _libX11, _libXrandr
+
 # ==========================================================
 # 1. Estrategia para X11 (copiada de linux.get_x11_monitors)
 # ==========================================================
@@ -107,30 +216,9 @@ def get_x11_monitors():
     Retorna un diccionario {hash: {connector, manufacturer, x, y, width, height,
                                     width_mm, height_mm, inches, orientation, primary}}
     """
-    # Cargar las bibliotecas nativas de X11
-    libX11 = ctypes.cdll.LoadLibrary(ctypes.util.find_library("X11"))
-    libXrandr = ctypes.cdll.LoadLibrary(ctypes.util.find_library("Xrandr"))
+    libX11, libXrandr = get_x11_randr_api()
 
-    # Definir las firmas nativas de Xlib para preservar correctamente los punteros.
-    libX11.XOpenDisplay.argtypes = [ctypes.c_char_p]
-    libX11.XOpenDisplay.restype = ctypes.c_void_p
-
-    libX11.XDefaultScreen.argtypes = [ctypes.c_void_p]
-    libX11.XDefaultScreen.restype = ctypes.c_int
-
-    libX11.XRootWindow.argtypes = [ctypes.c_void_p, ctypes.c_int]
-    libX11.XRootWindow.restype = ctypes.c_ulong
-
-    libX11.XInternAtom.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int]
-    libX11.XInternAtom.restype = ctypes.c_ulong
-
-    libX11.XCloseDisplay.argtypes = [ctypes.c_void_p]
-    libX11.XCloseDisplay.restype = ctypes.c_int
-
-    libX11.XFree.argtypes = [ctypes.c_void_p]
-    libX11.XFree.restype = ctypes.c_int
-
-    # Abrir la conexión al servidor X
+    # Abrir una conexión puntual para esta detección.
     display = libX11.XOpenDisplay(None)
     if not display:
         raise RuntimeError("No se pudo abrir la conexión a X11")
@@ -138,56 +226,11 @@ def get_x11_monitors():
     screen = libX11.XDefaultScreen(display)
     root = libX11.XRootWindow(display, screen)
 
-    libXrandr.XRRGetScreenResourcesCurrent.argtypes = [ctypes.c_void_p, ctypes.c_ulong]
-    libXrandr.XRRGetScreenResourcesCurrent.restype = ctypes.POINTER(XRRScreenResources)
-
-    libXrandr.XRRFreeScreenResources.argtypes = [ctypes.POINTER(XRRScreenResources)]
-    libXrandr.XRRFreeScreenResources.restype = None
-
     resources = libXrandr.XRRGetScreenResourcesCurrent(display, root)
     if not resources:
         libX11.XCloseDisplay(display)
         return {}
 
-    libXrandr.XRRGetOutputInfo.argtypes = [
-        ctypes.c_void_p,
-        ctypes.POINTER(XRRScreenResources),
-        ctypes.c_ulong,
-    ]
-    libXrandr.XRRGetOutputInfo.restype = ctypes.POINTER(XRROutputInfo)
-
-    libXrandr.XRRFreeOutputInfo.argtypes = [ctypes.POINTER(XRROutputInfo)]
-    libXrandr.XRRFreeOutputInfo.restype = None
-
-    libXrandr.XRRGetCrtcInfo.argtypes = [
-        ctypes.c_void_p,
-        ctypes.POINTER(XRRScreenResources),
-        ctypes.c_ulong,
-    ]
-    libXrandr.XRRGetCrtcInfo.restype = ctypes.POINTER(XRRCrtcInfo)
-
-    libXrandr.XRRFreeCrtcInfo.argtypes = [ctypes.POINTER(XRRCrtcInfo)]
-    libXrandr.XRRFreeCrtcInfo.restype = None
-
-    libXrandr.XRRGetOutputPrimary.argtypes = [ ctypes.c_void_p, ctypes.c_ulong, ]
-    libXrandr.XRRGetOutputPrimary.restype = ctypes.c_ulong
-
-    libXrandr.XRRGetOutputProperty.argtypes = [
-        ctypes.c_void_p,
-        ctypes.c_ulong,
-        ctypes.c_ulong,
-        ctypes.c_long,
-        ctypes.c_long,
-        ctypes.c_int,
-        ctypes.c_int,
-        ctypes.c_ulong,
-        ctypes.POINTER(ctypes.c_ulong),
-        ctypes.POINTER(ctypes.c_int),
-        ctypes.POINTER(ctypes.c_ulong),
-        ctypes.POINTER(ctypes.c_ulong),
-        ctypes.POINTER(ctypes.POINTER(ctypes.c_ubyte)),
-    ]
-    libXrandr.XRRGetOutputProperty.restype = ctypes.c_int
     primary_output = libXrandr.XRRGetOutputPrimary(display, root)
 
     monitors_data = {}
@@ -322,7 +365,6 @@ def get_monitor_hash_from_position(x, y, monitors_map):
             return m_hash
 
     return None
-
 
 def get_monitor_hash_from_xid(xid, monitors_map):
     """Devuelve el hash WMM del monitor que contiene la ventana X11 indicada."""

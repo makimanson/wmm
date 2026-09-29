@@ -17,6 +17,7 @@ Icon=video-display
 Terminal=false
 Categories=Graphics;
 StartupNotify=false
+OnlyShowIn=KDE;
 X-KDE-GlobalShortcutType=Service
 
 Actions=next-background;InstallManager;DebugLogViewer;Help;Changelog;About;

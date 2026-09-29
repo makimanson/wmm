@@ -8,9 +8,9 @@
 Name=WMM: Add to favorites
 Name[es]=WMM: Añadir a favoritos
 Name[ca]=WMM: Afegeix a preferits
-Comment=Add selected image to WMM favorites
-Comment[es]=Añadir la imagen seleccionada a favoritos de WMM
-Comment[ca]=Afegeix la imatge seleccionada als preferits de WMM
+Comment=Add selected image to favorites
+Comment[es]=Añadir la imagen seleccionada a favoritos
+Comment[ca]=Afegeix la imatge seleccionada als preferits
 Exec=@PYTHON3@ @APP_DIR@/python/send_command.py '{"action":"shell_add_favorite","image_path":%F}'
 Icon-Name=stock_add-bookmark
 Selection=single

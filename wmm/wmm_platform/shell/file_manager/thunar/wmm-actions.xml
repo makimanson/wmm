@@ -1,0 +1,33 @@
+<action>
+    <icon>list-add</icon>
+    <name>@ADD_NAME@</name>
+    <submenu>WMM Manager</submenu>
+    <unique-id></unique-id>
+    <command>@APP_DIR@/wmm_platform/shell/file_manager/common/wmm-add_to_bookmarks.sh %f</command>
+    <description>@ADD_DESCRIPTION@</description>
+    <range>*</range>
+    <patterns>*</patterns>
+    <image-files/>
+</action>
+<action>
+    <icon>mail-send</icon>
+    <name>@SEND_NAME@</name>
+    <submenu>WMM Manager</submenu>
+    <unique-id></unique-id>
+    <command>@APP_DIR@/wmm_platform/shell/file_manager/common/wmm-send-to-monitor.sh %f</command>
+    <description>@SEND_DESCRIPTION@</description>
+    <range>*</range>
+    <patterns>*</patterns>
+    <image-files/>
+</action>
+<action>
+    <icon>view-fullscreen</icon>
+    <name>@SPAN_NAME@</name>
+    <submenu>WMM Manager</submenu>
+    <unique-id></unique-id>
+    <command>@APP_DIR@/wmm_platform/shell/file_manager/common/wmm-span-image.sh %f</command>
+    <description>@SPAN_DESCRIPTION@</description>
+    <range>*</range>
+    <patterns>*</patterns>
+    <image-files/>
+</action>

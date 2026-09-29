@@ -15,13 +15,18 @@ import re
 import glob
 import subprocess
 import time
+
 from PIL import Image
 from debug_logger import log_event
 from i18n import _
 
 def get_install_path(data_base, app_domain):
-    """Devuelve la ruta de instalación (esqueleto)."""
-    return os.path.join(data_base, app_domain)
+    """
+    Devuelve la ruta del frontend KDE Plasma.
+    La identidad del plasmoide es org.maki.wmm y es independiente de
+    wmm@maki, que identifica el core común de WMM.
+    """
+    return os.path.join(data_base, "plasma", "plasmoids", "org.maki.wmm")
 
 def _strip_ansi(text):
     """Elimina códigos de escape ANSI de una cadena."""
@@ -151,28 +156,15 @@ if (!found) {{
 
         # Cargar el script temporal en KWin.
         scripting = bus.get_object("org.kde.KWin", "/Scripting")
-        scripting_iface = dbus.Interface(
-            scripting,
-            "org.kde.kwin.Scripting"
-        )
-
-        script_id = int(
-            scripting_iface.loadScript(temp_path)
-        )
+        scripting_iface = dbus.Interface(scripting, "org.kde.kwin.Scripting")
+        script_id = int(scripting_iface.loadScript(temp_path))
 
         if script_id < 0:
             raise RuntimeError("KWin rechazó la carga del script temporal")
 
         # Ejecutar la instancia cargada.
-        script_obj = bus.get_object(
-            "org.kde.KWin",
-            f"/Scripting/Script{script_id}"
-        )
-        script_iface = dbus.Interface(
-            script_obj,
-            "org.kde.kwin.Script"
-        )
-
+        script_obj = bus.get_object("org.kde.KWin", f"/Scripting/Script{script_id}")
+        script_iface = dbus.Interface(script_obj, "org.kde.kwin.Script")
         script_iface.run()
 
         # Esperar únicamente a la respuesta del script.
@@ -193,31 +185,29 @@ if (!found) {{
 
             if receiver.result is None:
                 if timed_out:
-                    log_event(f"Timeout consultando el área útil de KWin para PID {pid}", origin="KDE", level="WARN", reason="D-BUS")
+                    log_event(f"Timeout consultando el área útil de KWin para PID {pid}",
+                        origin="KDE", level="WARN", reason="D-BUS")
                 else:
-                    log_event(f"KWin no localizó una ventana válida para PID {pid}", origin="KDE", level="WARN", reason="HARDWARE")
+                    log_event(f"KWin no localizó una ventana válida para PID {pid}",
+                        origin="KDE", level="WARN", reason="HARDWARE")
                 return None
 
-        log_event(f"Área útil KWin obtenida para PID {pid}: {receiver.result}", origin="KDE", level="DEBUG", reason="HARDWARE")
+        log_event(f"Área útil KWin obtenida para PID {pid}: {receiver.result}",
+                  origin="KDE", level="DEBUG", reason="HARDWARE")
 
         return receiver.result
 
     except Exception as e:
-        log_event(f"Error consultando MaximizeArea en KWin: {e}", origin="KDE", level="ERROR", reason="D-BUS")
+        log_event(f"Error consultando MaximizeArea en KWin: {e}",
+                  origin="KDE", level="ERROR", reason="D-BUS")
         return None
 
     finally:
         # Detener y retirar la instancia temporal del script de KWin.
         if script_id is not None and script_id >= 0 and bus is not None:
             try:
-                script_obj = bus.get_object(
-                    "org.kde.KWin",
-                    f"/Scripting/Script{script_id}"
-                )
-                dbus.Interface(
-                    script_obj,
-                    "org.kde.kwin.Script"
-                ).stop()
+                script_obj = bus.get_object("org.kde.KWin", f"/Scripting/Script{script_id}")
+                dbus.Interface(script_obj, "org.kde.kwin.Script").stop()
             except Exception:
                 pass
 
@@ -255,14 +245,13 @@ def _get_uuid_to_container_map():
     env['NO_COLOR'] = '1'
 
     try:
-        result = subprocess.run(
-            ['kscreen-doctor', '-o'],
+        result = subprocess.run(['kscreen-doctor', '-o'],
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, check=True, env=env
-        )
+            text=True, check=True, env=env)
         raw_output = result.stdout
     except subprocess.CalledProcessError as e:
-        log_event(f"Error en kscreen-doctor -o: {e}", origin="KDE", level="ERROR", reason="HARDWARE")
+        log_event(f"Error en kscreen-doctor -o: {e}",
+                  origin="KDE", level="ERROR", reason="HARDWARE")
         return {}, {}, {}
 
     clean = _strip_ansi(raw_output)
@@ -295,12 +284,14 @@ def _get_uuid_to_container_map():
         monitors.append((current_priority, current_name, current_uuid))
 
     if not monitors:
-        log_event("No se encontraron monitores", origin="KDE", level="WARN", reason="HARDWARE")
+        log_event("No se encontraron monitores",
+                  origin="KDE", level="WARN", reason="HARDWARE")
         return {}, {}, {}
 
     # Plasma ordena las pantallas según prioridad.
     monitors.sort(key=lambda x: x[0])
-    log_event(f"Monitores ordenados por prioridad: {monitors}", origin="KDE", level="INFO", reason="HARDWARE")
+    log_event(f"Monitores ordenados por prioridad: {monitors}",
+              origin="KDE", level="INFO", reason="HARDWARE")
 
     connector_to_uuid = {name: uuid for _, name, uuid in monitors}
     uuid_to_screen = {uuid: i for i, (_, _, uuid) in enumerate(monitors)}
@@ -308,24 +299,21 @@ def _get_uuid_to_container_map():
     appconfig = os.path.expanduser('~/.config/plasma-org.kde.plasma.desktop-appletsrc')
 
     if not os.path.exists(appconfig):
-        log_event(f"{appconfig} no encontrado", origin="KDE", level="ERROR", reason="HARDWARE")
+        log_event(f"{appconfig} no encontrado",
+                  origin="KDE", level="ERROR", reason="HARDWARE")
         return {}, connector_to_uuid, uuid_to_screen
 
     with open(appconfig, 'r') as f:
         content = f.read()
 
     wallpaper_containers = set(
-        re.findall(r'\[Containments\]\[(\d+)\]\[Wallpaper\]\[org\.kde\.image\]', content)
-    )
+        re.findall(r'\[Containments\]\[(\d+)\]\[Wallpaper\]\[org\.kde\.image\]', content))
 
     lastscreen_to_cid = {}
 
     for cid in wallpaper_containers:
-        sec = re.search(
-            rf'^\[Containments\]\[{cid}\]$(.*?)(?=^\[|\Z)',
-            content,
-            re.MULTILINE | re.DOTALL
-        )
+        sec = re.search(rf'^\[Containments\]\[{cid}\]$(.*?)(?=^\[|\Z)',
+            content, re.MULTILINE | re.DOTALL)
 
         if not sec:
             continue
@@ -349,12 +337,15 @@ def _get_uuid_to_container_map():
 
         if cid:
             uuid_to_container[uuid] = cid
-            log_event(f"Prioridad {prio}: {name} (UUID {uuid}) -> screen {i} -> contenedor {cid}", origin="KDE", level="INFO", reason="HARDWARE")
+            log_event(f"Prioridad {prio}: {name} (UUID {uuid}) -> screen {i} -> contenedor {cid}",
+                      origin="KDE", level="INFO", reason="HARDWARE")
         else:
-            log_event(f"Prioridad {prio}: {name} sin contenedor para screen {i}", origin="KDE", level="WARN", reason="HARDWARE")
+            log_event(f"Prioridad {prio}: {name} sin contenedor para screen {i}",
+                      origin="KDE", level="WARN", reason="HARDWARE")
 
     if uuid_to_container:
-        log_event(f"Mapeo uuid->contenedor final: {uuid_to_container}", origin="KDE", level="INFO", reason="HARDWARE")
+        log_event(f"Mapeo uuid->contenedor final: {uuid_to_container}",
+                  origin="KDE", level="INFO", reason="HARDWARE")
 
     return uuid_to_container, connector_to_uuid, uuid_to_screen
 
@@ -389,20 +380,20 @@ def _get_wallpaper_target_for_hash(monitors_map):
         uuid = connector_to_uuid.get(connector)
 
         if not uuid:
-            log_event(f"No se encontró UUID para el conector {connector}", origin="KDE", level="WARN", reason="HARDWARE")
+            log_event(f"No se encontró UUID para el conector {connector}",
+                      origin="KDE", level="WARN", reason="HARDWARE")
             continue
 
         cid = uuid_to_container.get(uuid)
         screen = uuid_to_screen.get(uuid)
 
         if cid and screen is not None:
-            target_map[m_hash] = {
-                "container": cid,
-                "screen": screen,
-            }
-            log_event(f"Mapeo wallpaper: {m_hash} ({connector}) -> screen {screen}, contenedor {cid}", origin="KDE", level="INFO", reason="HARDWARE")
+            target_map[m_hash] = { "container": cid, "screen": screen, }
+            log_event(f"Mapeo wallpaper: {m_hash} ({connector}) -> screen {screen}, contenedor {cid}",
+                      origin="KDE", level="INFO", reason="HARDWARE")
         else:
-            log_event(f"UUID {uuid} ({connector}) sin destino Plasma válido", origin="KDE", level="WARN", reason="HARDWARE")
+            log_event(f"UUID {uuid} ({connector}) sin destino Plasma válido",
+                      origin="KDE", level="WARN", reason="HARDWARE")
 
     return target_map
 
@@ -414,16 +405,19 @@ def render_master_wallpaper(self, processed_images, monitors_map, config_handler
     processed_images contiene únicamente los monitores que deben cambiar
     durante el ciclo actual.
     """
-    log_event(f"processed_images recibidas: {list(processed_images.keys())}", origin="KDE", level="INFO", reason="LIBRARY")
+    log_event(f"processed_images recibidas: {list(processed_images.keys())}",
+              origin="KDE", level="INFO", reason="LIBRARY")
 
     if not processed_images:
-        log_event("No hay imágenes procesadas para KDE", origin="KDE", level="ERROR", reason="LIBRARY")
+        log_event("No hay imágenes procesadas para KDE",
+                  origin="KDE", level="ERROR", reason="LIBRARY")
         return False
 
     target_map = _get_wallpaper_target_for_hash(monitors_map)
 
     if not target_map:
-        log_event("No se pudo obtener el mapeo hash->destino Plasma. Abortando.", origin="KDE", level="ERROR", reason="LIBRARY")
+        log_event("No se pudo obtener el mapeo hash->destino Plasma. Abortando.",
+                  origin="KDE", level="ERROR", reason="LIBRARY")
         return False
 
     active_targets = {}
@@ -432,16 +426,19 @@ def render_master_wallpaper(self, processed_images, monitors_map, config_handler
         target = target_map.get(m_hash)
 
         if not target:
-            log_event(f"No hay destino Plasma para el hash {m_hash}. Se omite.", origin="KDE", level="WARN", reason="LIBRARY")
+            log_event(f"No hay destino Plasma para el hash {m_hash}. Se omite.",
+                      origin="KDE", level="WARN", reason="LIBRARY")
             continue
 
         active_targets[m_hash] = target
 
     if not active_targets:
-        log_event("No hay destinos Plasma válidos para las imágenes procesadas.", origin="KDE", level="WARN", reason="LIBRARY")
+        log_event("No hay destinos Plasma válidos para las imágenes procesadas.",
+                  origin="KDE", level="WARN", reason="LIBRARY")
         return False
 
-    log_event(f"Aplicando {len(active_targets)} imágenes mediante PlasmaShell.setWallpaper", origin="KDE", level="INFO", reason="LIBRARY")
+    log_event(f"Aplicando {len(active_targets)} imágenes mediante PlasmaShell.setWallpaper",
+              origin="KDE", level="INFO", reason="LIBRARY")
     return self.set_wallpaper(processed_images, active_targets, config_handler)
 
 def _force_desktop_settings(config_handler, active_containers=None):
@@ -451,7 +448,8 @@ def _force_desktop_settings(config_handler, active_containers=None):
     - plugin = org.kde.image (por si el usuario lo ha cambiado).
     """
     if not active_containers:
-        log_event("No hay contenedores activos para forzar ajustes", origin="KDE", level="WARN", reason="HARDWARE")
+        log_event("No hay contenedores activos para forzar ajustes",
+                  origin="KDE", level="WARN", reason="HARDWARE")
         return
 
     appconfig = os.path.expanduser('~/.config/plasma-org.kde.plasma.desktop-appletsrc')
@@ -473,7 +471,8 @@ def _force_desktop_settings(config_handler, active_containers=None):
             '--key', 'FillMode', '0'
         ], check=False, capture_output=True)
 
-    log_event("Ajustes de sistema forzados para KDE (FillMode=0)", origin="KDE", level="INFO", reason="HARDWARE")
+    log_event("Ajustes de sistema forzados para KDE (FillMode=0)",
+              origin="KDE", level="INFO", reason="HARDWARE")
 
 def set_wallpaper(processed_images, targets, config_handler):
     """
@@ -512,9 +511,7 @@ def set_wallpaper(processed_images, targets, config_handler):
                 GLib.Variant("(u)", (screen,)),
                 GLib.VariantType.new("(a{sv})"),
                 Gio.DBusCallFlags.NONE,
-                2000,
-                None
-            )
+                2000, None)
             return reply.unpack()[0]
 
         def apply_wallpaper(path, screen):
@@ -525,11 +522,8 @@ def set_wallpaper(processed_images, targets, config_handler):
                 "org.kde.PlasmaShell",
                 "setWallpaper",
                 GLib.Variant("(sa{sv}u)", ("org.kde.image", parameters, screen)),
-                None,
-                Gio.DBusCallFlags.NONE,
-                2000,
-                None
-            )
+                None, Gio.DBusCallFlags.NONE,
+                2000, None)
 
         prepared = {}
 
@@ -556,12 +550,15 @@ def set_wallpaper(processed_images, targets, config_handler):
             try:
                 img.save(master_path, "JPEG", quality=95)
                 prepared[m_hash] = {"container": cid, "screen": screen, "path": master_path}
-                log_event(f"Imagen preparada para screen {screen}, contenedor {cid}: {master_path}", origin="KDE", level="INFO", reason="LIBRARY")
+                log_event(f"Imagen preparada para screen {screen}, contenedor {cid}: {master_path}",
+                          origin="KDE", level="INFO", reason="LIBRARY")
             except Exception as e:
-                log_event(f"Error guardando imagen para contenedor {cid}: {e}", origin="KDE", level="ERROR", reason="LIBRARY")
+                log_event(f"Error guardando imagen para contenedor {cid}: {e}",
+                          origin="KDE", level="ERROR", reason="LIBRARY")
 
         if not prepared:
-            log_event("No se pudo preparar ninguna imagen para Plasma.", origin="KDE", level="WARN", reason="LIBRARY")
+            log_event("No se pudo preparar ninguna imagen para Plasma.",
+                      origin="KDE", level="WARN", reason="LIBRARY")
             return False
 
         # SYNC: transición coordinada hacia negro.
@@ -581,27 +578,31 @@ def set_wallpaper(processed_images, targets, config_handler):
             apply_wallpaper(target["path"], target["screen"])
 
         if sl_mode == "sync":
-            log_event(f"Transición Fade out/in aplicada en {len(prepared)} pantallas KDE", origin="KDE", level="INFO", reason="LIBRARY")
+            log_event(f"Transición Fade out/in aplicada en {len(prepared)} pantallas KDE",
+                      origin="KDE", level="INFO", reason="LIBRARY")
         else:
-            log_event(f"Transición Crossfade aplicada en {len(prepared)} pantallas KDE", origin="KDE", level="INFO", reason="LIBRARY")
+            log_event(f"Transición Crossfade aplicada en {len(prepared)} pantallas KDE",
+                      origin="KDE", level="INFO", reason="LIBRARY")
 
         return True
 
     except Exception as e:
-        log_event(f"PlasmaShell no respondió al aplicar los fondos: {e}", origin="KDE", level="ERROR", reason="D-BUS")
+        log_event(f"PlasmaShell no respondió al aplicar los fondos: {e}",
+                  origin="KDE", level="ERROR", reason="D-BUS")
         return False
 
 def ensure_keybindings(app_dir):
     """
-    Registra en KGlobalAccel las acciones globales declaradas
-    por la aplicación WMM en org.maki.wmm.desktop.
+    Garantiza que la acción global de WMM esté registrada en KGlobalAccel.
 
-    No asigna ninguna combinación de teclas por defecto.
-    La configuración del atajo pertenece siempre al usuario.
+    Conserva cualquier combinación elegida por el usuario al sustituir la
+    identidad KDE publicada hasta WMM 1.4.x por la identidad actual.
     """
     import dbus
 
-    desktop_id = "org.maki.wmm.desktop"
+    desktop_id = "org.maki.wmm.kde.desktop"
+    previous_desktop_id = "org.maki.wmm.desktop"
+
     action_key = "next-background"
     action_name = _("Next Background")
     component_name = "WMM Manager"
@@ -610,45 +611,127 @@ def ensure_keybindings(app_dir):
     desktop_path = os.path.join(data_home, "applications", desktop_id)
 
     if not os.path.exists(desktop_path):
-        log_event(f"Lanzador KDE no encontrado: {desktop_path}", origin="KDE", level="WARN", reason="GENERIC")
+        log_event(f"Lanzador KDE no encontrado: {desktop_path}",
+                  origin="KDE", level="WARN", reason="GENERIC")
         return False
 
-    log_event(f"KDE shortcut data: desktop_id='{desktop_id}', action='{action_key}', action_name='{action_name}'", origin="KDE", level="DEBUG", reason="GENERIC")
+    log_event(f"KDE shortcut data: desktop_id='{desktop_id}', action='{action_key}', action_name='{action_name}'",
+              origin="KDE", level="DEBUG", reason="GENERIC")
 
     try:
         bus = dbus.SessionBus()
         accel = bus.get_object("org.kde.kglobalaccel", "/kglobalaccel")
         accel_iface = dbus.Interface(accel, "org.kde.KGlobalAccel")
-    except Exception as e:
-        log_event(f"No se pudo conectar con kglobalaccel: {e}", origin="KDE", level="ERROR", reason="D-BUS")
+    except Exception as error:
+        log_event(f"No se pudo conectar con kglobalaccel: {error}",
+                  origin="KDE", level="ERROR", reason="D-BUS")
         return False
 
     action_id = [desktop_id, action_key, component_name, action_name]
+    previous_action_id = [
+        previous_desktop_id, action_key, component_name, action_name]
+
+    empty_shortcuts = dbus.Array([], signature="(ai)")
+    set_present = dbus.UInt32(2)
+
+    # La combinación capturada ya pertenece al usuario: al restaurarla sobre
+    # la identidad recreada debe preservarse sin autoloading de KGlobalAccel.
+    # NoAutoloading es deliberado: retirarlo reintroduce NoSuchComponent
+    # al reaplicar el shortcut capturado sobre la nueva identidad.
+    preserve_flags = dbus.UInt32(int(set_present) | 4)
+
+    captured_keys = None
 
     try:
+        # ----------------------------------------------------------
+        # 1. Retirar la identidad anterior conservando sus teclas
+        # ----------------------------------------------------------
+        # La combinación pertenece al usuario: se captura antes de eliminar
+        # la acción y sólo permanece en memoria durante esta sustitución.
+        try:
+            previous_path = accel_iface.getComponent(previous_desktop_id)
+
+        except dbus.exceptions.DBusException as error:
+            if error.get_dbus_name() != "org.kde.kglobalaccel.NoSuchComponent":
+                raise
+
+        else:
+            previous_component = bus.get_object(
+                "org.kde.kglobalaccel", previous_path)
+            previous_iface = dbus.Interface(previous_component, "org.kde.kglobalaccel.Component")
+
+            if action_key in list(previous_iface.shortcutNames()):
+                captured_keys = accel_iface.shortcutKeys(previous_action_id)
+
+                if not accel_iface.unregister(
+                        previous_desktop_id, action_key):
+                    raise RuntimeError("KGlobalAccel no retiró el atajo KDE anterior")
+
+                log_event("Atajo KDE anterior retirado conservando temporalmente la combinación del usuario",
+                    origin="KDE", level="INFO", reason="GENERIC")
+
+                # KService debe reconstruir su visión de los servicios después
+                # de desaparecer la identidad anterior y antes de registrar
+                # org.maki.wmm.kde.desktop.
+                rebuild = subprocess.run(["kbuildsycoca6", "--noincremental"],
+                    capture_output=True, text=True, check=False)
+
+                if rebuild.returncode != 0:
+                    detail = rebuild.stderr.strip() or rebuild.stdout.strip()
+                    raise RuntimeError(f"No se pudo reconstruir KSycoca: {detail}")
+
+        # ----------------------------------------------------------
+        # 2. No alterar una identidad actual que ya está operativa
+        # ----------------------------------------------------------
+        if captured_keys is None:
+            try:
+                component_path = accel_iface.getComponent(desktop_id)
+
+            except dbus.exceptions.DBusException as error:
+                if error.get_dbus_name() != "org.kde.kglobalaccel.NoSuchComponent":
+                    raise
+
+            else:
+                component = bus.get_object("org.kde.kglobalaccel", component_path)
+                component_iface = dbus.Interface(component, "org.kde.kglobalaccel.Component")
+
+                if action_key in list(component_iface.shortcutNames()):
+                    log_event(f"Atajo KDE disponible: {desktop_id} → {action_name}",
+                        origin="KDE", level="INFO", reason="GENERIC")
+                    return True
+
+        # ----------------------------------------------------------
+        # 3. Crear la identidad actual
+        # ----------------------------------------------------------
+        # Una instalación limpia nace sin combinación predeterminada. Si se
+        # acaba de retirar la identidad anterior, sus teclas se restauran
+        # inmediatamente después sobre esta misma acción.
         accel_iface.doRegister(action_id)
-
-        empty_shortcuts = dbus.Array([], signature="(ai)")
-        set_present = dbus.UInt32(2)
         accel_iface.setShortcutKeys(action_id, empty_shortcuts, set_present)
-
-        # La primera llamada puede crear el KServiceActionComponent tomando
-        # el Name del .desktop. Ahora que la acción existe, esta segunda
-        # llamada actualiza los nombres amigables del componente y la acción.
         accel_iface.doRegister(action_id)
 
         component_path = accel_iface.getComponent(desktop_id)
         component = bus.get_object("org.kde.kglobalaccel", component_path)
         component_iface = dbus.Interface(component, "org.kde.kglobalaccel.Component")
-        actions = list(component_iface.shortcutNames())
 
-        if action_key not in actions:
-            log_event(f"Acción KDE no disponible tras el registro: {action_key}", origin="KDE", level="ERROR", reason="GENERIC")
-            return False
+        if action_key not in list(component_iface.shortcutNames()):
+            raise RuntimeError(f"Acción KDE no disponible tras el registro: {action_key}")
 
-        log_event(f"Atajo KDE disponible: {desktop_id} → {action_name}", origin="KDE", level="INFO", reason="GENERIC")
+        if captured_keys is not None:
+            accepted = accel_iface.setShortcutKeys(action_id, captured_keys, preserve_flags)
+            confirmed = accel_iface.shortcutKeys(action_id)
+
+            if accepted != captured_keys or confirmed != captured_keys:
+                raise RuntimeError("KGlobalAccel no confirmó las teclas recreadas")
+
+            log_event("Atajo KDE recreado conservando la combinación del usuario",
+                origin="KDE", level="INFO", reason="GENERIC")
+
+        log_event(f"Atajo KDE disponible: {desktop_id} → {action_name}",
+            origin="KDE", level="INFO", reason="GENERIC")
         return True
 
-    except Exception as e:
-        log_event(f"No se pudo registrar atajo KDE: {e}", origin="KDE", level="ERROR", reason="GENERIC")
+    except Exception as error:
+        log_event(f"No se pudo registrar atajo KDE: {error}",
+            origin="KDE", level="ERROR", reason="GENERIC")
         return False

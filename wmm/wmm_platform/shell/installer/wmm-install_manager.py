@@ -63,15 +63,18 @@ if hasattr(platform, "set_process_name"):
 
 initialize(platform)
 
-
 # ==========================================================
 # RUTAS
 # ==========================================================
-APP_DIR = Path(__file__).resolve().parents[3]
-ABOUT_PATH = APP_DIR / "data" / "about.json"
+ABOUT_PATH = Path(platform.data_dir) / "about.json"
 UNINSTALLER_PATH = Path(__file__).resolve().with_name("wmm-uninstall.sh")
 REPAIR_ARCHIVE_PATH = Path(__file__).resolve().with_name("wmm-repair.zip")
 GITHUB_LATEST_RELEASE = "https://api.github.com/repos/makimanson/wmm/releases/latest"
+
+# El uninstaller puede completar toda la retirada aunque una anomalía de
+# lifecycle aconseje renovar la sesión. No es una desinstalación incompleta.
+UNINSTALL_SESSION_RESTART_STATUS = 10
+
 # ==========================================================
 # ESTADO BÁSICO
 # ==========================================================
@@ -800,20 +803,34 @@ class InstallManagerWindow(Gtk.ApplicationWindow):
         if operation is None:
             return
 
+        # VTE entrega en Unix el estado codificado de waitpid(), no el código
+        # de salida desnudo. Normalizarlo permite distinguir estados propios
+        # como el 10 sin confundirlos con terminaciones mediante señal.
+        exit_code = os.waitstatus_to_exitcode(status)
+
         self._operation_running = False
         self._current_operation = None
         self.close_button.set_sensitive(True)
 
         if operation == "uninstall":
-            if status == 0:
-                # WMM ya no está instalado: no ofrecer operaciones de mantenimiento.
+            if exit_code in (0, UNINSTALL_SESSION_RESTART_STATUS):
+                # WMM ya no está instalado en ambos casos. El estado especial
+                # sólo conserva una anomalía de lifecycle para que la interfaz
+                # recomiende renovar la sesión sin ofrecer falsas reparaciones.
                 self.upgrade_button.set_sensitive(False)
                 self.repair_button.set_sensitive(False)
                 self.uninstall_button.set_sensitive(False)
 
-                self._set_status("emblem-ok-symbolic",
-                    _("Uninstallation completed"),
-                    _("WMM has been successfully uninstalled."))
+                if exit_code == UNINSTALL_SESSION_RESTART_STATUS:
+                    self._set_status("dialog-warning-symbolic",
+                        _("Uninstallation completed with warnings"),
+                        _("WMM has been successfully uninstalled.") + "\n" +
+                        _("Log out and log back in to ensure no previous WMM process remains active."))
+                else:
+                    self._set_status("emblem-ok-symbolic",
+                        _("Uninstallation completed"),
+                        _("WMM has been successfully uninstalled."))
+
             else:
                 # Puede existir una instalación parcialmente eliminada.
                 # Reinstall y Uninstall permanecen como vías de recuperación.

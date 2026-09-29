@@ -17,7 +17,6 @@ import os
 import sys
 import traceback
 import json
-import subprocess
 import time
 import gi
 gi.require_version('Gdk', '3.0')
@@ -52,7 +51,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
     """
     Ventana principal de configuración de WMM.
     """
-    _WORKAREA_MARGIN = 40
+    _WORKAREA_MARGIN = 70
     _LEFT_PANEL_TRANSITION_MS = 220
 
     def __init__(self, app):
@@ -80,8 +79,6 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         # ----------------------------------------------------------
         self._loading = False
         self._sources_operation_active = False
-        self._debug_log_viewer = None
-        self._help_viewer = None
         self._sources_need_refresh = False
 
         # ----------------------------------------------------------
@@ -879,32 +876,20 @@ class WMMControlPanel(Gtk.ApplicationWindow):
     # APERTURA DE VENTANAS EXTERNAS
     # ==========================================================
     def _on_open_debug_log(self, widget=None):
-        """Abre el visor de logs o lo trae al frente si ya está abierto."""
-        if self._debug_log_viewer and self._debug_log_viewer.is_visible():
-            self._debug_log_viewer.present()
-        else:
-            from debug_log_viewer import DebugLogViewer
-            self._debug_log_viewer = DebugLogViewer(self)
-            self._debug_log_viewer.connect("destroy", self._on_debug_log_viewer_closed)
-            self._debug_log_viewer.show_all()
+        """Abre Debug Log Viewer como herramienta independiente del engine."""
+        debug_log_viewer_path = os.path.join(os.path.dirname(__file__), "debug_log_viewer.py")
 
-    def _on_debug_log_viewer_closed(self, widget):
-        """Libera la referencia cuando se cierra el visor de logs."""
-        self._debug_log_viewer = None
+        try:
+            Gio.Subprocess.new(
+                [sys.executable, debug_log_viewer_path],
+                Gio.SubprocessFlags.NONE)
+        except GLib.Error as error:
+            log_event(f"No se pudo abrir Debug Log Viewer: {error}",
+                origin="PANEL", level="ERROR", reason="COMMAND")
 
     def _on_open_help(self, widget=None):
-        """Abre la ventana de ayuda o la trae al frente si ya está abierta."""
-        if self._help_viewer and self._help_viewer.is_visible():
-            self._help_viewer.present()
-        else:
-            from help_viewer import HelpViewer
-            self._help_viewer = HelpViewer(self)
-            self._help_viewer.connect("destroy", self._on_help_viewer_closed)
-            self._help_viewer.show_all()
-
-    def _on_help_viewer_closed(self, widget):
-        """Libera la referencia cuando se cierra el visor de ayuda."""
-        self._help_viewer = None
+        """Solicita al motor abrir la documentación de ayuda."""
+        self._notify_engine({"action": ConfigHandler.CMD_OPEN_HELP})
 
     # ==========================================================
     # GESTIÓN DE PID Y SEÑALES DEL MOTOR

@@ -19,6 +19,7 @@ import gi
 
 gi.require_version("Gdk", "3.0")
 gi.require_version("Wnck", "3.0")
+
 from gi.repository import Gio, Gdk, GLib, Wnck
 from PIL import Image
 from debug_logger import log_event
@@ -28,7 +29,7 @@ def get_install_path(data_base, app_domain):
     """Devuelve la ruta de instalación para MATE."""
     return os.path.join(data_base, app_domain)
 
-def _force_desktop_settings(config_handler):
+def _force_desktop_settings(config_handler, log_success=True):
     """
     Fuerza los ajustes de MATE necesarios para que WMM controle
     correctamente la composición y transición del fondo de escritorio:
@@ -36,6 +37,7 @@ def _force_desktop_settings(config_handler):
       - draw-background     = true
       - background-fade     = true
     Verifica cada ajuste y notifica al usuario si alguno no se aplicó.
+    Las reafirmaciones internas del Fade pueden silenciar sólo el log de éxito.
     """
     try:
         settings = Gio.Settings.new("org.mate.background")
@@ -82,25 +84,29 @@ def _force_desktop_settings(config_handler):
 
         # 3. Informar solo si MATE no ha podido mantener el estado requerido
         if issues:
-            log_event(f"No se pudieron forzar algunos ajustes: {', '.join(issues)}. Notificando al usuario.", origin="MATE", level="WARN", reason="HARDWARE")
+            log_event(f"No se pudieron forzar algunos ajustes: {', '.join(issues)}. Notificando al usuario.",
+                origin="MATE", level="WARN", reason="HARDWARE")
             config_handler._send_notification(
                 reason="WMM: " + _("Configuration issue"),
                 detail_msg=_("For WMM to function correctly, please check the following settings in 'Control Center > Appearance > Background':")
                 + "\n" + "\n".join(f"• {issue}" for issue in issues),
                 level="warn"
             )
-        else:
-            log_event("Todos los ajustes del sistema forzados correctamente", origin="MATE", level="DEBUG", reason="HARDWARE")
+        elif log_success:
+            log_event("Todos los ajustes del sistema forzados correctamente",
+                origin="MATE", level="DEBUG", reason="HARDWARE")
 
     except Exception as e:
-        log_event(f"Error al forzar ajustes de MATE: {e}", origin="MATE", level="ERROR", reason="NOTIFY")
+        log_event(f"Error al forzar ajustes de MATE: {e}",
+            origin="MATE", level="ERROR", reason="NOTIFY")
 
 def render_master_wallpaper(self, processed_images, monitors_map, config_handler):
     """
     Monta el lienzo a partir de imágenes ya procesadas y lo aplica en MATE.
     """
     if not processed_images:
-        log_event("No hay imágenes procesadas para MATE", origin="MATE", level="ERROR", reason="LIBRARY")
+        log_event("No hay imágenes procesadas para MATE",
+            origin="MATE", level="ERROR", reason="LIBRARY")
         return False
 
     # Calcular dimensiones del canvas
@@ -148,24 +154,33 @@ def set_wallpaper(master_canvas, master_path, config_handler):
             if os.path.exists(master_path):
                 shutil.copyfile(master_path, hold_path)
                 settings.set_string("picture-filename", hold_path)
-                _force_desktop_settings(config_handler)
+                _force_desktop_settings(config_handler, log_success=False)
+
+                # Pausa visual deliberada: deja a MATE consumir la primera
+                # transición. No sincroniza estado ni realiza polling.
                 time.sleep(1.0)
 
             # Fade-out hacia negro
             settings.set_string("picture-filename", fade_color_path)
-            _force_desktop_settings(config_handler)
+            _force_desktop_settings(config_handler, log_success=False)
+
+            # Pausa visual deliberada: mantiene el negro durante el fade-out.
+            # No sincroniza estado ni realiza polling.
             time.sleep(1.0)
 
         # Guardar y aplicar el nuevo lienzo maestro
         master_canvas.save(master_path, "JPEG", quality=95)
-        log_event(f"Lienzo maestro generado en MATE: {master_path}", origin="MATE", level="INFO", reason="LIBRARY")
+        log_event(f"Lienzo maestro generado en MATE: {master_path}",
+            origin="MATE", level="INFO", reason="LIBRARY")
 
         settings.set_string("picture-filename", master_path)
 
         if sl_mode == "sync":
-            log_event("Transición Fade aplicada (sync)", origin="MATE", level="INFO", reason="LIBRARY")
+            log_event("Transición Fade aplicada (sync)",
+                origin="MATE", level="INFO", reason="LIBRARY")
         else:
-            log_event("Wallpaper aplicado en MATE (async)", origin="MATE", level="INFO", reason="LIBRARY")
+            log_event("Wallpaper aplicado en MATE (async)",
+                origin="MATE", level="INFO", reason="LIBRARY")
 
     except Exception as e:
         log_event(f"MATE no respondió: {e}", origin="MATE", level="ERROR", reason="NOTIFY")
@@ -200,7 +215,8 @@ def get_window_available_area(pid):
         }
 
     except Exception as e:
-        log_event(f"No se pudo obtener el área útil de la ventana: {e}", origin="MATE", level="WARN", reason="WINDOW")
+        log_event(f"No se pudo obtener el área útil de la ventana: {e}",
+            origin="MATE", level="WARN", reason="WINDOW")
         return None
 
 def set_window_size_limit(window, max_width, max_height):
@@ -212,11 +228,13 @@ def set_window_size_limit(window, max_width, max_height):
 
         window.set_geometry_hints(None, geometry, Gdk.WindowHints.MAX_SIZE)
 
-        log_event(f"Límite máximo del panel aplicado: {max_width}x{max_height}", origin="MATE", level="DEBUG", reason="LAYOUT")
+        log_event(f"Límite máximo del panel aplicado: {max_width}x{max_height}",
+            origin="MATE", level="DEBUG", reason="LAYOUT")
         return True
 
     except Exception as e:
-        log_event(f"No se pudo aplicar el límite máximo del panel: {e}", origin="MATE", level="WARN", reason="LAYOUT")
+        log_event(f"No se pudo aplicar el límite máximo del panel: {e}",
+            origin="MATE", level="WARN", reason="LAYOUT")
         return False
 
 def preserve_window_position_on_expand(pid):
@@ -253,7 +271,8 @@ def preserve_window_position_on_expand(pid):
         def on_geometry_changed(changed_window):
             try:
                 current_x, current_y, width, height = changed_window.get_geometry()
-                log_event(f"Geometría modificada durante expansión: x={current_x}, y={current_y}, w={width}, h={height}", origin="MATE", level="DEBUG", reason="LAYOUT")
+                log_event(f"Geometría modificada durante expansión: x={current_x}, y={current_y}, w={width}, h={height}",
+                    origin="MATE", level="DEBUG", reason="LAYOUT")
 
                 if current_x == x and current_y == y:
                     return
@@ -265,11 +284,13 @@ def preserve_window_position_on_expand(pid):
                     Wnck.WindowMoveResizeMask.X | Wnck.WindowMoveResizeMask.Y,
                     x, y, width, height
                 )
-                log_event(f"Posición restaurada tras expansión para PID {pid}: x={x}, y={y}", origin="MATE", level="DEBUG", reason="LAYOUT")
+                log_event(f"Posición restaurada tras expansión para PID {pid}: x={x}, y={y}",
+                    origin="MATE", level="DEBUG", reason="LAYOUT")
 
             except Exception as e:
                 stop_watching()
-                log_event(f"No se pudo restaurar la posición tras expansión: {e}", origin="MATE", level="WARN", reason="LAYOUT")
+                log_event(f"No se pudo restaurar la posición tras expansión: {e}",
+                    origin="MATE", level="WARN", reason="LAYOUT")
 
         state["handler_id"] = window.connect("geometry-changed", on_geometry_changed)
 
@@ -277,7 +298,8 @@ def preserve_window_position_on_expand(pid):
         GLib.timeout_add(1000, stop_watching)
 
     except Exception as e:
-        log_event(f"No se pudo preservar la posición antes de expandir: {e}", origin="MATE", level="WARN", reason="LAYOUT")
+        log_event(f"No se pudo preservar la posición antes de expandir: {e}",
+            origin="MATE", level="WARN", reason="LAYOUT")
 
 def correct_initial_window_position(pid):
     """Corrige la posición inicial del panel si Marco lo desplaza fuera del área útil."""
@@ -309,19 +331,21 @@ def correct_initial_window_position(pid):
                     window.set_geometry(
                         Wnck.WindowGravity.CURRENT,
                         Wnck.WindowMoveResizeMask.X | Wnck.WindowMoveResizeMask.Y,
-                        x, workarea.y, width, height
-                    )
-                    log_event(f"Posición inicial corregida para PID {pid}: y={workarea.y}", origin="MATE", level="DEBUG", reason="LAYOUT")
+                        x, workarea.y, width, height)
+                    log_event(f"Posición inicial corregida para PID {pid}: y={workarea.y}",
+                        origin="MATE", level="DEBUG", reason="LAYOUT")
 
             except Exception as e:
-                log_event(f"No se pudo corregir la posición inicial: {e}", origin="MATE", level="WARN", reason="LAYOUT")
+                log_event(f"No se pudo corregir la posición inicial: {e}",
+                    origin="MATE", level="WARN", reason="LAYOUT")
 
             return False
 
         GLib.timeout_add(100, correct_position)
 
     except Exception as e:
-        log_event(f"No se pudo programar la corrección inicial: {e}", origin="MATE", level="WARN", reason="LAYOUT")
+        log_event(f"No se pudo programar la corrección inicial: {e}",
+            origin="MATE", level="WARN", reason="LAYOUT")
 
 def ensure_keybindings(app_dir):
     """
@@ -339,7 +363,8 @@ def ensure_keybindings(app_dir):
     send_command_path = os.path.join(app_dir, "python", "send_command.py")
 
     if not os.path.exists(send_command_path):
-        log_event(f"Script no encontrado: {send_command_path}", origin="MATE", level="WARN", reason="SETTINGS")
+        log_event(f"Script no encontrado: {send_command_path}",
+            origin="MATE", level="WARN", reason="SETTINGS")
         return
 
     command = " ".join([
@@ -373,7 +398,8 @@ def ensure_keybindings(app_dir):
             existing_binding = ks.get_string("binding")
 
             if existing_action == command:
-                log_event(f"Atajo de WMM ya instalado (custom{index})", origin="MATE", level="INFO", reason="SETTINGS")
+                log_event(f"Atajo de WMM ya instalado (custom{index})",
+                    origin="MATE", level="INFO", reason="SETTINGS")
                 return
 
             if free_index is None and not existing_name and not existing_action and not existing_binding:
@@ -383,7 +409,8 @@ def ensure_keybindings(app_dir):
             continue
 
     if free_index is None:
-        log_event("No hay un índice libre para registrar el atajo de WMM", origin="MATE", level="WARN", reason="SETTINGS")
+        log_event("No hay un índice libre para registrar el atajo de WMM",
+            origin="MATE", level="WARN", reason="SETTINGS")
         return
 
     # ----------------------------------------------------------
@@ -395,4 +422,5 @@ def ensure_keybindings(app_dir):
     ks.set_string("name", full_name)
     ks.set_string("action", command)
 
-    log_event(f"Atajo instalado correctamente (custom{free_index})", origin="MATE", level="INFO", reason="SETTINGS")
+    log_event(f"Atajo instalado correctamente (custom{free_index})",
+        origin="MATE", level="INFO", reason="SETTINGS")

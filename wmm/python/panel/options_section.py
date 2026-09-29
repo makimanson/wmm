@@ -19,7 +19,9 @@ import signal
 import subprocess
 import fcntl
 import gi
+
 gi.require_version('Gtk', '3.0')
+
 from gi.repository import Gtk, Gdk, GLib
 from config_handler import ConfigHandler
 from i18n import _
@@ -170,25 +172,30 @@ class OptionsSection:
 
         # --- Cambiar fondo al inicio ---
         self.persist_switch = Gtk.Switch(active=True, halign=Gtk.Align.END)
-        self.persist_switch.set_tooltip_text(_("If enabled, the wallpaper is changed at startup; if disabled, the last wallpaper is kept."))
+        self.persist_switch.set_tooltip_text(
+            _("If enabled, the wallpaper is changed at startup; if disabled, the last wallpaper is kept."))
         self.persist_switch.connect("notify::active", self._on_persist_changed)
         hbox_persist = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        hbox_persist.pack_start(Gtk.Label(label=_("Change wallpaper on startup"), halign=Gtk.Align.START), True, True, 0)
+        hbox_persist.pack_start(Gtk.Label(label=
+            _("Change wallpaper on startup"), halign=Gtk.Align.START), True, True, 0)
         hbox_persist.pack_start(self.persist_switch, False, False, 0)
         self.options_content.pack_start(hbox_persist, False, False, 0)
 
         # --- Modo Distribuido ---
         self.spanned_switch = Gtk.Switch(active=False, halign=Gtk.Align.END)
-        self.spanned_switch.set_tooltip_text(_("Span image across all active screens (Only if more than one)"))
+        self.spanned_switch.set_tooltip_text(
+            _("Span image across all active screens (Only if more than one)"))
         self.spanned_switch.connect("notify::active", self._on_spanned_changed)
         hbox_spanned = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        hbox_spanned.pack_start(Gtk.Label(label=_("Spanned") + ":", halign=Gtk.Align.START), True, True, 0)
+        hbox_spanned.pack_start(Gtk.Label(label=
+            _("Spanned") + ":", halign=Gtk.Align.START), True, True, 0)
         hbox_spanned.pack_start(self.spanned_switch, False, False, 0)
         self.options_content.pack_start(hbox_spanned, False, False, 0)
 
         # --- Relación Aspecto ---
         hbox_aspect = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        hbox_aspect.pack_start(Gtk.Label(label=_("Picture aspect") + ":", halign=Gtk.Align.START), True, True, 0)
+        hbox_aspect.pack_start(Gtk.Label(label=
+            _("Picture aspect") + ":", halign=Gtk.Align.START), True, True, 0)
         self.aspect_combo = Gtk.ComboBoxText()
         for key, label in ConfigHandler.ASPECT_MODES.items():
             self.aspect_combo.append_text(_(label))
@@ -204,7 +211,8 @@ class OptionsSection:
         self.image_effect_combo.set_active(0)
         self.image_effect_combo.connect("changed", self._on_image_effect_changed)
         hbox_img_effect = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        hbox_img_effect.pack_start(Gtk.Label(label=_("Image Effect:"), halign=Gtk.Align.START), True, True, 0)
+        hbox_img_effect.pack_start(Gtk.Label(label=
+            _("Image Effect:"), halign=Gtk.Align.START), True, True, 0)
         hbox_img_effect.pack_start(self.image_effect_combo, False, False, 0)
         self.options_content.pack_start(hbox_img_effect, False, False, 0)
 
@@ -215,13 +223,15 @@ class OptionsSection:
         self.back_effect_combo.set_active(0)
         self.back_effect_combo.connect("changed", self._on_back_effect_changed)
         hbox_back_effect = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        hbox_back_effect.pack_start(Gtk.Label(label=_("Background Effect:"), halign=Gtk.Align.START), True, True, 0)
+        hbox_back_effect.pack_start(Gtk.Label(
+            label=_("Background Effect:"), halign=Gtk.Align.START), True, True, 0)
         hbox_back_effect.pack_start(self.back_effect_combo, False, False, 0)
         self.options_content.pack_start(hbox_back_effect, False, False, 0)
 
         # --- Color de fondo ---
         hbox_color = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        hbox_color.pack_start(Gtk.Label(label=_("Background color") + ":", halign=Gtk.Align.START), True, True, 0)
+        hbox_color.pack_start(Gtk.Label(label=
+            _("Background color") + ":", halign=Gtk.Align.START), True, True, 0)
 
         self.bg_mode_combo = Gtk.ComboBoxText()
         for key, label in ConfigHandler.COLOR_MODES.items():
@@ -260,23 +270,27 @@ class OptionsSection:
         self.slideshow_switch.set_tooltip_text(_("Enable/Disable Timer"))
         self.slideshow_switch.connect("notify::active", self._on_slideshow_changed)
         hbox_slideshow = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        hbox_slideshow.pack_start(Gtk.Label(label=_("Slideshow"), halign=Gtk.Align.START), True, True, 0)
+        hbox_slideshow.pack_start(Gtk.Label(label=
+            _("Slideshow"), halign=Gtk.Align.START), True, True, 0)
         hbox_slideshow.pack_start(self.slideshow_switch, False, False, 0)
         self.options_content.pack_start(hbox_slideshow, False, False, 0)
 
         # --- Max. Intervalo ---
         hbox_max = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        hbox_max.pack_start(Gtk.Label(label=_("Max. Frequency") + ": " + "(" + _("minutes") + ")", halign=Gtk.Align.START), True, True, 0)
+        hbox_max.pack_start(Gtk.Label(label=
+            _("Max. Frequency") + ": " + "(" + _("minutes") + ")", halign=Gtk.Align.START), True, True, 0)
         self.max_interval_spin = Gtk.SpinButton.new_with_range(1, 999, 1)
         self.max_interval_spin.set_value(60)
-        self._max_interval_changed_id = self.max_interval_spin.connect("value-changed", self._on_max_interval_changed)
+        self._max_interval_changed_id = self.max_interval_spin.connect(
+            "value-changed", self._on_max_interval_changed)
         self.max_interval_spin.connect("activate", lambda w: self._parent_window.set_focus(None))
         hbox_max.pack_start(self.max_interval_spin, False, False, 0)
         self.options_content.pack_start(hbox_max, False, False, 0)
 
         # --- Rotación ---
         hbox_rot = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        hbox_rot.pack_start(Gtk.Label(label=_("Slideshow every") + ": " + "(" + _("minutes") + ")", halign=Gtk.Align.START), True, True, 0)
+        hbox_rot.pack_start(Gtk.Label(label=
+            _("Slideshow every") + ": " + "(" + _("minutes") + ")", halign=Gtk.Align.START), True, True, 0)
         self.rotation_spin = Gtk.SpinButton.new_with_range(1, 99, 1)
         self.rotation_spin.set_value(15)
         self.rotation_spin.connect("value-changed", self._on_rotation_changed)
@@ -286,15 +300,18 @@ class OptionsSection:
 
         # --- Modo de rotación ---
         self.mode_switch = Gtk.Switch(active=True, halign=Gtk.Align.END)
-        self.mode_switch.set_tooltip_text(_("Sync: All Screens change at once") + "\n" + _("Async: Change by turns"))
+        self.mode_switch.set_tooltip_text(
+            _("Sync: All Screens change at once") + "\n" + _("Async: Change by turns"))
         self.mode_switch.connect("notify::active", self._on_mode_changed)
         self.mode_info_label = Gtk.Label(label="", halign=Gtk.Align.CENTER, margin_left=8)
         hbox_mode = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        hbox_mode.pack_start(Gtk.Label(label=_("Slideshow mode:"), halign=Gtk.Align.START), False, False, 0)
+        hbox_mode.pack_start(Gtk.Label(label=
+            _("Slideshow mode:"), halign=Gtk.Align.START), False, False, 0)
         hbox_mode.pack_start(self.mode_info_label, True, True, 0)
         hbox_mode.pack_start(self.mode_switch, False, False, 0)
         self.options_content.pack_start(hbox_mode, False, False, 0)
-        self.options_content.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
+        self.options_content.pack_start(Gtk.Separator(
+            orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
 
         return vbox
 
@@ -316,7 +333,8 @@ class OptionsSection:
         """Aplica el estado de despliegue de Opciones sin persistirlo."""
         self.options_content.set_visible(expanded)
         arrow = "▼ " if expanded else "▶ "
-        self.options_label.set_markup(f"<span weight='bold' size='large'>{arrow}{_('Options')}</span>")
+        self.options_label.set_markup(
+            "<span weight='bold' size='large'>" + arrow + _("Options") + "</span>")
         self.widget.queue_resize()
 
     # ==========================================================
@@ -365,8 +383,7 @@ class OptionsSection:
             return
         color = button.get_rgba()
         hex_color = "#{:02X}{:02X}{:02X}".format(
-            int(color.red * 255), int(color.green * 255), int(color.blue * 255)
-        )
+            int(color.red * 255), int(color.green * 255), int(color.blue * 255))
         self.backend.save_setting("solid_color", hex_color)
         self._notify_engine({"action": "apply_manual_selection"})
         if not self._edit_mode_active:
@@ -377,8 +394,10 @@ class OptionsSection:
             return
         start = self.grad_h_start_btn.get_rgba()
         end = self.grad_h_end_btn.get_rgba()
-        hex_start = "#{:02X}{:02X}{:02X}".format(int(start.red*255), int(start.green*255), int(start.blue*255))
-        hex_end = "#{:02X}{:02X}{:02X}".format(int(end.red*255), int(end.green*255), int(end.blue*255))
+        hex_start = "#{:02X}{:02X}{:02X}".format(
+            int(start.red*255), int(start.green*255), int(start.blue*255))
+        hex_end = "#{:02X}{:02X}{:02X}".format(
+            int(end.red*255), int(end.green*255), int(end.blue*255))
         self.backend.save_setting("gradient_h", [hex_start, hex_end])
         self._notify_engine({"action": "apply_manual_selection"})
         if not self._edit_mode_active:
@@ -389,8 +408,10 @@ class OptionsSection:
             return
         start = self.grad_v_start_btn.get_rgba()
         end = self.grad_v_end_btn.get_rgba()
-        hex_start = "#{:02X}{:02X}{:02X}".format(int(start.red*255), int(start.green*255), int(start.blue*255))
-        hex_end = "#{:02X}{:02X}{:02X}".format(int(end.red*255), int(end.green*255), int(end.blue*255))
+        hex_start = "#{:02X}{:02X}{:02X}".format(
+            int(start.red*255), int(start.green*255), int(start.blue*255))
+        hex_end = "#{:02X}{:02X}{:02X}".format(
+            int(end.red*255), int(end.green*255), int(end.blue*255))
         self.backend.save_setting("gradient_v", [hex_start, hex_end])
         self._notify_engine({"action": "apply_manual_selection"})
         if not self._edit_mode_active:
@@ -399,7 +420,8 @@ class OptionsSection:
     def _on_slideshow_changed(self, switch, param):
         if self._loading:
             return
-        self._notify_engine({"action": ConfigHandler.CMD_UPDATE_TIMER, "enabled": switch.get_active()})
+        self._notify_engine(
+            {"action": ConfigHandler.CMD_UPDATE_TIMER, "enabled": switch.get_active()})
 
     def _on_mode_changed(self, switch, param):
         if self._loading:
@@ -503,9 +525,11 @@ class OptionsSection:
     # BOTONES DE ACCIÓN
     # ==========================================================
     def _on_restart_clicked(self, widget):
-        engine_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "main.py")
+        engine_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "main.py")
         self.backend.save_json("commands", {})
-        log_event("Buzón de comandos limpiado antes de reiniciar motor", origin="PANEL", level="DEBUG", reason="COMMAND")
+        log_event("Buzón de comandos limpiado antes de reiniciar motor",
+            origin="PANEL", level="DEBUG", reason="COMMAND")
 
         pid_path = os.path.join(self.handler.cache_dir, "pid_main.pid")
 
@@ -528,36 +552,26 @@ class OptionsSection:
                         os.kill(old_pid, signal.SIGKILL)
                         time.sleep(0.3)
 
-                        log_event(
-                            "Engine antiguo detenido",
-                            origin="PANEL",
-                            level="INFO",
-                            reason="COMMAND"
-                        )
+                        log_event("Engine antiguo detenido",
+                            origin="PANEL", level="INFO", reason="COMMAND")
 
                     else:
                         # Archivo presente pero sin owner:
                         # es un resto de una instancia anterior.
                         fcntl.flock(pid_file.fileno(), fcntl.LOCK_UN)
 
-                        log_event(
-                            "PID obsoleto detectado; no pertenece a un engine activo",
-                            origin="PANEL",
-                            level="DEBUG",
-                            reason="COMMAND"
-                        )
+                        log_event("PID obsoleto detectado; no pertenece a un engine activo",
+                            origin="PANEL", level="DEBUG", reason="COMMAND" )
 
             except (OSError, ValueError, FileNotFoundError):
                 pass
 
         # Lanzar el script de reinicio en segundo plano
-        restart_script = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "restart_engine.py")
+        restart_script = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "restart_engine.py")
         subprocess.Popen(
-            ["python3", restart_script],
-            start_new_session=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
+            ["python3", restart_script], start_new_session=True,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         # Restart abandona la aplicación directamente y no pasa por delete-event.
         save_window_size = self._callbacks.get('save_window_size')
         if save_window_size:

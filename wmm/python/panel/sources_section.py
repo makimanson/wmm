@@ -66,7 +66,8 @@ class SourcesSection:
         self.sources_toggle = Gtk.EventBox()
         self.sources_toggle.set_events(Gdk.EventMask.BUTTON_PRESS_MASK)
         self.sources_label = Gtk.Label()
-        self.sources_label.set_markup(f"<span weight='bold' size='large'>▼ {_('Image Sources')}</span>")
+        self.sources_label.set_markup(
+            "<span weight='bold' size='large'>▼ " + _("Image Sources") + "</span>")
         self.sources_label.set_halign(Gtk.Align.START)
         self.sources_toggle.add(self.sources_label)
         self.sources_toggle.connect("button-press-event", self._on_sources_toggle)
@@ -174,7 +175,8 @@ class SourcesSection:
             parent.child_set_property(self.widget, "fill", expanded)
 
         arrow = "▼ " if expanded else "▶ "
-        self.sources_label.set_markup(f"<span weight='bold' size='large'>{arrow}{_('Image Sources')}</span>")
+        self.sources_label.set_markup(
+            "<span weight='bold' size='large'>" + arrow + _("Image Sources") + "</span>")
         self.widget.queue_resize()
 
     # ==========================================================

@@ -110,6 +110,7 @@ class ConfigHandler:
     CMD_OPEN_ABOUT      = "open_about"
     CMD_SHELL_SEND_TO = "shell_send_to_monitor"
     CMD_SHELL_ADD_FAV = "shell_add_favorite"
+    CMD_SHELL_ADD_FAV_CURRENT = "shell_add_favorite_current"
     CMD_SHELL_SPANNED_CURRENT = "shell_spanned_current"
     CMD_SHELL_SPANNED_IMAGE = "shell_spanned_image"
     CMD_APPLY_SELECTION = "apply_manual_selection"
@@ -124,14 +125,22 @@ class ConfigHandler:
                                            por la plataforma (PlatformManager).
                                            Si es None, se usa un fallback local.
         """
+        # Configurar la plataforma antes de resolver las rutas.
+        # Si se proporciona una instancia de PlatformManager, se reutiliza;
+        # si no, se crea una nueva (modo standalone, ej. scripts auxiliares).
+        if platform is not None:
+            self._platform = platform
+        else:
+            self._platform = PlatformManager()
+
         # ==========================================================
-        # BLOQUE 1: RUTAS DEL PROYECTO (RELATIVAS AL SCRIPT)
+        # BLOQUE 1: RUTAS DEL PROYECTO Y DATOS
         # ==========================================================
-        # Estas rutas son independientes del SO y siempre apuntan
-        # a la estructura interna del applet.
+        # base_dir y app_root describen el árbol del core instalado.
+        # data_dir pertenece al espacio común de datos persistentes de WMM.
         self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.app_root = os.path.dirname(self.base_dir)
-        self.data_dir = os.path.join(self.app_root, "data")
+        self.data_dir = self._platform.data_dir
 
         # ==========================================================
         # BLOQUE 2: RUTAS DE CACHÉ (DEPENDIENTES DEL SO)
@@ -195,13 +204,6 @@ class ConfigHandler:
         self.ensure_structure()
 
         # Configurar el sistema de traducciones.
-        # Si se proporciona una instancia de PlatformManager, se reutiliza;
-        # si no, se crea una nueva (modo standalone, ej. scripts auxiliares).
-        if platform is not None:
-            self._platform = platform
-        else:
-            self._platform = PlatformManager()
-
         initialize(self._platform)
 
     def ensure_structure(self):
@@ -494,7 +496,7 @@ class ConfigHandler:
                 label = mfg_name
         elif connector:
             # Caso 3: sin modelo ni fabricante, con conector
-            label = f"{_('Generic Monitor')} {connector}"
+            label = _("Generic Monitor") + " " + connector
         else:
             # Caso 4: sin nada
             label = _("Generic Monitor")
@@ -1229,6 +1231,11 @@ class ConfigHandler:
         # después la estructura lógica Active/Inactive.
         self.save_json("cache", full_cache)
         self.save_json("index", scan_index)
+
+        # La caché final ya es autoritativa: actualizar ahora parent_total evita
+        # conservar el total previo a la reconciliación recién completada.
+        self.refresh_history_metadata()
+
         log_event(f"Índice guardado: {len(scan_index)} entradas",
             origin="CONFIG", level="DEBUG", reason="LIBRARY")
 
@@ -1326,6 +1333,10 @@ class ConfigHandler:
             # cache físico primero, índice lógico después.
             self.save_json("cache", full_cache)
             self.save_json("index", scan_index)
+
+            # La caché final ya es autoritativa: actualizar ahora parent_total evita
+            # conservar el total previo a la reconciliación recién completada.
+            self.refresh_history_metadata()
 
             if stats["modified"] > 0:
                 self._refresh_bookmarks_single_metadata(full_cache)
@@ -1860,6 +1871,37 @@ class ConfigHandler:
 
         return h_list, v_list
 
+    def _get_builtin_fallback_images(self):
+        """
+        Obtiene las imágenes internas de WMM usadas únicamente cuando la
+        biblioteca materializada del usuario no contiene ninguna imagen.
+
+        Este fallback no forma parte de Sources: no modifica sources.json,
+        scan_index.json, image_cache.json ni genera miniaturas.
+        """
+        fallback_dir = os.path.join(self.app_root, "screenshots")
+        h_list = []
+        v_list = []
+
+        if not os.path.isdir(fallback_dir):
+            return h_list, v_list
+
+        for filename in sorted(os.listdir(fallback_dir)):
+            if not filename.lower().endswith(self.img_extensions):
+                continue
+
+            image_path = os.path.join(fallback_dir, filename)
+            if not os.path.isfile(image_path):
+                continue
+
+            orientation, width, height = ImageEngine.process_image(image_path)
+            if orientation == "h":
+                h_list.append([image_path, width, height])
+            elif orientation == "v":
+                v_list.append([image_path, width, height])
+
+        return h_list, v_list
+
     def _update_history(self, entry_id, mode="history"):
         """
         Registra una entrada en el historial aplicando 'Aleatoriedad Redonda':
@@ -1960,6 +2002,16 @@ class ConfigHandler:
 
         # 1. Obtener datos base
         h_list, v_list = self.get_flat_lists()
+
+        # Las imágenes incluidas con WMM son únicamente una red de seguridad:
+        # no forman parte de Sources ni sustituyen una biblioteca del usuario.
+        if not h_list and not v_list:
+            h_list, v_list = self._get_builtin_fallback_images()
+            if h_list or v_list:
+                log_event(
+                    f"Biblioteca vacía: usando fallback interno ({len(h_list)}H / {len(v_list)}V)",
+                    origin="CONFIG", level="DEBUG", reason="LIBRARY")
+
         history = self.load_json("history").get("history_log", [])
         log_event(f"history_len={len(history)}, total_h={len(h_list)}, total_v={len(v_list)}",
             origin="CONFIG", level="DEBUG", reason="LIBRARY")

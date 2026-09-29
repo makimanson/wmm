@@ -48,7 +48,13 @@ def generate_hash_for_engine(graphics_engine, connector, manufacturer, x, y, wid
     return generator(connector, manufacturer, x, y, width, height)
 
 def _ensure_nemo_wmm_layout(data_base):
-    """Mantiene el submenú WMM en el layout de acciones de Nemo."""
+    """
+    Mantiene los submenús WMM en el layout de acciones de Nemo.
+    Cada marker conserva la autoridad sobre su menú: mientras exista, WMM
+    respeta la organización del usuario; si desaparece, reconstruye únicamente
+    ese menú y sus acciones desde la estructura oficial de WMM.
+    Se planteará una sección "Advanced options" donde el usuario podrá forzar esa reconstrucción.
+    """
     from i18n import _
 
     config_base = os.environ.get("XDG_CONFIG_HOME", os.path.join(os.path.expanduser("~"), ".config"))
@@ -56,6 +62,7 @@ def _ensure_nemo_wmm_layout(data_base):
     layout_path = os.path.join(config_base, "nemo", "actions-tree.json")
     state_dir = os.path.join(state_base, "wmm")
     marker_path = os.path.join(state_dir, "nemo-layout-initialized")
+    desktop_marker_path = os.path.join(state_dir, "nemo-desktop-layout-initialized")
 
     wmm_children = [
         {
@@ -75,34 +82,75 @@ def _ensure_nemo_wmm_layout(data_base):
         {
             "uuid": "wmm-span-image.nemo_action",
             "type": "action",
-            "user-label": _("Span image across all screens"),
+            "user-label": _("Span image across all active screens"),
             "user-icon": "view-fullscreen",
             "accelerator": None
         }
     ]
-    wmm_actions = {item["uuid"] for item in wmm_children}
 
-    def mark_initialized():
+    desktop_children = [
+        {
+            "uuid": "wmm-spanned-current.nemo_action",
+            "type": "action",
+            "user-label": _("Span image across all active screens"),
+            "user-icon": "view-fullscreen",
+            "accelerator": None
+        },
+        {
+            "uuid": "wmm-add_favorite_current.nemo_action",
+            "type": "action",
+            "user-label": _("Add to favorites"),
+            "user-icon": "stock_add-bookmark",
+            "accelerator": None
+        }
+    ]
+
+    wmm_actions = {item["uuid"] for item in wmm_children}
+    desktop_wmm_actions = {item["uuid"] for item in desktop_children}
+    all_wmm_actions = wmm_actions | desktop_wmm_actions
+
+    def mark_initialized(path=marker_path):
+        """Registra que WMM ya cedió al usuario la organización de ese menú."""
         try:
             os.makedirs(state_dir, exist_ok=True)
-            with open(marker_path, "w", encoding="utf-8") as f:
+            with open(path, "w", encoding="utf-8") as f:
                 f.write("1\n")
         except OSError as e:
             log_event(f"No se pudo registrar la inicialización del layout de Nemo: {e}",
                       origin="LINUX", level="WARN", reason="SETTINGS")
 
-    def find_wmm_submenu(nodes):
-        for node in nodes:
+    def strip_wmm_structure(nodes, submenu_uuid, action_uuids):
+        """
+        Retira un menú WMM y sus acciones antes de reconstruirlo de fábrica.
+        Los elementos ajenos que el usuario haya colocado dentro del submenú
+        sobreviven al reset y regresan al nivel donde estaba dicho submenú.
+        """
+        index = 0
+        while index < len(nodes):
+            node = nodes[index]
             if not isinstance(node, dict):
+                index += 1
                 continue
-            if node.get("uuid") == "WMM Manager" and node.get("type") == "submenu":
-                return node
+            node_uuid = node.get("uuid")
+            node_type = node.get("type")
+            if node_uuid == submenu_uuid and node_type == "submenu":
+                children = node.get("children")
+                nodes.pop(index)
+
+                # Un reset sólo reclama la estructura propia de WMM. Cualquier
+                # elemento ajeno colocado dentro del submenú se conserva.
+                if isinstance(children, list):
+                    strip_wmm_structure(children, submenu_uuid, action_uuids)
+                    nodes[index:index] = children
+                    index += len(children)
+                continue
+            if node_uuid in action_uuids and node_type == "action":
+                nodes.pop(index)
+                continue
             children = node.get("children")
             if isinstance(children, list):
-                submenu = find_wmm_submenu(children)
-                if submenu is not None:
-                    return submenu
-        return None
+                strip_wmm_structure(children, submenu_uuid, action_uuids)
+            index += 1
 
     def contains_action(nodes, action_uuid):
         for node in nodes:
@@ -142,8 +190,18 @@ def _ensure_nemo_wmm_layout(data_base):
         "children": wmm_children
     }
 
+    desktop_submenu = {
+        "uuid": "WMM Manager0",
+        "type": "submenu",
+        "user-label": "WMM Manager",
+        "user-icon": "video-display",
+        "accelerator": None,
+        "children": desktop_children
+    }
+
     layout_updated = False
     layout_initialized = os.path.exists(marker_path)
+    desktop_layout_initialized = os.path.exists(desktop_marker_path)
 
     if os.path.exists(layout_path):
         try:
@@ -157,45 +215,25 @@ def _ensure_nemo_wmm_layout(data_base):
             log_event(f"Layout de Nemo no reconocido; se conserva sin cambios: {layout_path}",
                       origin="LINUX", level="WARN", reason="SETTINGS")
             return
-        existing_submenu = find_wmm_submenu(layout["toplevel"])
-        if existing_submenu is not None:
-            children = existing_submenu.get("children")
-            if not isinstance(children, list):
-                log_event("Submenú WMM de Nemo no reconocido; se conserva sin cambios", origin="LINUX", level="WARN", reason="SETTINGS")
-                return
-            for action_template in wmm_children:
-                action_uuid = action_template["uuid"]
-                if contains_action(children, action_uuid):
-                    continue
-                action = take_action(layout["toplevel"], action_uuid, protected_node=existing_submenu)
-                if action is None:
-                    action = action_template.copy()
-                else:
-                    if action.get("user-label") is None:
-                        action["user-label"] = action_template["user-label"]
-                    if action.get("user-icon") is None:
-                        action["user-icon"] = action_template["user-icon"]
-                children.append(action)
-                layout_updated = True
-            if not layout_updated:
-                if not layout_initialized:
-                    mark_initialized()
-                log_event("El submenú WMM de Nemo ya contiene todas las acciones; se conserva la configuración existente",
-                          origin="LINUX", level="DEBUG", reason="SETTINGS")
-                return
 
-        elif layout_initialized:
-            log_event("El layout de Nemo ya fue inicializado y no contiene el submenú WMM; se conserva la configuración existente",
-                      origin="LINUX", level="DEBUG", reason="SETTINGS")
-            return
-
-        elif contains_wmm(layout["toplevel"]):
-            mark_initialized()
-            log_event("El layout de Nemo contiene acciones WMM fuera del submenú; se conserva la configuración existente", origin="LINUX", level="DEBUG", reason="SETTINGS")
-            return
-
-        else:
+        # Cada marker es la única autoridad de su menú. Si falta, WMM
+        # reconstruye su estructura canónica; si existe, respeta el estado actual.
+        if not layout_initialized:
+            strip_wmm_structure(
+                layout["toplevel"], "WMM Manager", wmm_actions)
             layout["toplevel"].append(wmm_submenu)
+            layout_updated = True
+
+        if not desktop_layout_initialized:
+            strip_wmm_structure(
+                layout["toplevel"], "WMM Manager0", desktop_wmm_actions)
+            layout["toplevel"].append(desktop_submenu)
+            layout_updated = True
+
+        if not layout_updated:
+            log_event("Los layouts WMM de Nemo ya están inicializados; se conserva la configuración existente",
+                origin="LINUX", level="DEBUG", reason="SETTINGS")
+            return
     else:
         # Reproducir el layout plano que genera Nemo cuando todavía no existe
         # actions-tree.json: descubrir todas las acciones instaladas y ordenarlas.
@@ -220,11 +258,12 @@ def _ensure_nemo_wmm_layout(data_base):
                     "accelerator": None
                 }
                 for filename in sorted(action_names)
-                if filename not in wmm_actions
+                if filename not in all_wmm_actions
             ]
         }
 
         layout["toplevel"].append(wmm_submenu)
+        layout["toplevel"].append(desktop_submenu)
 
     try:
         os.makedirs(os.path.dirname(layout_path), exist_ok=True)
@@ -234,7 +273,17 @@ def _ensure_nemo_wmm_layout(data_base):
             json.dump(layout, f, ensure_ascii=False, indent=2)
 
         os.replace(temp_path, layout_path)
+
+        # Nemo 6.6.x espera una escritura completada sobre actions-tree.json.
+        # El replace atómico no despierta su monitor; reescribir los mismos bytes
+        # reproduce el "Guardar" del editor sin modificar el contenido.
+        with open(layout_path, "rb") as f:
+            persisted_layout = f.read()
+        with open(layout_path, "wb") as f:
+            f.write(persisted_layout)
+
         mark_initialized()
+        mark_initialized(desktop_marker_path)
 
         if layout_updated:
             log_event(f"Submenú WMM Manager actualizado en el layout de Nemo: {layout_path}",
@@ -281,6 +330,31 @@ def _get_kio_version():
             continue
     return None
 
+def _ensure_common_file_manager_wrappers(source_dir):
+    """Garantiza permisos de ejecución en los wrappers comunes."""
+    common_source_dir = os.path.join(source_dir, "common")
+    wrappers = (
+        "wmm-add_to_bookmarks.sh",
+        "wmm-send-to-monitor.sh",
+        "wmm-span-image.sh",)
+
+    for wrapper_name in wrappers:
+        wrapper_path = os.path.join(common_source_dir, wrapper_name)
+
+        if not os.path.isfile(wrapper_path):
+            log_event(f"Wrapper común no encontrado: {wrapper_path}",
+                      origin="LINUX", level="WARN", reason="SETTINGS")
+            return False
+
+        try:
+            os.chmod(wrapper_path, 0o755)
+        except OSError as e:
+            log_event(f"No se pudieron asignar permisos al wrapper común {wrapper_path}: {e}",
+                      origin="LINUX", level="WARN", reason="SETTINGS")
+            return False
+
+    return True
+
 def ensure_shell_actions(app_root, data_base):
     """
     Detecta los gestores de archivos instalados y prepara sus integraciones WMM.
@@ -324,7 +398,7 @@ def ensure_shell_actions(app_root, data_base):
                       origin="LINUX", level="WARN", reason="SETTINGS")
         else:
             os.makedirs(dolphin_target_dir, exist_ok=True)
-            dolphin_ready = True
+            dolphin_ready = _ensure_common_file_manager_wrappers(source_dir)
 
             if kio_version and kio_version >= (6, 30, 0):
                 source_path = os.path.join(dolphin_source_dir, "wmm-menu.desktop")
@@ -339,15 +413,9 @@ def ensure_shell_actions(app_root, data_base):
                     log_event(f"Plantilla Dolphin no encontrada: {source_path}",
                               origin="LINUX", level="WARN", reason="SETTINGS")
                     dolphin_ready = False
-                for wrapper_path in wrapper_paths:
-                    if not os.path.isfile(wrapper_path):
-                        log_event(f"Wrapper común no encontrado: {wrapper_path}",
-                                  origin="LINUX", level="WARN", reason="SETTINGS")
-                        dolphin_ready = False
+
                 if dolphin_ready:
                     try:
-                        for wrapper_path in wrapper_paths:
-                            os.chmod(wrapper_path, 0o755)
                         with open(source_path, "r", encoding="utf-8") as f:
                             source_content = f.read()
                         source_content = source_content.replace("@APP_DIR@", app_root)
@@ -355,8 +423,53 @@ def ensure_shell_actions(app_root, data_base):
                             with open(target_path, "w", encoding="utf-8") as f:
                                 f.write(source_content)
                             os.chmod(target_path, 0o755)
+                        else:
+                            with open(target_path, "r", encoding="utf-8") as f:
+                                installed_content = f.read()
+
+                            # Migrar únicamente los Exec de WMM que todavía
+                            # apunten a una topología anterior.
+                            lines = installed_content.splitlines()
+                            migrated = False
+
+                            for wrapper_name in (
+                                "wmm-add_to_bookmarks.sh",
+                                "wmm-send-to-monitor.sh",
+                                "wmm-span-image.sh",
+                            ):
+                                source_exec = next(
+                                    (line for line in source_content.splitlines()
+                                     if line.startswith("Exec=") and wrapper_name in line),
+                                    None)
+
+                                if not source_exec:
+                                    continue
+
+                                for index, line in enumerate(lines):
+                                    if (line.startswith("Exec=")
+                                            and wrapper_name in line
+                                            and line != source_exec):
+                                        lines[index] = source_exec
+                                        migrated = True
+                                        break
+
+                            if migrated:
+                                migrated_content = "\n".join(lines)
+                                if installed_content.endswith("\n"):
+                                    migrated_content += "\n"
+
+                                temp_path = f"{target_path}.wmm.tmp"
+                                with open(temp_path, "w", encoding="utf-8", newline="\n") as f:
+                                    f.write(migrated_content)
+
+                                os.replace(temp_path, target_path)
+                                os.chmod(target_path, 0o755)
+                                log_event(f"Service Menu legacy de Dolphin migrado: {target_path}",
+                                          origin="LINUX", level="INFO", reason="SETTINGS")
+
                         with open(target_path, "r", encoding="utf-8") as f:
                             installed_content = f.read()
+
                         for wrapper_path in wrapper_paths:
                             if wrapper_path not in installed_content:
                                 dolphin_ready = False
@@ -394,12 +507,8 @@ def ensure_shell_actions(app_root, data_base):
                         dolphin_ready = False
                         continue
                     if not os.path.isfile(wrapper_path):
-                        log_event(f"Wrapper común no encontrado: {wrapper_path}",
-                                  origin="LINUX", level="WARN", reason="SETTINGS")
-                        dolphin_ready = False
                         continue
                     try:
-                        os.chmod(wrapper_path, 0o755)
                         with open(source_path, "r", encoding="utf-8") as f:
                             source_content = f.read()
                         source_content = source_content.replace("@APP_DIR@", app_root)
@@ -539,30 +648,19 @@ def ensure_shell_actions(app_root, data_base):
     # y mantiene actualizada la extensión Python usada por el menú del escritorio.
     if shutil.which("caja"):
         caja_source_dir = os.path.join(source_dir, "caja")
-        common_source_dir = os.path.join(source_dir, "common")
         caja_actions_dir = os.path.join(data_base, "file-manager", "actions")
         caja_files = (
             "wmm-menu.desktop",
             "wmm-send-to-monitor.desktop",
             "wmm-add-to-favorites.desktop",
             "wmm-span-image.desktop",)
-        caja_wrappers = (
-            "wmm-add_to_bookmarks.sh",
-            "wmm-send-to-monitor.sh",
-            "wmm-span-image.sh",)
 
         if not os.path.isdir(caja_source_dir):
             log_event(f"Directorio de plantillas Caja no encontrado: {caja_source_dir}",
                       origin="LINUX", level="WARN", reason="SETTINGS")
         else:
             os.makedirs(caja_actions_dir, exist_ok=True)
-            for wrapper_name in caja_wrappers:
-                wrapper_path = os.path.join(common_source_dir, wrapper_name)
-                if not os.path.isfile(wrapper_path):
-                    log_event(f"Wrapper común no encontrado: {wrapper_path}",
-                        origin="LINUX", level="WARN", reason="SETTINGS")
-                    continue
-                os.chmod(wrapper_path, 0o755)
+            _ensure_common_file_manager_wrappers(source_dir)
 
             # Acciones de archivos: se crean sólo si no existen para preservar
             # traducciones, ajustes o personalizaciones realizadas por el usuario.
@@ -586,9 +684,10 @@ def ensure_shell_actions(app_root, data_base):
 
             # Extensión del escritorio: es código de WMM y se mantiene actualizada
             # cuando cambia la plantilla incluida con la aplicación.
-            caja_extension_source = os.path.join(caja_source_dir, "wmm-spanned-current.py")
+            caja_extension_source = os.path.join(caja_source_dir, "wmm-desktop-actions.py")
             caja_extensions_dir = os.path.join(data_base, "caja-python", "extensions")
-            caja_extension_target = os.path.join(caja_extensions_dir, "wmm-spanned-current.py")
+            caja_extension_target = os.path.join(caja_extensions_dir, "wmm-desktop-actions.py")
+            caja_extension_legacy = os.path.join(caja_extensions_dir, "wmm-spanned-current.py")
 
             if not os.path.isfile(caja_extension_source):
                 log_event(f"Extensión nativa de Caja no encontrada: {caja_extension_source}",
@@ -611,6 +710,14 @@ def ensure_shell_actions(app_root, data_base):
                         with open(temp_path, "w", encoding="utf-8", newline="\n") as f:
                             f.write(content)
                         os.replace(temp_path, caja_extension_target)
+
+                    # El nombre anterior se retira sólo después de que la
+                    # extensión actual haya quedado instalada y validada.
+                    if os.path.isfile(caja_extension_legacy):
+                        os.remove(caja_extension_legacy)
+                        log_event(f"Extensión legacy de Caja eliminada: {caja_extension_legacy}",
+                                  origin="LINUX", level="DEBUG", reason="SETTINGS")
+
                     if caja_extension_installed:
                         log_event(f"Extensión contextual de Caja instalada en {caja_extension_target}",
                                   origin="LINUX", level="INFO", reason="SETTINGS")
@@ -632,6 +739,7 @@ def ensure_shell_actions(app_root, data_base):
             "wmm-send-to.nemo_action",
             "wmm-add_to_bookmarks.nemo_action",
             "wmm-spanned-current.nemo_action",
+            "wmm-add_favorite_current.nemo_action",
             "wmm-span-image.nemo_action",)
 
         if not os.path.isdir(nemo_source_dir):
@@ -640,14 +748,12 @@ def ensure_shell_actions(app_root, data_base):
         else:
             os.makedirs(nemo_actions_dir, exist_ok=True)
 
-            # Acciones de Nemo: se crean sólo si no existen para preservar
-            # traducciones, ajustes o personalizaciones realizadas por el usuario.
+            # Las acciones existentes pueden contener un Exec de una topología
+            # anterior. Se preserva cualquier personalización y sólo se corrige
+            # la línea Exec cuando ya no apunta al comando esperado por WMM.
             for filename in nemo_files:
                 source_path = os.path.join(nemo_source_dir, filename)
                 target_path = os.path.join(nemo_actions_dir, filename)
-
-                if os.path.exists(target_path):
-                    continue
 
                 if not os.path.exists(source_path):
                     log_event(f"Plantilla Nemo no encontrada: {source_path}",
@@ -660,8 +766,34 @@ def ensure_shell_actions(app_root, data_base):
                 content = content.replace("@PYTHON3@", sys.executable)
                 content = content.replace("@APP_DIR@", app_root)
 
-                with open(target_path, "w", encoding="utf-8") as f:
-                    f.write(content)
+                if not os.path.exists(target_path):
+                    with open(target_path, "w", encoding="utf-8") as f:
+                        f.write(content)
+                    continue
+
+                expected_exec = next(
+                    (line for line in content.splitlines() if line.startswith("Exec=")), None)
+
+                with open(target_path, "r", encoding="utf-8") as f:
+                    current_content = f.read()
+
+                lines = current_content.splitlines()
+                exec_index = next(
+                    (index for index, line in enumerate(lines) if line.startswith("Exec=")), None)
+
+                if expected_exec and exec_index is not None and lines[exec_index] != expected_exec:
+                    lines[exec_index] = expected_exec
+                    updated_content = "\n".join(lines)
+                    if current_content.endswith("\n"):
+                        updated_content += "\n"
+
+                    temp_path = f"{target_path}.wmm.tmp"
+                    with open(temp_path, "w", encoding="utf-8", newline="\n") as f:
+                        f.write(updated_content)
+                    os.replace(temp_path, target_path)
+
+                    log_event(f"Exec de acción Nemo actualizado: {target_path}",
+                              origin="LINUX", level="INFO", reason="SETTINGS")
 
             if all(os.path.exists(os.path.join(nemo_actions_dir, filename)) for filename in nemo_files):
                 _ensure_nemo_wmm_layout(data_base)
@@ -683,12 +815,180 @@ def ensure_shell_actions(app_root, data_base):
             log_event(f"Integración con Nemo verificada/instalada en {nemo_actions_dir}",
                       origin="LINUX", level="INFO", reason="SETTINGS")
 
+    # --- 5. THUNAR: ACCIONES PERSONALIZADAS ---
+    # uca.xml es compartido con el usuario. Las acciones existentes se
+    # preservan; WMM añade únicamente las acciones que todavía no existen.
+    if shutil.which("thunar"):
+        import re
+        from xml.sax.saxutils import escape
+        from i18n import _
+
+        thunar_source = os.path.join(source_dir, "thunar", "wmm-actions.xml")
+        _ensure_common_file_manager_wrappers(source_dir)
+        config_base = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
+        thunar_dir = os.path.join(config_base, "Thunar")
+        thunar_target = os.path.join(thunar_dir, "uca.xml")
+
+        if not os.path.isfile(thunar_source):
+            log_event(f"Plantilla Thunar no encontrada: {thunar_source}",
+                      origin="LINUX", level="WARN", reason="SETTINGS")
+        else:
+            try:
+                with open(thunar_source, "r", encoding="utf-8") as f:
+                    template = f.read()
+
+                replacements = {
+                    "@APP_DIR@": app_root,
+                    "@ADD_NAME@": _("Add to favorites"),
+                    "@ADD_DESCRIPTION@": _("Add selected image to favorites"),
+                    "@SEND_NAME@": _("Send to Monitor"),
+                    "@SEND_DESCRIPTION@": _("Assign the selected image to a specific monitor"),
+                    "@SPAN_NAME@": _("Span image across all active screens"),
+                    "@SPAN_DESCRIPTION@": _("Span the selected image across all screens"),
+                }
+
+                for token, value in replacements.items():
+                    template = template.replace(token, escape(value))
+
+                action_pattern = re.compile(r"<action>.*?</action>", re.DOTALL)
+                template_actions = action_pattern.findall(template)
+
+                if len(template_actions) != 3:
+                    raise ValueError("la plantilla Thunar no contiene exactamente tres acciones")
+
+                os.makedirs(thunar_dir, exist_ok=True)
+
+                if os.path.isfile(thunar_target):
+                    with open(thunar_target, "r", encoding="utf-8") as f:
+                        current_content = f.read()
+                else:
+                    current_content = '<?xml version="1.0" encoding="UTF-8"?>\n<actions>\n</actions>\n'
+
+                if "</actions>" not in current_content:
+                    raise ValueError("uca.xml no contiene el cierre </actions>")
+
+                current_actions = action_pattern.findall(current_content)
+                missing_actions = []
+
+                for action in template_actions:
+                    name_match = re.search(r"<name>(.*?)</name>", action, re.DOTALL)
+                    submenu_match = re.search(r"<submenu>(.*?)</submenu>", action, re.DOTALL)
+
+                    if not name_match or not submenu_match:
+                        raise ValueError("acción Thunar sin name o submenu")
+
+                    name = name_match.group(1)
+                    submenu = submenu_match.group(1)
+
+                    exists = any(
+                        f"<name>{name}</name>" in current
+                        and f"<submenu>{submenu}</submenu>" in current
+                        for current in current_actions)
+
+                    if not exists:
+                        missing_actions.append(action)
+
+                if missing_actions:
+                    insert_at = current_content.rfind("</actions>")
+                    addition = "\n".join(action.strip() for action in missing_actions)
+
+                    updated_content = (current_content[:insert_at]
+                        + addition + "\n"
+                        + current_content[insert_at:])
+
+                    temp_path = f"{thunar_target}.wmm.tmp"
+                    with open(temp_path, "w", encoding="utf-8", newline="\n") as f:
+                        f.write(updated_content)
+                    os.replace(temp_path, thunar_target)
+
+                    log_event(f"Integración con Thunar instalada/actualizada en {thunar_target}",
+                              origin="LINUX", level="INFO", reason="SETTINGS")
+                else:
+                    log_event(f"Integración con Thunar verificada en {thunar_target}",
+                              origin="LINUX", level="DEBUG", reason="SETTINGS")
+
+            except (OSError, ValueError) as e:
+                log_event(f"No se pudo preparar la integración de Thunar: {e}",
+                          origin="LINUX", level="WARN", reason="SETTINGS")
+
+        # Extensión Thunarx utilizada por xfdesktop para las acciones
+        # contextuales sobre el escritorio. La plantilla se resuelve aquí
+        # para que la extensión instalada no dependa de rutas hardcodeadas.
+        thunarx_source = os.path.join(
+            source_dir, "thunar", "wmm-xfce-desktop.py")
+        thunarx_extensions_dir = os.path.join(
+            data_base, "thunarx-python", "extensions")
+        thunarx_target = os.path.join(
+            thunarx_extensions_dir, "wmm-xfce-desktop.py")
+
+        thunarx_probe = subprocess.run(
+            [sys.executable, "-c",
+             'import gi; gi.require_version("Thunarx", "3.0"); '
+             'from gi.repository import Thunarx'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False)
+
+        thunarx_python_probe = subprocess.run(
+            ["find", "/usr/lib", "/usr/lib64", "-maxdepth", "3",
+             "-type", "f", "-name", "thunarx-python.so", "-print", "-quit"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            check=False)
+
+        if thunarx_probe.returncode != 0:
+            log_event("Integración de escritorio XFCE omitida: Thunarx 3.0 no está disponible",
+                      origin="LINUX", level="DEBUG", reason="SETTINGS")
+        elif not thunarx_python_probe.stdout.strip():
+            log_event("Integración de escritorio XFCE omitida: Thunarx Python no está disponible",
+                      origin="LINUX", level="DEBUG", reason="SETTINGS")
+        elif not os.path.isfile(thunarx_source):
+            log_event(f"Extensión de escritorio XFCE no encontrada: {thunarx_source}",
+                      origin="LINUX", level="WARN", reason="SETTINGS")
+        else:
+            try:
+                with open(thunarx_source, "r", encoding="utf-8") as f:
+                    content = f.read()
+
+                content = content.replace("@PYTHON3@", sys.executable)
+                content = content.replace("@APP_DIR@", app_root)
+
+                compile(content, thunarx_source, "exec")
+
+                os.makedirs(thunarx_extensions_dir, exist_ok=True)
+
+                current_content = None
+                if os.path.isfile(thunarx_target):
+                    with open(thunarx_target, "r", encoding="utf-8") as f:
+                        current_content = f.read()
+
+                thunarx_installed = current_content != content
+
+                if thunarx_installed:
+                    temp_path = f"{thunarx_target}.wmm.tmp"
+                    with open(temp_path, "w", encoding="utf-8", newline="\n") as f:
+                        f.write(content)
+                    os.replace(temp_path, thunarx_target)
+
+                    log_event(f"Extensión de escritorio XFCE instalada en {thunarx_target}",
+                              origin="LINUX", level="INFO", reason="SETTINGS")
+                else:
+                    log_event(f"Extensión de escritorio XFCE verificada en {thunarx_target}",
+                              origin="LINUX", level="DEBUG", reason="SETTINGS")
+
+            except (OSError, SyntaxError) as e:
+                log_event(f"No se pudo instalar la extensión de escritorio XFCE: {e}",
+                          origin="LINUX", level="WARN", reason="SETTINGS")
+
 def normalize_platform(raw_platform):
+    """Normaliza variantes de plataforma Linux al identificador común 'linux'."""
     if raw_platform.startswith('linux'):
         return 'linux'
     return raw_platform
 
 def normalize_desktop(desktop):
+    """Normaliza variantes del entorno de escritorio al identificador usado por WMM."""
     desktop = desktop.lower()
     if desktop.startswith('x-cinnamon') or desktop == 'cinnamon2d':
         return 'cinnamon'
@@ -701,26 +1001,31 @@ def normalize_desktop(desktop):
     return desktop
 
 def detect_desktop():
-    desktop = os.environ.get('XDG_CURRENT_DESKTOP',
-                             os.environ.get('DESKTOP_SESSION', 'unknown'))
+    """Detecta el entorno de escritorio activo a partir de las variables de sesión."""
+    desktop = os.environ.get('XDG_CURRENT_DESKTOP', os.environ.get('DESKTOP_SESSION', 'unknown'))
     return desktop.lower()
 
 def get_system_paths():
-    data_base = os.environ.get('XDG_DATA_HOME', os.path.expanduser('~/.local/share'))
-    cache_base = os.environ.get('XDG_CACHE_HOME', os.path.expanduser('~/.cache'))
+    """Resuelve las rutas base XDG y las rutas comunes utilizadas por WMM."""
+    data_base = os.environ.get('XDG_DATA_HOME') or os.path.expanduser('~/.local/share')
+    config_base = os.environ.get('XDG_CONFIG_HOME') or os.path.expanduser('~/.config')
+    cache_base = os.environ.get('XDG_CACHE_HOME') or os.path.expanduser('~/.cache')
     locale_dir = os.path.join(data_base, 'locale')
     cache_dir = os.path.join(cache_base, 'wmm')
     return {
         'data_base': data_base,
+        'config_base': config_base,
         'cache_base': cache_base,
         'locale_dir': locale_dir,
         'cache_dir': cache_dir,
     }
 
-def _load_launch_profiles():
-    """Carga los perfiles estáticos de lanzamiento conocidos por WMM."""
-    profiles_path = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), "data", "launch_profiles.json")
+def _load_launch_profiles(data_dir):
+    """Carga los perfiles estáticos desde el DATA_DIR resuelto por el núcleo."""
+    if not data_dir:
+        return {}
+
+    profiles_path = os.path.join(data_dir, "launch_profiles.json")
 
     try:
         with open(profiles_path, "r", encoding="utf-8") as f:
@@ -732,7 +1037,7 @@ def _load_launch_profiles():
             origin="LINUX", level="WARN", reason="GENERIC")
         return {}
 
-def _build_launch_command(path, capability, params):
+def _build_launch_command(path, capability, params, data_dir):
     """Construye un lanzamiento enriquecido para la aplicación predeterminada."""
     try:
         from gi.repository import Gio
@@ -753,7 +1058,7 @@ def _build_launch_command(path, capability, params):
 
         values = {"file": path, **params}
 
-        for profile in _load_launch_profiles().values():
+        for profile in _load_launch_profiles(data_dir).values():
             if executable_name not in profile.get("executables", []):
                 continue
             arguments = profile.get(capability)
@@ -772,7 +1077,7 @@ def _build_launch_command(path, capability, params):
             origin="LINUX", level="WARN", reason="GENERIC")
         return None
 
-def open_file(path, capability=None, **params):
+def open_file(path, capability=None, data_dir=None, **params):
     """
     Abre una ruta con la aplicación predeterminada.
 
@@ -780,8 +1085,8 @@ def open_file(path, capability=None, **params):
     dispone de un perfil compatible, aplica sus parámetros específicos.
     En cualquier otro caso conserva el comportamiento normal mediante xdg-open.
     """
-    if capability:
-        command = _build_launch_command(path, capability, params)
+    if capability and data_dir:
+        command = _build_launch_command(path, capability, params, data_dir)
         if command:
             try:
                 subprocess.Popen(command)
@@ -826,6 +1131,7 @@ def compile_translations(app_root, locale_dir, app_domain):
     return translations_changed
 
 def send_notification(title, message, level="info"):
+    """Muestra una notificación de escritorio con el nivel visual indicado."""
     icon_map = {
         "info": "dialog-information-symbolic",
         "warn": "dialog-warning-symbolic",
@@ -837,7 +1143,7 @@ def send_notification(title, message, level="info"):
     except Exception as e:
         print(f" [!] Error en notificación: {e}")
 
-def init_channels():
+def init_channels(data_dir):
     """
     Registra todos los canales de comunicación soportados por Linux.
 
@@ -851,7 +1157,7 @@ def init_channels():
 
     # FileChannel
     try:
-        register_channel("file", FileChannel())
+        register_channel("file", FileChannel(data_dir))
         log_event("Canal File registrado", origin="LINUX", level="INFO", reason="COMMAND")
     except Exception as e:
         log_event(f"No se pudo registrar FileChannel: {e}",
@@ -859,7 +1165,7 @@ def init_channels():
 
     # D-Bus
     try:
-        register_channel("dbus", DBusChannel())
+        register_channel("dbus", DBusChannel(data_dir))
         log_event("Canal D-Bus registrado", origin="LINUX", level="INFO", reason="COMMAND")
     except Exception as e:
         log_event(f"No se pudo registrar DBusChannel: {e}",

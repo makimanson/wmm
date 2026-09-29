@@ -1,0 +1,18 @@
+# SPDX-FileCopyrightText: 2026 makimanson
+# SPDX-License-Identifier: GPL-3.0-or-later
+#################################
+# wmm-add_favorite_current.nemo_action: Add the image currently shown on this monitor to favorites
+#################################
+
+[Nemo Action]
+Name=WMM: Add to favorites
+Name[es]=WMM: Añadir a favoritos
+Name[ca]=WMM: Afegeix a preferits
+Comment=Add the image currently shown on this monitor to favorites
+Comment[es]=Añadir a favoritos la imagen que se muestra actualmente en este monitor.
+Comment[ca]=Afegeix als preferits la imatge que es mostra actualment en aquest monitor.
+Exec=@PYTHON3@ @APP_DIR@/python/send_command.py '{"action":"shell_add_favorite_current","xid":%X}'
+Icon-Name=stock_add-bookmark
+Selection=none
+Extensions=any;
+Conditions=desktop;

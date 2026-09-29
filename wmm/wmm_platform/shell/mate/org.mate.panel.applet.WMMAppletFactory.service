@@ -14,8 +14,8 @@
 # The @PYTHON3@ token is replaced during installation with
 # the Python interpreter used by WMM.
 #
-# The @APP_DIR@ token is replaced during installation with
-# the actual installation directory of WMM.
+# The @FRONTEND_DIR@ token is replaced during installation with
+# the runtime directory of the MATE frontend.
 #
 # ==========================================================
 
@@ -25,4 +25,4 @@
 Name=org.mate.panel.applet.WMMAppletFactory
 
 # MATE Panel applet factory entry point.
-Exec=@PYTHON3@ @APP_DIR@/mate-applet.py
+Exec=@PYTHON3@ @FRONTEND_DIR@/mate-applet.py

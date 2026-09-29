@@ -14,6 +14,7 @@
  */
 
 const Applet = imports.ui.applet;
+const AppletManager = imports.ui.appletManager;
 const Util = imports.misc.util;
 const PopupMenu = imports.ui.popupMenu;
 const Gio = imports.gi.Gio;
@@ -42,16 +43,36 @@ class WMMApplet extends Applet.IconApplet {
 
         try {
             this.set_applet_icon_name("video-display");
-            this.set_applet_tooltip(
-                "WMM: " + _("Wallpaper Multi-Monitor Manager") + "\n" +
-                _("Click action") + ": " + _("Next Background") + "\n" +
-                _("Secondary Click") + ": " + _("Context Menu"));
-
             this.appletPath = metadata.path;
-            this.enginePath = this.appletPath + "/python/main.py";
-            this.commandsPath = this.appletPath + "/data/commands.json";
-            this.settingsPath = this.appletPath + "/data/settings.json";
-            this.bookmarksPath = this.appletPath + "/data/bookmarks.json";
+
+            // Desde v1.5.0 el frontend Cinnamon ya no contiene el core ni data.
+            // settings_core.ini es la autoridad instalada para resolver ambos.
+            let coreFile = Gio.File.new_for_path(this.appletPath + "/settings_core.ini");
+            let [success, contents] = coreFile.load_contents(null);
+            if (!success) throw new Error("Could not read settings_core.ini");
+
+            let coreConfig = {};
+            imports.byteArray.toString(contents).split("\n").forEach(line => {
+                line = line.trim();
+                if (!line || line.startsWith("#") || line.startsWith(";")) return;
+
+                let separator = line.indexOf("=");
+                if (separator < 0) return;
+
+                coreConfig[line.slice(0, separator).trim()] =
+                    line.slice(separator + 1).trim();
+            });
+
+            this.appDir = coreConfig.app_dir;
+            this.dataDir = coreConfig.data_dir;
+
+            if (!this.appDir || !this.dataDir)
+                throw new Error("settings_core.ini does not define app_dir/data_dir");
+
+            this.enginePath = this.appDir + "/python/main.py";
+            this.commandsPath = this.dataDir + "/commands.json";
+            this.settingsPath = this.dataDir + "/settings.json";
+            this.bookmarksPath = this.dataDir + "/bookmarks.json";
 
             this._currentMaxInterval = 60;
             this.favItems = [];
@@ -60,23 +81,97 @@ class WMMApplet extends Applet.IconApplet {
             this._cachedSettings = null;
             this._cachedBookmarks = null;
 
-            this._populateMenu();
+            /*
+             * Cinnamon carga el applet antes que el engine. Mantenerlo oculto
+             * evita materializar textos traducidos antes de que el engine haya
+             * podido compilar los catálogos pendientes.
+             */
+            this._uiReady = false;
+            this._engineWatchId = 0;
 
-            // Lectura de settings/bookmarks únicamente al abrir el menú principal.
-            this._applet_context_menu.connect('open-state-changed', (menu, open) => {
-                if (open) this._refreshSettingsFromDisk();
-            });
+            /*
+             * El actor debe conservar geometría mientras Cinnamon prepara su
+             * Flashspot. Ocultarlo eliminaría sus dimensiones y convertiría
+             * ese destello local en uno de escritorio completo.
+             *
+             * _applet_enabled bloquea los clics en el propio lifecycle de
+             * Cinnamon sin alterar la reactividad del actor.
+             */
+            this._bootstrapState = {
+                opacity: this.actor.opacity,
+                appletEnabled: this._applet_enabled
+            };
+
+            this._applet_enabled = false;
+            this.actor.opacity = 0;
+
+            this._engineWatchId = Gio.bus_watch_name(
+                Gio.BusType.SESSION,
+                "org.maki.wmm",
+                Gio.BusNameWatcherFlags.NONE,
+                () => this._onEngineAppeared(),
+                null
+            );
 
             Util.spawn(["python3", this.enginePath]);
-
-            // Estado operativo del engine para reflejar busy en el icono del applet.
-            let statusPath = GLib.get_user_cache_dir() + "/wmm/engine_status.json";
-            let statusFile = Gio.File.new_for_path(statusPath);
-            this._statusMonitor = statusFile.monitor_file(Gio.FileMonitorFlags.NONE, null);
-            this._statusMonitor.connect("changed", () => this._updateIconFromStatus());
-            this._updateIconFromStatus();
         }
         catch (e) { global.logError("WMM Constructor Error: " + e.message); }
+    }
+
+    finalizeContextMenu() {
+        /*
+         * Cinnamon finaliza automáticamente el menú nada más cargar el applet.
+         * Su implementación base traduce metadata.name con dgettext(uuid, ...);
+         * si el catálogo aún no existe, ese fallo queda cacheado durante la vida
+         * del proceso Cinnamon. Aplazar la finalización hasta org.maki.wmm evita
+         * consultar el dominio antes de que el engine haya creado los .mo.
+         */
+        if (!this._uiReady) return;
+        super.finalizeContextMenu();
+    }
+
+    _onEngineAppeared() {
+        if (this._uiReady) return;
+        this._uiReady = true;
+
+        /*
+         * org.maki.wmm sólo aparece después de que el engine haya preparado
+         * las traducciones. A partir de aquí ya es seguro materializar la UI.
+         */
+        this.set_applet_icon_name("video-display");
+        this.set_applet_tooltip(
+            "WMM: " + _("Wallpaper Multi-Monitor Manager") + "\n" +
+            _("Click action") + ": " + _("Next Background") + "\n" +
+            _("Secondary Click") + ": " + _("Context Menu"));
+
+        this._populateMenu();
+
+        /*
+         * El menú propio se construye primero porque _populateMenu() hace
+         * removeAll(). Sólo después Cinnamon puede añadir sus entradas estándar,
+         * ya con el catálogo de WMM disponible.
+         */
+        this.finalizeContextMenu();
+
+        // Lectura de settings/bookmarks únicamente al abrir el menú principal.
+        this._applet_context_menu.connect('open-state-changed', (menu, open) => {
+            if (open) this._refreshSettingsFromDisk();
+        });
+
+        // Estado operativo del engine para reflejar busy en el icono del applet.
+        let statusPath = GLib.get_user_cache_dir() + "/wmm/engine_status.json";
+        let statusFile = Gio.File.new_for_path(statusPath);
+        this._statusMonitor = statusFile.monitor_file(Gio.FileMonitorFlags.NONE, null);
+        this._statusMonitor.connect("changed", () => this._updateIconFromStatus());
+        this._updateIconFromStatus();
+
+        /*
+         * Restaurar exactamente el estado previo al bootstrap. No se fuerza
+         * ningún valor propio sobre el actor administrado por Cinnamon.
+         */
+        this.actor.opacity = this._bootstrapState.opacity;
+        this._applet_enabled = this._bootstrapState.appletEnabled;
+        this._bootstrapState = null;
     }
 
     _bindSubmenuHeaderBold(submenuItem) {
@@ -184,20 +279,39 @@ class WMMApplet extends Applet.IconApplet {
 
             let itemInstallManager = new PopupMenu.PopupMenuItem(_("Install Manager"));
             itemInstallManager.connect('activate', () => this._launchIndependentTool(
-                this.appletPath + "/wmm_platform/shell/installer/wmm-install_manager.py"));
+                this.appDir + "/wmm_platform/shell/installer/wmm-install_manager.py"));
             this.menuTools.menu.addMenuItem(itemInstallManager);
 
             let itemDebugLog = new PopupMenu.PopupMenuItem(_("Debug Log Viewer"));
             itemDebugLog.connect('activate', () => this._launchIndependentTool(
-                this.appletPath + "/python/debug_log_viewer.py"));
+                this.appDir + "/python/debug_log_viewer.py"));
             this.menuTools.menu.addMenuItem(itemDebugLog);
 
             let itemHelp = new PopupMenu.PopupMenuItem(_("Help"));
             itemHelp.connect('activate', () => this._sendActionToEngine({ action: "open_help" }));
             this.menuTools.menu.addMenuItem(itemHelp);
 
-        }
+            /*
+             * WMM sustituye deliberadamente el bloque nativo About/Remove de
+             * Cinnamon por sus propias acciones una vez finalizado el bootstrap.
+             */
+            this._applet_context_menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
+            let itemAbout = new PopupMenu.PopupMenuItem(_("About") + " WMM Manager");
+            itemAbout.connect('activate', () => this._sendActionToEngine({ action: "open_about" }));
+            this._applet_context_menu.addMenuItem(itemAbout);
+
+            let itemExit = new PopupMenu.PopupMenuItem(_("Exit") + " WMM");
+            itemExit.connect('activate', () => {
+                /*
+                 * Exit WMM omite deliberadamente la confirmación genérica de Cinnamon.
+                 * La retirada sigue pasando por AppletManager para conservar el lifecycle
+                 * nativo y llegar a on_applet_removed_from_panel(), que detiene el engine.
+                 */
+                AppletManager._removeAppletFromPanel(this._uuid, this.instance_id);
+            });
+            this._applet_context_menu.addMenuItem(itemExit);
+        }
         catch (e) { global.logError("WMM PopulateMenu Error: " + e.message); }
     }
 
@@ -435,10 +549,11 @@ class WMMApplet extends Applet.IconApplet {
     _sendActionToEngine(command) {
         try {
             let cmd = JSON.stringify(command);
-            Util.spawn(["python3", this.appletPath + "/python/send_command.py", cmd]);
+            Util.spawn(["python3", this.appDir + "/python/send_command.py", cmd]);
         }
 
         catch (e) { global.logError("WMM Send Error (" + (command.action || 'unknown') + "): " + e.message); }
+
     }
 
     _launchIndependentTool(path) {
@@ -460,6 +575,11 @@ class WMMApplet extends Applet.IconApplet {
     }
 
     on_applet_removed_from_panel() {
+        if (this._engineWatchId) {
+            Gio.bus_unwatch_name(this._engineWatchId);
+            this._engineWatchId = 0;
+        }
+
         /*
          * Quitar explícitamente el applet representa "Salir de WMM".
          * Se solicita Shutdown por D-Bus sin terminar procesos ni manipular PIDs.

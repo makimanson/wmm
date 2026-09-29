@@ -119,21 +119,14 @@ class FileChannel:
         - start_receiving_commands(callback)
     """
 
-    def __init__(self):
+    def __init__(self, data_dir):
         """
         Inicializa el canal de comunicación basado en archivos.
 
-        Actualmente obtiene internamente la ubicación de commands.json
-        a partir de la estructura estándar del proyecto.
-
-        NOTA:
-            Esta resolución de ruta es provisional. En una futura revisión
-            arquitectónica, la ruta será suministrada por el componente
-            responsable de la estructura del proyecto, evitando que este
-            canal conozca dicha organización.
+        La ubicación de los datos persistentes la proporciona la plataforma;
+        el canal sólo resuelve dentro de ella su archivo commands.json.
         """
-        project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        self._path = os.path.join(project_root, "data", "commands.json")
+        self._path = os.path.join(data_dir, "commands.json")
         self._monitor = None
 
     def send(self, command):
@@ -217,12 +210,12 @@ class DBusChannel:
     al núcleo de WMM.
     """
 
-    def __init__(self):
+    def __init__(self, data_dir):
         from dbus.mainloop.glib import DBusGMainLoop
 
         self._bus = dbus.SessionBus(private=True, mainloop=DBusGMainLoop())
         self._bus_name = dbus.service.BusName("org.maki.wmm", self._bus)
-        self._object = _DBusObject(self._bus_name)
+        self._object = _DBusObject(self._bus_name, data_dir)
 
     def set_callback(self, callback):
         self._object.set_callback(callback)
@@ -267,13 +260,12 @@ class _DBusObject(dbus.service.Object):
         """Emitida cuando cambia el estado busy del engine."""
         pass
 
-    def __init__(self, bus_name):
+    def __init__(self, bus_name, data_dir):
         super().__init__(bus_name, "/org/maki/wmm")
         self._callback = None
         self._busy = True
 
-        # Rutas de los archivos a monitorizar
-        data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data')
+        # Rutas de los archivos persistentes publicadas por D-Bus.
         self._settings_path = os.path.join(data_dir, 'settings.json')
         self._bookmarks_path = os.path.join(data_dir, 'bookmarks.json')
 
@@ -378,18 +370,16 @@ class _DBusObject(dbus.service.Object):
 
     @dbus.service.method("org.maki.wmm", out_signature="s")
     def GetSettings(self):
-        settings_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "settings.json")
         try:
-            with open(settings_path, "r") as f:
+            with open(self._settings_path, "r") as f:
                 return f.read()
         except Exception:
             return "{}"
 
     @dbus.service.method("org.maki.wmm", out_signature="s")
     def GetBookmarks(self):
-        bookmarks_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "bookmarks.json")
         try:
-            with open(bookmarks_path, "r") as f:
+            with open(self._bookmarks_path, "r") as f:
                 return f.read()
         except Exception:
             return "{}"

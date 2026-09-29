@@ -30,6 +30,7 @@ import dbus.service
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("MatePanelApplet", "4.0")
+
 from gi.repository import Gdk, Gio, GLib, Gtk, MatePanelApplet
 from dbus.mainloop.glib import DBusGMainLoop
 
@@ -45,12 +46,40 @@ mate_applet_interface = "org.maki.wmm.MateApplet"
 # ==========================================================
 # RUTAS WMM
 # ==========================================================
-app_dir = os.path.dirname(os.path.abspath(__file__))
+frontend_dir = os.path.dirname(os.path.abspath(__file__))
+settings_core_path = os.path.join(frontend_dir, "settings_core.ini")
+
+# settings_core.ini es la autoridad instalada que enlaza este frontend
+# con el core común; no reconstruir APP_DIR desde la posición del archivo.
+core_config = {}
+
+try:
+    with open(settings_core_path, "r", encoding="utf-8") as config_file:
+        for line in config_file:
+            line = line.strip()
+
+            if not line or line.startswith(("#", ";")) or "=" not in line:
+                continue
+
+            key, value = line.split("=", 1)
+            core_config[key.strip()] = value.strip()
+
+except OSError as error:
+    print(f"[WMM MATE] No se pudo leer settings_core.ini: {error}", file=sys.stderr)
+    raise SystemExit(1)
+
+app_dir = core_config.get("app_dir", "")
+
+if not app_dir:
+    print("[WMM MATE] settings_core.ini no define app_dir", file=sys.stderr)
+    raise SystemExit(1)
+
 send_command_path = os.path.join(app_dir, "python", "send_command.py")
 cache_dir = os.path.join(GLib.get_user_cache_dir(), "wmm")
 status_path = os.path.join(cache_dir, "engine_status.json")
-css_path = os.path.join(app_dir, "wmm_platform", "shell", "mate", "mate-applet.css")
-install_manager_path = os.path.join(app_dir, "wmm_platform", "shell", "installer", "wmm-install_manager.py")
+css_path = os.path.join(frontend_dir, "mate-applet.css")
+install_manager_path = os.path.join(
+    app_dir, "wmm_platform", "shell", "installer", "wmm-install_manager.py")
 debug_log_viewer_path = os.path.join(app_dir, "python", "debug_log_viewer.py")
 
 # ==========================================================
@@ -61,13 +90,11 @@ favorites_visible_rows = 4
 # ==========================================================
 # ESTADO DE LA FACTORÍA
 # ==========================================================
-
 _active_wmm_instance = None
 
 # ==========================================================
 # HOJA DE ESTILOS
 # ==========================================================
-
 wmm_css_provider = None
 
 def _load_wmm_css():
@@ -148,13 +175,33 @@ class WMMMateApplet:
         self._status_monitor = None
         self._settings_signal_id = 0
         self._bookmarks_signal_id = 0
+        self._ui_ready = False
+
+        # El lifecycle existe desde que MATE crea la instancia, aunque la UI
+        # permanezca oculta mientras el engine prepara sus traducciones.
+        self.applet.connect("destroy", self._on_destroy)
 
         _load_wmm_css()
+
+        # org.maki.wmm sólo se publica cuando el engine ha preparado los
+        # catálogos. No materializar ningún texto traducible antes de ese punto.
+        self._start_engine(self._initialize_ui)
+
+    def _initialize_ui(self):
+        """Materializa y muestra el applet sólo con las traducciones disponibles."""
+        if self._destroyed or self._ui_ready:
+            return
+
         self._build_applet()
         self._build_menu()
         self._subscribe_engine_signals()
         self._start_status_monitor()
-        self._start_engine(self._refresh_all)
+        self._refresh_all()
+
+        # La visibilidad marca la frontera de disponibilidad del frontend:
+        # icono, tooltip, menú, señales y monitor ya están operativos.
+        self._ui_ready = True
+        self.applet.show_all()
 
     # ==========================================================
     # APPLET
@@ -164,20 +211,17 @@ class WMMMateApplet:
         """Construye el icono del panel, tooltip y eventos propios del applet."""
         self.icon = Gtk.Image.new_from_icon_name("video-display", Gtk.IconSize.MENU)
         self.icon.set_pixel_size(max(1, int(self.applet.get_size())))
-        self.icon.set_margin_start(5)
-        self.icon.set_margin_end(5)
+        self._update_icon_margins(self.applet.get_orient())
         self.applet.add(self.icon)
 
-        tooltip = (
-            "WMM: " + _("Wallpaper Multi-Monitor Manager") + "\n" +
+        tooltip = ("WMM: " + _("Wallpaper Multi-Monitor Manager") + "\n" +
             _("Click action") + ": " + _("Next Background") + "\n" +
-            _("Secondary Click") + ": " + _("Context Menu")
-        )
+            _("Secondary Click") + ": " + _("Context Menu"))
         self.applet.set_tooltip_text(tooltip)
 
         self.applet.connect("button-press-event", self._on_button_press)
         self.applet.connect("change-size", self._on_change_size)
-        self.applet.connect("destroy", self._on_destroy)
+        self.applet.connect("change-orient", self._on_change_orient)
 
     def _on_button_press(self, widget, event):
         """Procesa clic izquierdo para rotación y deja el derecho al menú nativo."""
@@ -196,6 +240,29 @@ class WMMMateApplet:
             return False
 
         return False
+
+    def _update_icon_margins(self, orient):
+        """Separa el icono entre applets sin aumentar el grosor del panel."""
+        self.icon.set_margin_start(0)
+        self.icon.set_margin_end(0)
+        self.icon.set_margin_top(0)
+        self.icon.set_margin_bottom(0)
+
+        if orient in (
+            MatePanelApplet.AppletOrient.LEFT,
+            MatePanelApplet.AppletOrient.RIGHT,
+        ):
+            # Panel vertical: los applets vecinos están arriba y abajo.
+            self.icon.set_margin_top(5)
+            self.icon.set_margin_bottom(5)
+        else:
+            # Panel horizontal: los applets vecinos están a izquierda y derecha.
+            self.icon.set_margin_start(5)
+            self.icon.set_margin_end(5)
+
+    def _on_change_orient(self, applet, orient):
+        """Reorienta el espaciado cuando MATE mueve el panel a otro borde."""
+        self._update_icon_margins(orient)
 
     def _on_change_size(self, applet, size):
         """Adapta el icono al tamaño actual del panel MATE."""
@@ -366,16 +433,23 @@ class WMMMateApplet:
         position = menu.get_children().index(header_item) + 1
 
         self.inline_menu = menu
+        # GTK posiciona con la altura máxima potencial y, al completar el popup,
+        # WMM repliega el menú conservando el sentido vertical elegido.
+        self.inline_menu.connect("show", self._on_inline_menu_show)
+        self.inline_menu.connect("popped-up", self._on_inline_menu_popped_up)
         self.inline_menu_toplevel = self.inline_menu.get_toplevel()
         self.inline_menu_toplevel.connect("unmap", self._on_inline_menu_toplevel_unmap)
         self._slideshow_scale_dragging = False
+
+        # En paneles verticales, GTK decide en cada apertura si el menú crece
+        # hacia arriba o hacia abajo según el espacio real de la workarea.
+        self._inline_menu_grow_up = False
 
         self.inline_menu.add_events(
             Gdk.EventMask.BUTTON_PRESS_MASK |
             Gdk.EventMask.BUTTON_RELEASE_MASK |
             Gdk.EventMask.POINTER_MOTION_MASK |
-            Gdk.EventMask.SCROLL_MASK
-        )
+            Gdk.EventMask.SCROLL_MASK)
         self.inline_menu.connect("button-press-event", self._on_inline_menu_button_press)
         self.inline_menu.connect("motion-notify-event", self._on_inline_menu_motion)
         self.inline_menu.connect("button-release-event", self._on_inline_menu_button_release)
@@ -467,6 +541,44 @@ class WMMMateApplet:
     # MENÚ INLINE: CICLO DE VIDA Y GEOMETRÍA
     # ==========================================================
 
+    def _on_inline_menu_show(self, menu):
+        """Expone temporalmente el tamaño máximo para el posicionamiento inicial."""
+        self._update_favorites_scroll_height()
+
+        self.favorites_switch_item.show()
+        self.favorites_add_item.show()
+        self.favorites_scroll_item.show()
+
+        self.slideshow_switch_item.show()
+        self.slideshow_interval_item.show()
+
+        for item in self.tools_inline_items:
+            item.show()
+
+    def _on_inline_menu_popped_up(self, menu, flipped_rect, final_rect, flipped_x, flipped_y):
+        """Repliega el menú conservando el sentido vertical elegido por GTK."""
+
+        # GTK ya ha decidido el lado usando el tamaño totalmente desplegado.
+        # Replegamos antes de presentar el popup y conservamos el borde anclado.
+        self.favorites_switch_item.hide()
+        self.favorites_add_item.hide()
+        self.favorites_scroll_item.hide()
+
+        self.slideshow_switch_item.hide()
+        self.slideshow_interval_item.hide()
+
+        for item in self.tools_inline_items:
+            item.hide()
+
+        orient = self.applet.get_orient()
+
+        self._inline_menu_grow_up = (orient in (
+                MatePanelApplet.AppletOrient.LEFT,
+                MatePanelApplet.AppletOrient.RIGHT, )
+            and bool(flipped_y))
+
+        self._resize_inline_menu_native_window()
+
     def _on_inline_menu_toplevel_unmap(self, widget):
         """Repliega las secciones inline para que cada nueva apertura empiece cerrada."""
         self._favorites_expanded = False
@@ -488,17 +600,44 @@ class WMMMateApplet:
         self.tools_indicator.set_from_icon_name("pan-end-symbolic", Gtk.IconSize.MENU)
 
     def _resize_inline_menu_native_window(self):
-        """Adapta la ventana nativa del popup al tamaño natural del menú.
+        """Adapta el popup manteniendo fijo el borde unido al panel.
 
-        Gtk.Menu conserva la altura asignada al abrirse y activa su scroll interno
-        si después aumenta el contenido. El reajuste se difiere con idle_add() y se
-        aplica sobre la Gdk.Window real, nivel en el que MATE acepta el nuevo tamaño.
+        Gtk.Menu conserva el tamaño asignado al abrirse. Cuando una sección inline
+        cambia de altura, el move_resize mantiene el crecimiento en dirección
+        opuesta al panel para las cuatro orientaciones de MATE.
         """
         _, natural = self.inline_menu.get_preferred_size()
+        allocation = self.inline_menu.get_allocation()
         native_window = self.inline_menu_toplevel.get_window()
 
-        if native_window is not None:
-            native_window.resize(natural.width, natural.height)
+        if native_window is None:
+            return False
+
+        _, x, y = native_window.get_origin()
+        geometry = native_window.get_geometry()
+
+        extra_width = geometry.width - allocation.width
+        extra_height = geometry.height - allocation.height
+
+        width = natural.width + extra_width
+        height = natural.height + extra_height
+
+        orient = self.applet.get_orient()
+
+        if (orient == MatePanelApplet.AppletOrient.UP
+            or (orient in (
+                    MatePanelApplet.AppletOrient.LEFT,
+                    MatePanelApplet.AppletOrient.RIGHT, )
+                and self._inline_menu_grow_up)
+        ):
+            # Si el popup crece hacia arriba, conservar fijo su borde inferior.
+            y += geometry.height - height
+
+        if orient == MatePanelApplet.AppletOrient.LEFT:
+            # Panel derecho: conservar fijo el borde derecho.
+            x += geometry.width - width
+
+        native_window.move_resize(x, y, width, height)
 
         return False
 
@@ -1436,7 +1575,6 @@ def applet_factory(applet, iid, user_data):
     try:
         instance = WMMMateApplet(applet)
         applet._wmm_instance = instance
-        applet.show_all()
 
         _active_wmm_instance = instance
         return True

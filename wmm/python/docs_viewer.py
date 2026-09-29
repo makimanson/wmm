@@ -101,7 +101,8 @@ class DocsViewer(Gtk.Window):
         self._document_path = _resolve_document(base_path)
         self._document_name = os.path.splitext(os.path.basename(base_path))[0]
         self._settings_key = _build_settings_key(base_path)
-        self._settings_path = os.path.join(_PROJECT_ROOT, "data", "settings.json")
+        self._settings_path = os.path.join(
+            GLib.get_user_config_dir(), "wmm@maki", "data", "settings.json")
 
         super().__init__(title=f"WMM - {self._document_name}")
 

@@ -52,19 +52,17 @@ FILTER_REASONS = ["All", "BOOKMARK", "COMMAND", "D-BUS", "FILE_MON", "GENERIC", 
         "INIT", "LAYOUT", "LIBRARY", "MODULE", "NOTIFY", "SETTINGS", "TIMER", "VAULT"]
 
 class DebugLogViewer(Gtk.Window):
-    def __init__(self, parent=None):
+    def __init__(self, platform):
         super().__init__(title="WMM - " + _("Debug Log Viewer"))
         self.set_icon_name("utilities-system-monitor")  # Icono de monitorización del sistema
         # Heredar los colores del tema del sistema (fondo de ventana)
         self.get_style_context().add_class("background")
         self.set_position(Gtk.WindowPosition.CENTER)
-        if parent:
-            self.set_transient_for(parent)
 
         # ----------------------------------------------------------
         # PREFERENCIAS DEL VISOR
         # ----------------------------------------------------------
-        self._settings_path = os.path.join(_PROJECT_ROOT, "data", "settings.json")
+        self._settings_path = os.path.join(platform.data_dir, "settings.json")
         self._viewer_preferences = self._load_viewer_preferences()
         self.set_default_size(*self._viewer_preferences["window_size"])
 
@@ -136,8 +134,8 @@ class DebugLogViewer(Gtk.Window):
         bottom_separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
 
         # --- VISOR DE TEXTO ---
-        scrolled = Gtk.ScrolledWindow()
-        scrolled.set_overlay_scrolling(False)  # Las barras ocupan espacio propio y no cubren el texto
+        self.scrolled = Gtk.ScrolledWindow()
+        self.scrolled.set_overlay_scrolling(False)  # Las barras ocupan espacio propio y no cubren el texto
         self.textview = Gtk.TextView()
         self.textview.set_editable(False)
         self.textview.set_monospace(True)
@@ -159,7 +157,7 @@ class DebugLogViewer(Gtk.Window):
         textview_context.add_provider(textview_css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         self.textbuffer = self.textview.get_buffer()
-        scrolled.add(self.textview)
+        self.scrolled.add(self.textview)
 
         # --- MARCAS PARA EL RESALTADO (no se invalidan al modificar el buffer) ---
         self._highlight_start_mark = self.textbuffer.create_mark(
@@ -240,7 +238,7 @@ class DebugLogViewer(Gtk.Window):
         main_vbox.pack_start(top_separator, False, False, 4)
 
         # --- VISOR DE TEXTO (OCUPA EL ESPACIO RESTANTE) ---
-        main_vbox.pack_start(scrolled, True, True, 0)
+        main_vbox.pack_start(self.scrolled, True, True, 0)
 
         # --- SEPARADOR INFERIOR (entre visor y barra de acciones) ---
         main_vbox.pack_start(bottom_separator, False, False, 4)
@@ -485,7 +483,7 @@ class DebugLogViewer(Gtk.Window):
             if not self.auto_scroll_switch.get_active():
                 return False
 
-            adjustment = self.textview.get_vadjustment()
+            adjustment = self.scrolled.get_vadjustment()
 
             # Auto-scroll controla sólo el eje vertical; la posición horizontal
             # del usuario no debe perseguir el final de una línea larga.
@@ -626,14 +624,15 @@ class DebugLogViewer(Gtk.Window):
 class DebugLogViewerApplication(Gtk.Application):
     """Aplicación GTK de instancia única para WMM Debug Log Viewer."""
 
-    def __init__(self):
+    def __init__(self, platform):
         super().__init__(application_id="org.maki.wmm.DebugLogViewer")
+        self._platform = platform
 
     def do_activate(self):
         window = self.props.active_window
 
         if window is None:
-            window = DebugLogViewer()
+            window = DebugLogViewer(platform=self._platform)
             window.connect("destroy", lambda *_: self.quit())
             self.add_window(window)
             window.show_all()
@@ -655,5 +654,5 @@ if __name__ == "__main__":
     # configurar explícitamente la ruta del logger común de WMM.
     set_cache_dir(platform.cache_dir)
 
-    app = DebugLogViewerApplication()
+    app = DebugLogViewerApplication(platform)
     raise SystemExit(app.run(sys.argv))

@@ -3,7 +3,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 ====================================================
  WMM - Wallpaper Multi-Monitor Manager
- Version 1.4.0
+ Version 1.5.0
 ====================================================
 
 ====================================================
@@ -14,17 +14,18 @@ Thank you for downloading WMM!
 
 WMM is a wallpaper manager for multi-monitor systems
 with full support for Cinnamon,
-GNOME Shell, KDE Plasma 6 and MATE.
+GNOME Shell, KDE Plasma 6, MATE and XFCE.
 
 
 SUPPORTED DESKTOPS
 
   - Cinnamon:       Complete (X11)
-  - GNOME Shell:    Complete (versions 45-50)
+  - GNOME Shell:    Complete (versions 45 to 50)
   - KDE Plasma 6:   Complete
   - MATE:           Complete
-  - XFCE:           In development
-
+  - XFCE:           Complete
+  - Windows:        In development
+  - macOS:          Planned
 
 QUICK INSTALLATION
 
@@ -63,6 +64,8 @@ QUICK INSTALLATION
      Open Extensions and enable "WMM Manager",
      or launch WMM from Menu > Graphics > WMM.
 
+   - XFCE:
+     Launch WMM from Menu > Graphics > WMM.
 
 MORE INFORMATION
 
@@ -90,17 +93,18 @@ MORE INFORMATION
 
 WMM es un gestor de fondos de pantalla para sistemas
 multi-monitor con soporte completo para Cinnamon,
-GNOME Shell, KDE Plasma 6 y MATE.
+GNOME Shell, KDE Plasma 6, MATE y XFCE.
 
 
 ENTORNOS SOPORTADOS
 
   - Cinnamon:       Completo (X11)
-  - GNOME Shell:    Completo (versiones 45-50)
+  - GNOME Shell:    Completo (versiones 45 a 50)
   - KDE Plasma 6:   Completo
   - MATE:           Completo
-  - XFCE:           En desarrollo
-
+  - XFCE:           Completo
+  - Windows:        En desarrollo
+  - macOS:          Planeado
 
 INSTALACIÓN RÁPIDA
 
@@ -140,6 +144,8 @@ INSTALACIÓN RÁPIDA
      En la barra de tareas abre: Añadir al panel y activa "WMM Manager",
      o inicia WMM desde Aplicaciones > Gráficos > WMM.
 
+   - XFCE:
+     Inicia WMM desde Aplicaciones > Gráficos > WMM.
 
 MÁS INFORMACIÓN
 

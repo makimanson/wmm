@@ -4,9 +4,9 @@ Name=Span image across all screens
 Name[es]=Extender imagen a todos los monitores
 Name[ca]=Estén la imatge a totes les pantalles
 Icon=view-fullscreen
-ToolbarLabel=Span image across all screens
-ToolbarLabel[es]=Extender imagen a todos los monitores
-ToolbarLabel[ca]=Estén la imatge a totes les pantalles
+ToolbarLabel=Span image across all active screens
+ToolbarLabel[es]=Extender la imagen a todos los monitores activos
+ToolbarLabel[ca]=Amplia la imatge per totes les pantalles actives
 Profiles=profile-zero;
 
 [X-Action-Profile profile-zero]

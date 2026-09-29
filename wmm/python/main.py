@@ -73,6 +73,12 @@ class WMMDaemon:
         # ----------------------------------------------------------
         # ConfigHandler recibe la ruta de caché directamente desde PlatformManager
         self.ch = ConfigHandler(cache_base_dir=self.platform.cache_dir, platform=self.platform)
+
+        # Los frontends pueden considerar org.maki.wmm como señal de que WMM
+        # está listo. Garantizamos por ello que los catálogos existan antes
+        # de publicar el servicio D-Bus más adelante en este mismo __init__.
+        self._ensure_translations()
+
         if getattr(self, "_post_install_needed", False):
             self._post_install_setup()
         # ----------------------------------------------------------
@@ -324,8 +330,8 @@ class WMMDaemon:
         finally:
             self._set_busy_state(False)
 
-    def _apply_contextual_spanned(self, xid=None, x=None, y=None):
-        """Aplica en modo Spanned la imagen actualmente expuesta en el monitor señalado por contexto X11."""
+    def _resolve_contextual_image(self, xid=None, x=None, y=None):
+        """Resuelve la imagen activa del monitor señalado por contexto X11."""
         geometry = self.ch.load_json("geometry")
         monitors_map = geometry.get("monitors", {})
 
@@ -336,14 +342,14 @@ class WMMDaemon:
             m_hash = monitor_detection.get_monitor_hash_from_position(x, y, monitors_map)
             context = f"posición {x},{y}"
         else:
-            log_event("Acción Spanned contextual recibida sin contexto de monitor",
+            log_event("Acción contextual recibida sin contexto de monitor",
                 origin="ENGINE", level="WARN", reason="COMMAND")
-            return
+            return None
 
         if not m_hash:
             log_event(f"No se pudo resolver el monitor para {context}",
                 origin="ENGINE", level="WARN", reason="COMMAND")
-            return
+            return None
 
         vault = self.ch.load_json("vault")
         entry = vault.get("active_session", {}).get(m_hash, {})
@@ -358,8 +364,17 @@ class WMMDaemon:
         if not is_active or not image_path or not os.path.exists(image_path):
             log_event(f"No hay una imagen activa válida para el monitor {m_hash}",
                 origin="ENGINE", level="WARN", reason="COMMAND")
+            return None
+
+        return image_path, monitors_map
+
+    def _apply_contextual_spanned(self, xid=None, x=None, y=None):
+        """Aplica en modo Spanned la imagen actualmente expuesta en el monitor señalado por contexto X11."""
+        resolved = self._resolve_contextual_image(xid=xid, x=x, y=y)
+        if not resolved:
             return
 
+        image_path, monitors_map = resolved
         self._apply_spanned_image(image_path, monitors_map)
 
     def _dispatch_command(self, order, action_data):
@@ -367,6 +382,21 @@ class WMMDaemon:
         Ejecuta la acción correspondiente basada en el comando recibido.
         (Antiguo _handle_sigusr1, extraído para separar la recepción de la ejecución)
         """
+
+        # Normalizar acciones contextuales antes del dispatch evita duplicar
+        # los workflows finales que ya reciben una ruta de imagen.
+        if order == ConfigHandler.CMD_SHELL_ADD_FAV_CURRENT:
+            resolved = self._resolve_contextual_image(
+                xid=action_data.get("xid"),
+                x=action_data.get("x"),
+                y=action_data.get("y"))
+            if not resolved:
+                return
+
+            image_path, _monitors_map = resolved
+            order = ConfigHandler.CMD_SHELL_ADD_FAV
+            action_data = {"action": order, "image_path": image_path}
+
         # --- 1. ACTUALIZACIÓN DE SETTINGS ---
         if order == ConfigHandler.CMD_UPDATE_TIMER:
             settings = self.ch.load_json("settings")
@@ -462,7 +492,7 @@ class WMMDaemon:
                     reason = _("No changes")
                 log_event(f"Sincronización completada: {total_h}H / {total_v}V, cambios={has_changes}",
                           origin="ENGINE", level="INFO", reason="LIBRARY")
-                body = f"{reason}\n{_('Total library') + ': {}H | {}V'.format(total_h, total_v)}"
+                body = reason + "\n" + _("Total library") + ": {}H | {}V".format(total_h, total_v)
                 if detail_msg:
                     body = f"{detail_msg}\n{body}"
                 self.ch._send_notification(
@@ -929,8 +959,6 @@ class WMMDaemon:
         # Asegurar que las acciones del shell están instaladas
         if hasattr(self.platform, "ensure_shell_actions"):
             self.platform.ensure_shell_actions(self.ch.app_root, self.platform.data_base)
-        # Asegurar que las traducciones están compiladas
-        self._ensure_translations()
         # Asegurar que el atajo de teclado está registrado
         if hasattr(self.platform, "ensure_keybindings"):
             self.platform.ensure_keybindings(self.platform.app_dir)
@@ -1015,43 +1043,49 @@ class WMMDaemon:
 
     def _complete_ini_if_needed(self):
         """
-        Completa el .ini con las claves derivadas si está incompleto.
-        Se ejecuta antes de crear ConfigHandler para que las rutas sean correctas.
+        Persiste las rutas derivadas que PlatformManager ya puede resolver
+        en memoria, conservando en el engine el lifecycle de finalización.
         """
-        required_keys = ['platform', 'desktop', 'app_domain', 'data_base',
-            'cache_base', 'cache_dir', 'locale_dir', 'app_dir']
         config = self.platform._ensure_platform_config()
+        resolved = self.platform._resolve_common_paths(config)
 
-        derived_keys = ['cache_dir', 'locale_dir', 'app_dir']
-        if not all(config.get(key) for key in derived_keys):
-            updated = False
-            if not config.get('cache_dir'):
-                config['cache_dir'] = os.path.join(config['cache_base'], 'wmm')
-                updated = True
-            if not config.get('locale_dir'):
-                config['locale_dir'] = os.path.join(config['data_base'], 'locale')
-                updated = True
-            if not config.get('app_dir'):
-                app_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                config['app_dir'] = app_root
-                updated = True
-            if updated:
-                self.platform.save_ini(config)
-                log_event("Archivo settings_core.ini completado con claves derivadas",
-                    origin="ENGINE", level="INFO", reason="SETTINGS")
+        derived_keys = [
+            'wmm_id', 'cache_dir', 'locale_dir', 'app_dir',
+            'app_config', 'data_dir'
+        ]
 
-                # Actualizar los atributos de la plataforma con los nuevos valores
-                self.platform.cache_dir = config['cache_dir']
-                self.platform.locale_dir = config['locale_dir']
-                self.platform.app_dir = config['app_dir']
+        # frontend_dir pertenece al frontend, no al espacio común.
+        if config.get('desktop') == 'xfce':
+            if not resolved.get('frontend_dir') and resolved.get('app_dir'):
+                resolved['frontend_dir'] = os.path.join(
+                    resolved['app_dir'], 'frontends', 'xfce')
+            derived_keys.append('frontend_dir')
 
-                self._post_install_needed = True
+        updated = False
+
+        for key in derived_keys:
+            if not config.get(key) and resolved.get(key):
+                config[key] = resolved[key]
+                updated = True
+
+        if updated:
+            self.platform.save_ini(config)
+            log_event("Archivo settings_core.ini completado con claves derivadas",
+                origin="ENGINE", level="INFO", reason="SETTINGS")
+
+            # La instancia ya disponía de las rutas resueltas en memoria;
+            # sincronizamos también cualquier clave recién persistida.
+            for key in derived_keys:
+                if config.get(key):
+                    setattr(self.platform, key, config[key])
+
+            self._post_install_needed = True
 
     def _post_install_setup(self):
         """
         Ejecuta tareas de configuración inicial tras completar el .ini por primera vez.
         Se encarga de instalar las acciones de shell (Nemo, Nautilus, etc.)
-        de compilar las traducciones y Crear atajo de teclado.
+        y crear el atajo de teclado.
         """
         log_event("Primer arranque detectado. Ejecutando configuración post-instalación...",
             origin="ENGINE", level="INFO", reason="SETTINGS")
@@ -1061,11 +1095,8 @@ class WMMDaemon:
             self.platform.ensure_shell_actions(self.ch.app_root, self.platform.data_base)
             log_event("Scripts de shell instalados correctamente",
                 origin="ENGINE", level="INFO", reason="SETTINGS")
-        # 2. Compilar traducciones
-        self._ensure_translations()
-        log_event("Archivos de traducciones compilados y copiados correctamente",
-            origin="ENGINE", level="INFO", reason="SETTINGS")
-        # 3. Crear atajo de teclado (NUEVO)
+
+        # 2. Crear atajo de teclado
         if hasattr(self.platform, 'ensure_keybindings'):
             self.platform.ensure_keybindings(self.platform.app_dir)
             log_event("Atajo de teclado creado",

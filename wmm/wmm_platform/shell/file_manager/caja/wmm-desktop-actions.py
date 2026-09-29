@@ -6,10 +6,10 @@
 """
 WMM - Wallpaper Multi-Monitor Manager
 
-wmm-spanned-current.py - Caja Desktop Menu Provider
+wmm-desktop-actions.py - Caja Desktop Menu Provider
 ===================================================
-Añade al menú contextual del escritorio de Caja la acción
-"Span Current Image".
+Añade al menú contextual del escritorio de Caja el submenú
+WMM Manager con acciones sobre la imagen activa del monitor.
 
 La extensión obtiene la posición absoluta del evento que activa
 la acción y delega en el engine común de WMM la resolución del
@@ -28,7 +28,6 @@ gi.require_version("Gtk", "3.0")
 
 from gi.repository import Caja, GObject, Gtk
 
-
 # ==========================================================
 # RUTAS DE WMM
 # ==========================================================
@@ -37,18 +36,14 @@ APP_DIR = "@APP_DIR@"
 PYTHON3 = "@PYTHON3@"
 SEND_COMMAND = os.path.join(APP_DIR, "python", "send_command.py")
 
-
 # ==========================================================
 # TRADUCCIONES
 # ==========================================================
 APP_DOMAIN = "wmm@maki"
 LOCALE_DIR = os.path.join(DATA_BASE, "locale")
-
 gettext.bindtextdomain(APP_DOMAIN, LOCALE_DIR)
-
 def _(text):
     return gettext.dgettext(APP_DOMAIN, text)
-
 
 # ==========================================================
 # MENÚ CONTEXTUAL DEL ESCRITORIO
@@ -61,41 +56,65 @@ class WMMCajaExtension(Caja.MenuProvider, GObject.GObject):
     def _on_span_activate(self, _menu_item):
         """Envía al engine la posición absoluta desde la que se activa la acción."""
         event = Gtk.get_current_event()
-
         if event is None:
             return
-
         has_coords, x_root, y_root = event.get_root_coords()
-
         if not has_coords:
             return
-
         if not os.path.isfile(SEND_COMMAND):
             print(f"WMM Caja: send_command.py not found: {SEND_COMMAND}")
             return
+        command = json.dumps({ "action": "shell_spanned_current", "x": x_root, "y": y_root, })
+        try:
+            subprocess.Popen([PYTHON3, SEND_COMMAND, command])
+        except OSError as error:
+            print(f"WMM Caja: unable to execute action: {error}")
 
-        command = json.dumps({
-            "action": "shell_spanned_current",
-            "x": x_root,
-            "y": y_root,
-        })
-
+    def _on_favorite_activate(self, _menu_item):
+        """Añade a favoritos la imagen activa del monitor señalado por el clic."""
+        event = Gtk.get_current_event()
+        if event is None:
+            return
+        has_coords, x_root, y_root = event.get_root_coords()
+        if not has_coords:
+            return
+        if not os.path.isfile(SEND_COMMAND):
+            print(f"WMM Caja: send_command.py not found: {SEND_COMMAND}")
+            return
+        command = json.dumps({ "action": "shell_add_favorite_current", "x": x_root, "y": y_root, })
         try:
             subprocess.Popen([PYTHON3, SEND_COMMAND, command])
         except OSError as error:
             print(f"WMM Caja: unable to execute action: {error}")
 
     def get_background_items(self, window, _current_folder):
-        """Muestra la acción únicamente en el escritorio gestionado por Caja."""
+        """Muestra el submenú WMM únicamente en el escritorio gestionado por Caja."""
         if type(window).__name__ != "CajaDesktopWindow":
             return []
 
-        item = Caja.MenuItem(
-            name="WMMCaja::SpanCurrentImage",
-            label="WMM: " + _("Span Current Image"),
-            tip=_("Span the image currently shown on this monitor across all monitors"),
-            icon="view-fullscreen-symbolic",
-        )
-        item.connect("activate", self._on_span_activate)
+        submenu = Caja.Menu()
 
-        return [item]
+        span_item = Caja.MenuItem(
+            name="WMMCaja::SpanCurrentImage",
+            label=_("Span image across all active screens"),
+            tip=_("Span the image currently shown on this monitor across all monitors"),
+            icon="view-fullscreen-symbolic", )
+        span_item.connect("activate", self._on_span_activate)
+        submenu.append_item(span_item)
+
+        favorite_item = Caja.MenuItem(
+            name="WMMCaja::AddCurrentToFavorites",
+            label=_("Add to favorites"),
+            tip=_("Add the image currently shown on this monitor to favorites"),
+            icon="list-add", )
+        favorite_item.connect("activate", self._on_favorite_activate)
+        submenu.append_item(favorite_item)
+
+        manager_item = Caja.MenuItem(
+            name="WMMCaja::Menu",
+            label="WMM Manager",
+            tip="WMM Manager",
+            icon="video-display", )
+        manager_item.set_submenu(submenu)
+
+        return [manager_item]

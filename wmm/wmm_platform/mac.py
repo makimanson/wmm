@@ -127,7 +127,7 @@ def ensure_keybindings(app_dir):
     pass
 
 
-def init_channels():
+def init_channels(data_dir):
     """
     Registra los canales de comunicación soportados por macOS.
     TODO: Implementar canales (archivo, y posiblemente Apple Events).

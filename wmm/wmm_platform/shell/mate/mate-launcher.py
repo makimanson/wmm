@@ -35,8 +35,7 @@ wmm_applet_bus_name = "org.maki.wmm.MateApplet"
 taskbar_applets = (
     "ClockAppletFactory::ClockApplet",
     "NotificationAreaAppletFactory::NotificationArea",
-    "WnckletFactory::WindowListApplet",
-)
+    "WnckletFactory::WindowListApplet", )
 
 def _object_settings(object_id):
     return Gio.Settings.new_with_path(object_schema, f"{object_base_path}{object_id}/")
@@ -63,14 +62,13 @@ def _applet_is_alive():
         GLib.Variant("(s)", (wmm_applet_bus_name,)),
         GLib.VariantType.new("(b)"),
         Gio.DBusCallFlags.NONE,
-        1000, None
-    )
+        1000, None)
+
     return bool(reply.unpack()[0])
 
 def _get_active_object_id():
     """Consulta al frontend MATE qué object-id corresponde a la instancia activa."""
     bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-
     reply = bus.call_sync(
         wmm_applet_bus_name,
         "/org/maki/wmm/MateApplet",
@@ -78,8 +76,7 @@ def _get_active_object_id():
         "GetObjectId", None,
         GLib.VariantType.new("(s)"),
         Gio.DBusCallFlags.NO_AUTO_START,
-        1000, None
-    )
+        1000, None)
 
     return reply.unpack()[0] or None
 
@@ -101,18 +98,13 @@ def _find_taskbar(object_ids):
 
 def _next_position(object_ids, toplevel_id, right_stick):
     positions = []
-
     for object_id in object_ids:
         settings = _object_settings(object_id)
-
         if settings.get_string("toplevel-id") != toplevel_id:
             continue
-
         if settings.get_boolean("panel-right-stick") != right_stick:
             continue
-
         positions.append(settings.get_int("position"))
-
     return max(positions, default=-1) + 1
 
 def _object_id_is_used(object_id, object_ids):
@@ -260,8 +252,7 @@ def _wait_for_bus_name(bus_name, present, timeout_ms=10000):
         bus_name,
         Gio.DBusSignalFlags.NONE,
         on_owner_changed,
-        None
-    )
+        None)
 
     try:
         reply = bus.call_sync(
@@ -272,9 +263,7 @@ def _wait_for_bus_name(bus_name, present, timeout_ms=10000):
             GLib.Variant("(s)", (bus_name,)),
             GLib.VariantType.new("(b)"),
             Gio.DBusCallFlags.NONE,
-            1000,
-            None
-        )
+            1000, None)
 
         if bool(reply.unpack()[0]) == present:
             return True
@@ -294,7 +283,6 @@ def _wait_for_bus_name(bus_name, present, timeout_ms=10000):
 
         if timeout_id and not timeout_fired:
             GLib.source_remove(timeout_id)
-
 
 def _restore_applet_state(state):
     """Restaura el mismo objeto MATE retirado previamente."""
@@ -325,7 +313,6 @@ def _restore_applet_state(state):
 
     return 0
 
-
 def unload_applet():
     """
     Retira limpiamente el frontend MATE y devuelve el estado necesario
@@ -344,8 +331,7 @@ def unload_applet():
 
     if active_id not in wmm_ids:
         raise RuntimeError(
-            f"La instancia activa '{active_id}' no coincide con los objetos registrados."
-        )
+            f"La instancia activa '{active_id}' no coincide con los objetos registrados.")
 
     settings = _object_settings(active_id)
     state = {
@@ -373,14 +359,11 @@ def unload_applet():
 
     return state
 
-
 def reload_applet():
     """Retira y restaura el frontend MATE mediante su lifecycle nativo."""
     state = unload_applet()
-
     if state is None:
         return install_applet()
-
     return _restore_applet_state(state)
 
 def main():
@@ -388,23 +371,16 @@ def main():
         if len(sys.argv) > 1:
             if sys.argv[1] == "--reload":
                 return reload_applet()
-
             if sys.argv[1] == "--unload":
                 state = unload_applet()
-
                 if state is not None:
                     print(json.dumps(state, separators=(",", ":")))
-
                 return 0
-
             if sys.argv[1] == "--restore":
                 if len(sys.argv) != 3:
                     raise RuntimeError("--restore requiere el estado del applet.")
-
                 return _restore_applet_state(json.loads(sys.argv[2]))
-
             raise RuntimeError(f"Opción desconocida: {sys.argv[1]}")
-
         return install_applet()
     except Exception as error:
         print(f"[WMM MATE] Error del launcher: {error}", file=sys.stderr)
