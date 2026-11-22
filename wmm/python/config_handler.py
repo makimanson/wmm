@@ -69,10 +69,50 @@ class ConfigHandler:
         "sepia": N_("Sepia"),
         "bw": N_("Black and White")
     }
-    BACK_EFFECT = {
-        "blur": N_("Blur effect"),
-        "color": N_("Color")
+    BACK_EFFECT = {"blur": N_("Blur effect"), "color": N_("Color")}
+
+    # Posiciones disponibles para los metadatos EXIF.
+    METADATA_POSITIONS = {
+        "top_left": N_("Top-left corner"),
+        "bottom_left": N_("Bottom-left corner"),
+        "top_right": N_("Top-right corner"),
+        "bottom_right": N_("Bottom-right corner")
     }
+    # Catálogo común para selección y representación de metadatos EXIF.
+    # Las claves son estables y las etiquetas se traducen en el consumidor.
+    METADATA_FIELD_GROUPS = (
+        (N_("Image"), (
+            ("filename", N_("Filename without extension")),
+            ("directory", N_("Folder")),
+            ("IFD0.XPTitle", N_("Title")),
+            ("IFD0.ImageDescription", N_("Description")),
+            ("IFD0.XPComment", N_("Comment")),
+            ("IFD0.XPSubject", N_("Subject")))),
+
+        (N_("Author"), (
+            ("IFD0.XPAuthor", N_("Author")),
+            ("IFD0.Copyright", N_("Copyright")),
+            ("IFD0.Artist", N_("Artist")))),
+
+        (N_("Source"), (
+            ("IFD0.Make", N_("Manufacturer")),
+            ("IFD0.Model", N_("Camera")),
+            ("Exif.LensModel", N_("Lens")),
+            ("IFD0.Software", N_("Software")))),
+
+        (N_("Dates"), (
+            ("Exif.DateTimeOriginal", N_("Date taken")),
+            ("Exif.DateTimeDigitized", N_("Date digitized")),
+            ("IFD0.DateTime", N_("EXIF modification date")),
+            ("GPSInfo.GPSDateStamp", N_("GPS date")))),
+
+        (N_("Geolocation"), (
+            ("Geolocation.country", N_("Country")),
+            ("Geolocation.region", N_("Region")),
+            ("Geolocation.city", N_("Locality")),
+            ("Geolocation.distance_km", N_("Distance")),
+            ("GPSInfo.AltitudeMeters", N_("Altitude"))))
+    )
     # ------------------------------------------------------------
     # Claves internas para motivos de ejecución (estables, no traducibles)
     # ------------------------------------------------------------
@@ -98,6 +138,7 @@ class ConfigHandler:
 
     # Órdenes externas (lo que envía el applet/panel en commands.json)
     CMD_UPDATE_TIMER    = "update_timer_settings"
+    CMD_SET_SELECTIVE_ROTATION = "set_selective_rotation"
     CMD_LOAD_BOOKMARK   = "load_bookmark"
     CMD_DELETE_BOOKMARK = "delete_bookmark"
     CMD_BOOKMARK_ADDED  = "bookmark_added"
@@ -107,6 +148,7 @@ class ConfigHandler:
     CMD_OPEN_PANEL      = "open_panel"
     CMD_ADD_BOOKMARK    = "add_bookmark"
     CMD_OPEN_HELP       = "open_help"
+    CMD_OPEN_KEYBINDING = "open_keybinding"
     CMD_OPEN_ABOUT      = "open_about"
     CMD_SHELL_SEND_TO = "shell_send_to_monitor"
     CMD_SHELL_ADD_FAV = "shell_add_favorite"
@@ -114,6 +156,8 @@ class ConfigHandler:
     CMD_SHELL_SPANNED_CURRENT = "shell_spanned_current"
     CMD_SHELL_SPANNED_IMAGE = "shell_spanned_image"
     CMD_APPLY_SELECTION = "apply_manual_selection"
+    CMD_APPLY_EDIT_PREVIEW = "apply_edit_preview"
+    CMD_SET_METADATA_ENABLED = "set_metadata_enabled"
 
     def __init__(self, cache_base_dir=None, platform=None):
         """
@@ -154,8 +198,7 @@ class ConfigHandler:
             self.cache_dir = cache_base_dir
         else:
             self.cache_dir = os.path.join(self.app_root, "cache")
-        log_event(f"[DIAG] ConfigHandler: cache_base_dir={cache_base_dir!r}, cache_dir={self.cache_dir!r}",
-            origin="CONFIG", level="DEBUG", reason="SETTINGS")
+
         # Rutas derivadas de la caché
         self.master_canvas = os.path.join(self.cache_dir, "wallpaper_master.jpg")
         self.thumbnails_dir = os.path.join(self.cache_dir, "thumbnails")
@@ -184,11 +227,17 @@ class ConfigHandler:
             "settings":          os.path.join(self.data_dir, "settings.json"),
             "mfg_codes":         os.path.join(self.data_dir, "monitor_mfg.json"),
             "cache":             os.path.join(self.data_dir, "image_cache.json"),
+            "online_origins":    os.path.join(self.data_dir, "image_online.json"),
             "index":             os.path.join(self.data_dir, "scan_index.json"),
             "sources":           os.path.join(self.data_dir, "sources.json"),
             "vault":             os.path.join(self.data_dir, "monitor_vault.json"),
             "geometry":          os.path.join(self.data_dir, "geometry.json"),
-            "history":           os.path.join(self.data_dir, "history.json"),
+            "rotation_h":        os.path.join(self.data_dir, "rotation_h.json"),
+            "rotation_v":        os.path.join(self.data_dir, "rotation_v.json"),
+            "sel_rotation_h":    os.path.join(self.data_dir, "sel_rotation_h.json"),
+            "sel_rotation_v":    os.path.join(self.data_dir, "sel_rotation_v.json"),
+            "bm_rotation_h":     os.path.join(self.data_dir, "bookmark_rotation_h.json"),
+            "bm_rotation_v":     os.path.join(self.data_dir, "bookmark_rotation_v.json"),
             "history_vault":     os.path.join(self.data_dir, "history_vault.json"),
             "history_presets":   os.path.join(self.data_dir, "history_presets.json"),
             "commands":          os.path.join(self.data_dir, "commands.json"),
@@ -202,6 +251,8 @@ class ConfigHandler:
         # Garantiza que todos los directorios y archivos JSON existan.
         # Si es la primera ejecución, los crea con valores por defecto.
         self.ensure_structure()
+        self._retire_legacy_rotation_history()
+        self._retire_legacy_bookmark_history()
 
         # Configurar el sistema de traducciones.
         initialize(self._platform)
@@ -222,6 +273,7 @@ class ConfigHandler:
                     "slideshow_enabled": True,
                     "slideshow_mode": "sync",
                     "slideshow_bookmark": False,
+                    "selective_rotation_enabled": False,
                     "slideshow_interval": 15,
                     "slideshow_max_interval": 60,
                     "wallpaper_mode": "fit",
@@ -237,6 +289,45 @@ class ConfigHandler:
                     "gradient_h": ["#000000", "#8D9797"],
                     "gradient_v": ["#000000", "#8D9797"],
                     "monitor_group_align": "CENTER",
+
+                    # Aceptación informada del uso de recursos externos.
+                    # La omisión del aviso requiere confirmación expresa.
+                    "online_responsible_use_accepted": False,
+                    "online_responsible_use_dont_show_again": False,
+
+                    # Campos EXIF iniciales para mostrar la funcionalidad.
+                    # Solo se aplican al crear settings.json; las selecciones
+                    # posteriores del usuario permanecen bajo su control.
+                    "exif_metadata_enabled": True,
+                    "exif_metadata_position": "bottom_left",
+                    "exif_metadata_font": "Sans Oblique 12",
+                    "exif_metadata_fields": [
+                        # Image
+                        "IFD0.XPTitle",
+                        "IFD0.ImageDescription",
+                        "IFD0.XPComment",
+                        "IFD0.XPSubject",
+
+                        # Author
+                        "IFD0.Copyright",
+
+                        # Source
+                        "IFD0.Make",
+                        "IFD0.Model",
+                        "Exif.LensModel",
+                        "IFD0.Software",
+
+                        # Dates
+                        "Exif.DateTimeOriginal",
+                        "IFD0.DateTime",
+
+                        # Geolocation
+                        "Geolocation.country",
+                        "Geolocation.region",
+                        "Geolocation.city",
+                        "Geolocation.distance_km",
+                        "GPSInfo.AltitudeMeters"
+                    ],
                 }
             },
             "sources": {"sources": []},
@@ -245,11 +336,12 @@ class ConfigHandler:
                 "active_composition": {},
                 "history": {}
             },
-            "history": {"last_update": 0, "history_log": []},
-            "history_vault": {"last_update": 0, "log": []},
             "history_presets": {"last_update": 0, "log": []},
             "cache": {"folders": {}},
+            "online_origins": {},
             "index": {},
+            "sel_rotation_h": [],
+            "sel_rotation_v": [],
             "commands": {},
             "bookmarks": {},
             "bookmarks_single": []
@@ -260,11 +352,10 @@ class ConfigHandler:
             if not os.path.exists(self.files[key]):
                 self.save_json(key, default_content)
 
-        # --- MIGRACIÓN DE scan_index AL MODELO LÓGICO BOOLEANO ---
-        # El formato histórico [folder_mtime, active] deja de ser necesario:
-        # scan_index conserva únicamente estructura conocida + Active/Inactive.
-        # Esta es la única frontera que interpreta formatos legacy;
-        # el runtime normal trabaja exclusivamente con estados booleanos.
+        # --- COMPATIBILIDAD Y MIGRACIÓN DE scan_index ---
+        # Se conservan los booleanos actuales y el nuevo par
+        # [active, selective]. Sólo se migra el formato histórico
+        # [folder_mtime, active], cuya primera posición no es booleana.
         index_data = self.load_json("index")
         index_migrated = False
 
@@ -272,26 +363,40 @@ class ConfigHandler:
             if isinstance(entry, bool):
                 continue
 
+            if (isinstance(entry, list) and len(entry) == 2
+                    and isinstance(entry[0], bool)
+                    and isinstance(entry[1], bool)):
+                continue
+
             if isinstance(entry, list) and len(entry) > 1:
+                # Formato legacy: [folder_mtime, active].
                 index_data[path] = bool(entry[1])
             else:
-                # Formato legacy anterior sin estado explícito:
-                # históricamente se consideraba activo.
+                # Formato legacy sin estado explícito: Active.
                 index_data[path] = True
 
             index_migrated = True
 
         if index_migrated:
             self.save_json("index", index_data)
-            log_event(
-                f"scan_index migrado a formato booleano: {len(index_data)} entradas",
-                origin="CONFIG", level="INFO", reason="LIBRARY"
-            )
+            log_event(f"scan_index migrado desde formato legacy: {len(index_data)} entradas",
+                origin="CONFIG", level="INFO", reason="LIBRARY")
 
         # --- BLOQUE DE MIGRACIÓN Y GESTIÓN DE FUENTES ---
         sources_data = self.load_json("sources")
         settings_data = self.load_json("settings")
         global_conf = settings_data.get("global", {})
+
+        # Incorporar las preferencias Online a instalaciones existentes
+        # sin sobrescribir decisiones ya guardadas.
+        online_defaults = (
+            "online_responsible_use_accepted",
+            "online_responsible_use_dont_show_again"
+        )
+        if any(key not in global_conf for key in online_defaults):
+            for key in online_defaults:
+                global_conf.setdefault(key, False)
+            self.save_json("settings", settings_data)
 
         # 1. Migración: De settings.json -> sources.json
         # Extraemos la lista según tu JSON real
@@ -301,8 +406,10 @@ class ConfigHandler:
             log_event("Migrando fuentes a sources.json",
                 origin="CONFIG", level="INFO", reason="SETTINGS")
             for item in legacy_sources:
+
                 # Extraemos la ruta: en tu JSON es un dict con clave "path"
                 folder_path = item.get("path") if isinstance(item, dict) else item
+
                 # Extraemos la recursividad (si existe en el dict, si no, True por defecto)
                 is_recursive = item.get("recursive", True) if isinstance(item, dict) else True
 
@@ -346,9 +453,31 @@ class ConfigHandler:
             # Si existe pero no está el primero, podríamos reordenar aquí si fuera crítico
             pass
 
+        # Online es una fuente física del sistema. Su identidad es fija,
+        # pero su ubicación la elegirá posteriormente el usuario.
+        # Sin path todavía no participa en la sincronización.
+        if not any(s.get("id") == "online" for s in sources_data["sources"]):
+            online_source = {
+                "id": "online",
+                "name": "Online",
+                "path": "",
+                "type": "physical",
+                "locked": True,
+                "recursive": False
+            }
+
+            # Vault no aparece en Sources. Online será la primera fuente visible.
+            position = 1 if sources_data["sources"][0].get("id") == "vault" else 0
+            sources_data["sources"].insert(position, online_source)
+
+            log_event("Fuente del sistema 'Online' inicializada",
+                origin="CONFIG", level="INFO", reason="LIBRARY")
+
         self.save_json("sources", sources_data)
+
         # Sincronización final de metadatos al iniciar
         self.refresh_history_metadata()
+
         # --- VALIDACIÓN DE SINCRONIZACIÓN CRÍTICA ---
         #self.sync_bookmarks_flat_list()  <---- por el momento dejamos que la sincronización de favoritos sea un proceso "bajo demanda
 
@@ -518,25 +647,42 @@ class ConfigHandler:
             hist_p["parent_total"] = len(self.load_json("bookmarks"))
             self.save_json("history_presets", hist_p)
 
-            # 2. Vault (Sincronía con la lista plana de favoritos)
-            hist_v = self.load_json("history_vault")
-            hist_v["parent_total"] = len(self.load_json("bookmarks_single"))
-            self.save_json("history_vault", hist_v)
-
-            # 3. General (Sincronía con la caché completa)
-            hist_g = self.load_json("history")
-            h, v = self._get_cache_totals(self.load_json("cache"))
-            hist_g["parent_total"] = h + v
-            self.save_json("history", hist_g)
-
         except Exception as e:
             log_event(f"Error en refresh_metadata: {e}",
                 origin="CONFIG", level="ERROR", reason="LIBRARY")
+
+    def remember_absent_preset_images(self, preset_data, current_active_hashes):
+        """Conserva en history las imágenes de un preset para monitores ausentes.
+
+        No modifica active_session: sync_vault() recuperará esas asignaciones
+        cuando sus monitores reaparezcan.
+        """
+        vault = self.load_json("vault")
+        history = vault.setdefault("history", {})
+        present = set(current_active_hashes)
+        changed = False
+
+        for m_hash, entry in preset_data.items():
+            if m_hash.startswith("__") or m_hash in present:
+                continue
+            path = entry.get("path") if isinstance(entry, dict) else entry
+            if not path:
+                continue
+
+            active = entry.get("active", True) if isinstance(entry, dict) else True
+            assignment = {"path": path, "active": active}
+            if history.get(m_hash) != assignment:
+                history[m_hash] = assignment
+                changed = True
+
+        if changed:
+            self.save_json("vault", vault)
 
     def update_monitor_image(self, m_hash, image_path):
         """Actualiza la asociación de imagen para un monitor específico en la sesión activa."""
         vault = self.load_json("vault")
         if m_hash in vault["active_session"]:
+
             # Asegurar el nuevo formato (diccionario con path y active)
             if isinstance(vault["active_session"][m_hash], str):
                 vault["active_session"][m_hash] = {"path": vault["active_session"][m_hash], "active": True}
@@ -555,7 +701,18 @@ class ConfigHandler:
             return {}
         try:
             with open(self.files[key], 'r', encoding='utf-8') as f:
-                return json.load(f)
+                data = json.load(f)
+
+            if key == "online_origins" and isinstance(data, dict):
+                # En disco usamos [provider, id, url]; los consumidores
+                # continúan trabajando con campos nombrados.
+                fields = ("provider", "id", "url")
+                return {path: dict(zip(fields, record))
+                    if isinstance(record, list) and len(record) == 3
+                    else record
+                    for path, record in data.items()}
+
+            return data
         except (json.JSONDecodeError, Exception) as e:
             log_event(f"Error cargando {key}: {e}",
                 origin="CONFIG", level="ERROR", reason="SETTINGS")
@@ -571,7 +728,10 @@ class ConfigHandler:
                 # Generamos el JSON estándar con indentación para procesar
                 raw_json = json.dumps(data, indent=4, ensure_ascii=False)
 
-                if key == "cache":
+                if key in ("cache", "rotation_h", "rotation_v",
+                        "sel_rotation_h", "sel_rotation_v",
+                        "bm_rotation_h", "bm_rotation_v"):
+
                     # Formato compacto actual: ["ruta", w, h, mtime_ns]
                     compact_json = re.sub(
                         r'\[\s+"([^"]+)",\s+(\d+),\s+(\d+),\s+(\d+)\s+\]',
@@ -610,11 +770,82 @@ class ConfigHandler:
                         r'"gradient_v": [\1, \2]',
                         compact_json
                     )
+                    # Mantener compactas las estructuras breves de atajos y ventanas.
+                    # Las selecciones EXIF y los demás bloques siguen verticales.
+                    compact_json = re.sub(
+                        r'("modifiers": )(\[\s*(?:"(?:\\.|[^"\\])*"\s*,?\s*)*\])',
+                        lambda match: match.group(1) + json.dumps(
+                            json.loads(match.group(2)), ensure_ascii=False),
+                        compact_json
+                    )
+                    compact_json = re.sub(
+                        r'("window_size": )\{\s*("width": \d+),\s*("height": \d+)\s*\}',
+                        r'\1{\2, \3}',
+                        compact_json
+                    )
+                    compact_json = re.sub(
+                        r'("window_size": )\[\s*(\d+),\s*(\d+)\s*\]',
+                        r'\1[\2, \3]',
+                        compact_json
+                    )
                     f.write(compact_json)
+
+                elif key == "index":
+                    # Compactar los dos estados de cada carpeta en una línea.
+                    compact_json = re.sub(
+                        r'\[\s*(true|false),\s*(true|false)\s*\]',
+                        r'[\1, \2]',
+                        raw_json
+                    )
+                    f.write(compact_json)
+
+                elif key == "online_origins":
+                    # Contrato persistente: [provider, id, url].
+                    # Los consumidores conservan los campos nombrados.
+                    entries = []
+
+                    for path, origin in data.items():
+                        if (isinstance(origin, dict)
+                                and set(origin) == {"provider", "id", "url"}):
+                            origin = [
+                                origin["provider"], origin["id"], origin["url"]
+                            ]
+
+                        # Conservar registros desconocidos sin descartarlos
+                        # durante una escritura posterior.
+                        entries.append(
+                            f'    {json.dumps(path, ensure_ascii=False)}: '
+                            f'{json.dumps(origin, ensure_ascii=False)}'
+                        )
+
+                    f.write("{\n" + ",\n".join(entries) + "\n}" if entries else "{}")
 
                 else:
                     # Index, vault, geometry, etc. (Formato expandido estándar)
                     f.write(raw_json)
+
+            # EXIF es un derivado de image_cache, nunca su autoridad.
+            # Lanzar sólo después de cerrar el archivo y sin bloquear
+            # al llamante (Panel, Sync o motor).
+            if key == "cache":
+                exif_script = os.path.join(self.base_dir, "exif_cache.py")
+                if os.path.isfile(exif_script):
+                    try:
+                        # El dispatcher compilado espera el script como primer
+                        # argumento; -B sólo corresponde al intérprete Python.
+                        command = [sys.executable, exif_script, self.data_dir]
+                        if not getattr(sys, "frozen", False):
+                            command.insert(1, "-B")
+
+                        subprocess.Popen(command,
+                            stdin=subprocess.DEVNULL,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+
+                    except OSError as error:
+                        log_event(f"No se pudo iniciar EXIF: {error}",
+                            origin="CONFIG", level="WARN", reason="LIBRARY")
 
         except Exception as e:
             log_event(f"Error al guardar {key}: {e}",
@@ -623,13 +854,15 @@ class ConfigHandler:
         # --- PERSISTENCIA DE ESTADOS ---
 
     def get_index_active(self, path, index=None, default=True):
-        """Retorna el estado lógico Active de una ruta de scan_index."""
+        """Retorna Active desde el índice booleano o de dos estados."""
         if index is None:
             index = self.load_json("index")
 
-        return index.get(path, default)
-        # scan_index ya está normalizado a path -> bool;
-        # la compatibilidad legacy queda confinada a ensure_structure().
+        state = index.get(path, default)
+
+        # El primer valor conserva la autoridad Active/Inactive.
+        # El segundo pertenece exclusivamente a rotación selectiva.
+        return state[0] if isinstance(state, list) else state
 
     def update_source_recursive(self, path, state):
         """Actualiza el modo recursivo de una raíz en sources.json."""
@@ -655,9 +888,11 @@ class ConfigHandler:
             if folder == root or folder in index:
                 continue
             index[folder] = True
+
             # Descubrir estructura no materializa imágenes:
             # la carpeta nace conocida y activa; Sync resolverá su cache.
             added += 1
+
         if added:
             self.save_json("index", index)
             log_event(f"Subcarpetas descubiertas: {root_path} ({added})",
@@ -666,39 +901,124 @@ class ConfigHandler:
         return added
 
     def update_index_active_state(self, path, state):
-        """Cambia el estado de activación de una ruta conocida en scan_index."""
+        """Cambia Active sin alterar la selección de rotación."""
         index = self.load_json("index")
-        if path in index:
-            index[path] = state
-            # scan_index conserva sólo estado lógico;
-            # la frescura física pertenece exclusivamente a image_cache.
+        if path not in index:
+            return False
+
+        # Capturar la elegibilidad anterior antes de modificar Active.
+        # La marca Selective permanece independiente de este cambio.
+        cache = self.load_json("cache")
+        previous_selective = self._filter_selective_cache(cache, index)
+
+        entry = index[path]
+
+        if isinstance(entry, list):
+            entry[0] = bool(state)
+        else:
+            index[path] = bool(state)
+
+        self.save_json("index", index)
+
+        # Active cambia la elegibilidad, no la marca Selective.
+        # La reconciliación mantiene los historiales aunque el switch esté OFF.
+        current_selective = self._filter_selective_cache(cache, index)
+
+        if not self._reconcile_rotation_pools(
+                previous_selective, current_selective,
+                pool_keys=("sel_rotation_h", "sel_rotation_v")):
+            log_event("No se pudieron reconciliar los pools selectivos",
+                origin="CONFIG", level="ERROR", reason="LIBRARY")
+
+        return True
+
+    def set_index_selective_state(self, folder_path, state):
+        """Marca o desmarca una carpeta y toda su rama para rotación selectiva."""
+        index = self.load_json("index")
+        previous_index = index.copy()
+        root = os.path.normcase(os.path.normpath(folder_path))
+        prefix = root + os.sep
+        changed = False
+
+        for path, entry in index.items():
+            current = os.path.normcase(os.path.normpath(path))
+
+            if current != root and not current.startswith(prefix):
+                continue
+
+            active = entry[0] if isinstance(entry, list) else entry
+            selective = entry[1] if isinstance(entry, list) else False
+
+            if selective != state:
+                index[path] = [active, bool(state)]
+                changed = True
+
+        if changed:
+            cache = self.load_json("cache")
+
+            # La biblioteca no cambia al marcar carpetas.
+            # Cambia únicamente el conjunto elegible para rotación selectiva.
+            previous_selective = self._filter_selective_cache(cache, previous_index)
+            current_selective = self._filter_selective_cache(cache, index)
+
             self.save_json("index", index)
-            return True
-        return False
+
+            # Reutilizar la reconciliación H/V con autoridad independiente.
+            if not self._reconcile_rotation_pools(
+                    previous_selective, current_selective,
+                    pool_keys=("sel_rotation_h", "sel_rotation_v")):
+                log_event("No se pudieron reconciliar los pools selectivos",
+                    origin="CONFIG", level="ERROR", reason="LIBRARY")
+
+        return changed
 
     def toggle_all_children(self, parent_path, new_state):
         """Actualiza todos los hijos de una raíz en el scan_index."""
         index = self.load_json("index")
+
+        # La operación modifica varias entradas del índice en memoria.
+        # Capturar primero la elegibilidad selectiva de toda la rama.
+        cache = self.load_json("cache")
+        previous_selective = self._filter_selective_cache(cache, index)
         changed = False
 
-        # Normalización absoluta para evitar fallos con espacios o "/" finales
-        root = os.path.abspath(parent_path)
+        # El separador delimita la rama y evita incluir carpetas hermanas.
+        root = os.path.normcase(os.path.abspath(parent_path))
+        prefix = root if root.endswith(os.sep) else root + os.sep
 
         for path in index.keys():
-            current_path = os.path.abspath(path)
+            current_path = os.path.normcase(os.path.abspath(path))
 
-            # Verificamos si es un hijo (está dentro de la carpeta pero no es la carpeta misma)
-            if current_path.startswith(root) and current_path != root:
+            # Sólo descendientes reales; excluye la raíz y carpetas hermanas.
+            if current_path.startswith(prefix):
+
                 # Solo marcamos como cambiado si el estado es realmente distinto
                 if self.get_index_active(path, index) != new_state:
+
                 # El cambio masivo afecta sólo a Active/Inactive;
-                # no altera Recursive ni fuerza materialización inmediata.
-                    index[path] = new_state
+                # conserva la selección de rotación y no fuerza materialización.
+                    entry = index[path]
+                    if isinstance(entry, list):
+                        entry[0] = bool(new_state)
+                    else:
+                        index[path] = bool(new_state)
                     changed = True
 
         if changed:
             self.save_json("index", index)
-            log_event(f"Cambio masivo completado: {len(index)} entradas procesadas", origin="CONFIG", level="INFO", reason="SETTINGS")
+
+            # Una única reconciliación después de modificar toda la rama.
+            # Las marcas Selective permanecen intactas.
+            current_selective = self._filter_selective_cache(cache, index)
+
+            if not self._reconcile_rotation_pools(
+                    previous_selective, current_selective,
+                    pool_keys=("sel_rotation_h", "sel_rotation_v")):
+                log_event("No se pudieron reconciliar los pools selectivos",
+                    origin="CONFIG", level="ERROR", reason="LIBRARY")
+
+            log_event(f"Cambio masivo completado: {len(index)} entradas procesadas",
+                origin="CONFIG", level="INFO", reason="SETTINGS")
             return True
 
         # Si llegamos aquí sin cambios, es que no había hijos o ya estaban en ese estado
@@ -717,6 +1037,7 @@ class ConfigHandler:
             return 0
 
         lookup = {}
+
         # La ruta sigue siendo la identidad del favorito.
         # width / height / orientación son derivados del image_cache final.
         for folder_data in cache.get("folders", {}).values():
@@ -729,6 +1050,7 @@ class ConfigHandler:
                 continue
 
             info = lookup.get(entry[0])
+
             # Si la ruta no pertenece a la biblioteca materializada,
             # no tenemos autoridad para modificar sus metadatos.
             if info and entry[1:4] != info:
@@ -736,18 +1058,25 @@ class ConfigHandler:
                 updated += 1
 
         if updated:
-            self.save_json("bookmarks_single", current_list)
+            # La ruta conserva la identidad: cambiar dimensiones u
+            # orientación no debe reintroducir favoritos ya consumidos.
+            if not self.save_bookmarks_single(current_list):
+                log_event("No se pudo reconciliar la actualización de metadatos",
+                    origin="CONFIG", level="ERROR", reason="BOOKMARK")
+                return 0
+
             log_event(f"Metadatos de favoritos actualizados: {updated}",
                 origin="CONFIG", level="DEBUG", reason="BOOKMARK")
 
         return updated
-
 
     def sync_bookmarks_flat_list(self):
         """
         Actualiza la lista plana con las imágenes de los presets.
         No elimina las entradas existentes; solo añade las nuevas.
         """
+        from PIL import Image
+
         bookmarks = self.load_json("bookmarks")
         cache = self.load_json("cache")
 
@@ -764,6 +1093,10 @@ class ConfigHandler:
         # 3. Recorrer presets y añadir nuevas imágenes
         for bookmark_name, monitor_data in bookmarks.items():
             for monitor_id, path_entry in monitor_data.items():
+                # Los metadatos del preset no representan imágenes de monitor.
+                if monitor_id.startswith("__"):
+                    continue
+
                 # Extraer el path real si es un diccionario (nuevo formato)
                 if isinstance(path_entry, dict):
                     actual_path = path_entry.get("path", "") or ""
@@ -784,13 +1117,21 @@ class ConfigHandler:
                             w, h = img.size
                             orient = "h" if w >= h else "v"
                         entry = [actual_path, w, h, orient]
-                    except:
+                    except Exception as error:
+                        log_event(f"No se pudo incorporar a favoritos '{actual_path}' "
+                            f"desde el preset '{bookmark_name}': "
+                            f"{type(error).__name__}: {error}",
+                            origin="CONFIG", level="ERROR", reason="BOOKMARK")
                         continue
 
                 current_list.append(entry)
                 existing_paths.add(actual_path)
 
-        self.save_json("bookmarks_single", current_list)
+        if not self.save_bookmarks_single(current_list):
+            log_event("No se pudo sincronizar la lista plana de favoritos",
+                origin="CONFIG", level="ERROR", reason="BOOKMARK")
+            return
+
         # Este método sólo incorpora rutas nuevas.
         # Los metadatos de favoritos existentes se refrescan desde image_cache
         # mediante _refresh_bookmarks_single_metadata() durante Sync.
@@ -809,14 +1150,18 @@ class ConfigHandler:
         # Filtramos: Solo mantenemos lo que os.path.exists confirme
         new_list = [item for item in flat_list if item[0] and os.path.exists(item[0])]
 
-        # Si el tamaño ha cambiado, es que había "paja"
+        # La limpieza también debe retirar las imágenes de los
+        # pendientes H/V, sin reiniciar las rondas existentes.
         if len(new_list) != len(flat_list):
             num_removed = len(flat_list) - len(new_list)
-            self.save_json("bookmarks_single", new_list)
+
+            if not self.save_bookmarks_single(new_list):
+                log_event("No se pudo completar el mantenimiento de favoritos",
+                    origin="CONFIG", level="ERROR", reason="BOOKMARK")
+                return
+
             log_event(f"Limpieza: {num_removed} favoritos eliminados (no existen en disco)",
                 origin="CONFIG", level="INFO", reason="BOOKMARK")
-        else:
-            log_event("Lista de favoritos verificada: sin huérfanos", origin="CONFIG", level="INFO", reason="BOOKMARK")
 
     def save_current_state_as_bookmark(self, bookmark_name, current_state):
         """
@@ -912,9 +1257,14 @@ class ConfigHandler:
             primary_hash = None
             for h, info in monitors.items():
                 if info.get("primary", False):
-                    primary_hash = h
+                    entry = preset_data.get(h)
+                    path = entry.get("path", "") if isinstance(entry, dict) else entry
+                    if path:
+                        primary_hash = h
                     break
-            # Si no hay principal, buscar el primer monitor con imagen
+
+            # Sin imagen en el principal, preservar el origen existente,
+            # aunque pertenezca a un monitor temporalmente desconectado.
             if primary_hash is None:
                 for h, entry in preset_data.items():
                     if h.startswith("__"):
@@ -954,6 +1304,31 @@ class ConfigHandler:
             return True
         return False
 
+    def save_bookmarks_single(self, bookmarks):
+        """Guarda favoritos y reconcilia sus pendientes H/V."""
+        previous = self.load_json("bookmarks_single")
+
+        if previous == bookmarks:
+            return True
+
+        # Migrar primero desde el estado anterior, si procede.
+        if not self._initialize_bookmark_rotation_pools():
+            return False
+
+        self.save_json("bookmarks_single", bookmarks)
+
+        if self.load_json("bookmarks_single") != bookmarks:
+            log_event("No se pudo verificar la escritura de bookmarks",
+                origin="CONFIG", level="ERROR", reason="BOOKMARK")
+            return False
+
+        if not self._reconcile_bookmark_rotation_pools(previous, bookmarks):
+            log_event("No se pudieron reconciliar los pools de bookmarks",
+                origin="CONFIG", level="ERROR", reason="BOOKMARK")
+            return False
+
+        return True
+
     def add_to_favorites(self, img_path):
         """Añade una imagen a la lista plana de favoritos (bookmarks_single_list.json)."""
         flat_list = self.load_json("bookmarks_single")
@@ -965,7 +1340,10 @@ class ConfigHandler:
             return False  # no se pudo procesar la imagen
 
         flat_list.append([img_path, w, h, orient])
-        self.save_json("bookmarks_single", flat_list)
+
+        if not self.save_bookmarks_single(flat_list):
+            return False
+
         self.refresh_history_metadata()
         return True
 
@@ -973,10 +1351,13 @@ class ConfigHandler:
         """Elimina una imagen de la lista plana de favoritos (bookmarks_single_list.json)."""
         flat_list = self.load_json("bookmarks_single")
         new_list = [entry for entry in flat_list if entry[0] != img_path]
+
         if len(new_list) != len(flat_list):
-            self.save_json("bookmarks_single", new_list)
+            if not self.save_bookmarks_single(new_list):
+                return False
             self.refresh_history_metadata()
             return True
+
         return False
 
         # --- ENTRADA DE MOTOR ---
@@ -1087,8 +1468,12 @@ class ConfigHandler:
 
                     active_folders[root] = True
             else:
-                # Fuente no recursiva: solo la raíz
-                active_folders[root_path] = True
+                # Una fuente no recursiva también pertenece al índice lógico.
+                # Sin esta entrada, su caché no coincide con el ámbito de Sources.
+                scan_index.setdefault(root_path, True)
+
+                if self.get_index_active(root_path, scan_index):
+                    active_folders[root_path] = True
 
         # --- 3. PREPARACIÓN DE RECONCILIACIÓN FÍSICA ---
         full_cache = self.load_json("cache")
@@ -1099,6 +1484,7 @@ class ConfigHandler:
         # _reconcile_folder_cache() determina qué imágenes están
         # intactas, nuevas, modificadas, eliminadas o son legacy.
         folders_to_reconcile = list(active_folders)
+
         # No existe ya un gate de frescura por directorio:
         # todas las activas se inspeccionan y mtime_ns decide por imagen.
 
@@ -1107,17 +1493,19 @@ class ConfigHandler:
         # que simplemente están desactivadas (hijos inactivos).
         deleted_folders = []
         inactive_folders = []
+
         # Inactive conserva identidad en scan_index y sólo pierde materialización.
         # Deleted pierde además su entrada lógica porque ya no pertenece al ámbito.
         for f in scan_index:
+
         # Una carpeta fuera del conjunto activo no significa necesariamente Deleted:
         # si sigue cubierta y está Inactive, conserva su identidad lógica.
             if f not in active_folders:
                 is_inactive = not self.get_index_active(f, scan_index)
                 if is_inactive:
-                    # Si la carpeta inactiva ya no está cubierta por ninguna
-                    # fuente recursiva, pasa a considerarse eliminada.
-                    if not self._is_covered_by_any_recursive_source(f, sources_data):
+                    # Inactive conserva identidad mientras exista una Source
+                    # que cubra la ruta, también si no es recursiva.
+                    if not self._is_covered_by_any_source(f, sources_data):
                         deleted_folders.append(f)
                     else:
                         inactive_folders.append(f)
@@ -1125,6 +1513,13 @@ class ConfigHandler:
                     deleted_folders.append(f)
             elif not self.get_index_active(f, scan_index):
                 inactive_folders.append(f)
+
+        # Una Source no recursiva antigua podía materializar caché sin
+        # registrarse en scan_index. Limpiar esas entradas cuando ya no
+        # pertenecen al ámbito físico activo.
+        for f in full_cache["folders"]:
+            if f not in active_folders and f not in scan_index:
+                deleted_folders.append(f)
 
         # Mantenimiento de Favoritos y Metadatos
         self.maintenance_flat_list()
@@ -1134,7 +1529,7 @@ class ConfigHandler:
         active_count = len(active_folders)
         inactive_count = len(inactive_folders)
         deleted_count = len(deleted_folders)
-        if active_count > 0 or inactive_count > 0 or deleted_count > 0:
+        if inactive_count or deleted_count:
             log_event(f"Carpetas: {active_count} activas, {inactive_count} desactivadas, {deleted_count} eliminadas",
                       origin="CONFIG", level="DEBUG", reason="LIBRARY")
 
@@ -1157,6 +1552,7 @@ class ConfigHandler:
                 'deleted_folders': deleted_folders,
                 'inactive_folders': inactive_folders,
                 'full_cache': full_cache,
+                'previous_cache': {"folders": full_cache["folders"].copy()},
                 'extensions': extensions,
                 'scan_index': scan_index,
                 'stats': {"added_h": 0, "added_v": 0, "removed_h": 0, "removed_v": 0, "modified": 0},
@@ -1176,16 +1572,26 @@ class ConfigHandler:
         # --- 4. PROCESAMIENTO QUIRÚRGICO DE CAMBIOS ---
         full_cache = self.load_json("cache")
         if "folders" not in full_cache: full_cache = {"folders": {}}
+
+        # Preservar las carpetas anteriores antes de migrar o reconciliar.
+        # Sus rutas permiten distinguir altas de imágenes ya consumidas.
+        previous_cache = {"folders": full_cache["folders"].copy()}
+
         stats = {"added_h": 0, "added_v": 0, "removed_h": 0, "removed_v": 0, "modified": 0}
+
+        # Migrar sobre la caché definitiva, antes de reconciliar por mtime_ns.
+        migrated, invalidated, migration_ok = self._migrate_exif_orientation_cache(full_cache)
 
         # A. Limpieza de carpetas eliminadas o desactivadas
         for f in deleted_folders:
+
         # Deleted elimina materialización y estado lógico:
         # la carpeta ya no pertenece al ámbito actual de Sources.
             # 1. Poda del Caché: Se elimina siempre para no mostrar fotos "apagadas"
             if f in full_cache["folders"]:
                 stats["removed_h"] += len(full_cache["folders"][f]['h'])
                 stats["removed_v"] += len(full_cache["folders"][f]['v'])
+
                 # Limpiar miniaturas asociadas antes de eliminar la carpeta de la caché
                 log_event(f"Eliminando caché de carpeta inactiva: {f}",
                     origin="CONFIG", level="DEBUG", reason="LIBRARY")
@@ -1194,15 +1600,18 @@ class ConfigHandler:
 
             # 2. BISTURÍ EN EL ÍNDICE: Eliminar la entrada siempre que la carpeta
             #    no esté activa, independientemente de si existe en disco.
-            del scan_index[f]
-            log_event(f"Entrada de índice eliminada: {f}",
-                origin="CONFIG", level="DEBUG", reason="LIBRARY")
+            # Una caché huérfana puede carecer de entrada en el índice.
+            if f in scan_index:
+                del scan_index[f]
+                log_event(f"Entrada de índice eliminada: {f}",
+                    origin="CONFIG", level="DEBUG", reason="LIBRARY")
 
         # A.2 Limpieza diferida de carpetas hijas desactivadas.
         # Se eliminan su caché de imágenes y sus thumbnails, pero se conserva
         # scan_index con active=False para mantener la carpeta visible y permitir
         # que una futura reactivación fuerce su reconstrucción.
         for f in inactive_folders:
+
         # Inactive elimina sólo cache y thumbnails:
         # scan_index conserva la ruta y su estado False para una futura reactivación.
             if f in full_cache["folders"]:
@@ -1231,15 +1640,37 @@ class ConfigHandler:
         # después la estructura lógica Active/Inactive.
         self.save_json("cache", full_cache)
         self.save_json("index", scan_index)
+        self._reconcile_online_origins(full_cache)
 
         # La caché final ya es autoritativa: actualizar ahora parent_total evita
         # conservar el total previo a la reconciliación recién completada.
         self.refresh_history_metadata()
 
-        log_event(f"Índice guardado: {len(scan_index)} entradas",
-            origin="CONFIG", level="DEBUG", reason="LIBRARY")
+        # Los pools existentes se reconcilian diferencialmente.
+        # La primera generación conserva la migración legacy.
+        if (os.path.isfile(self.files["rotation_h"]) and
+                os.path.isfile(self.files["rotation_v"])):
+            if not self._reconcile_rotation_pools(previous_cache, full_cache):
+                log_event("No se pudieron reconciliar los pools H/V",
+                    origin="CONFIG", level="ERROR", reason="LIBRARY")
+        elif not self._initialize_rotation_pools(full_cache):
+            log_event("No se pudieron inicializar los pools H/V",
+                origin="CONFIG", level="ERROR", reason="LIBRARY")
 
-        if stats["modified"] > 0:
+        # --- Reconciliación selectiva ---
+        # El mismo maestro alimenta ambas autoridades; scan_index
+        # delimita las carpetas Active + Selective.
+        # No se reponen imágenes consumidas durante esta ronda.
+        previous_selective = self._filter_selective_cache(previous_cache, scan_index)
+        current_selective = self._filter_selective_cache(full_cache, scan_index)
+
+        if not self._reconcile_rotation_pools(
+                previous_selective, current_selective,
+                pool_keys=("sel_rotation_h", "sel_rotation_v")):
+            log_event("No se pudieron reconciliar los pools selectivos",
+                origin="CONFIG", level="ERROR", reason="LIBRARY")
+
+        if stats["modified"] > 0 or migrated:
             self._refresh_bookmarks_single_metadata(full_cache)
 
         detail_msg = self._notify_detailed_changes(stats, full_cache)  # Ahora devuelve el detalle o None
@@ -1249,7 +1680,9 @@ class ConfigHandler:
             stats["added_v"] > 0,
             stats["removed_h"] > 0,
             stats["removed_v"] > 0,
-            stats["modified"] > 0
+            stats["modified"] > 0,
+            migrated > 0,
+            invalidated > 0
         ))
         return h, v, has_changes, detail_msg
 
@@ -1266,14 +1699,18 @@ class ConfigHandler:
             folders = state['folders_to_reconcile']
             full_cache = state['full_cache']
             stats = state['stats']
+
+            # La migración EXIF también pertenece al worker, nunca a GTK.
+            migrated, invalidated, migration_ok = self._migrate_exif_orientation_cache(full_cache)
+            state["exif_migration"] = (migrated, invalidated, migration_ok)
             total = len(folders)
 
             for i, folder in enumerate(folders):
+
                 # La UI sigue perteneciendo al main thread.
                 GLib.idle_add(state['on_folder'], folder)
 
-                old_folder_data = full_cache["folders"].get(
-                    folder, {"h": [], "v": []})
+                old_folder_data = full_cache["folders"].get(folder, {"h": [], "v": []})
                 new_folder_data, delta = self._reconcile_folder_cache(
                     folder, old_folder_data, state["extensions"])
 
@@ -1282,11 +1719,7 @@ class ConfigHandler:
                     stats[key] += delta[key]
 
                 # El progreso conserva su granularidad histórica: una carpeta.
-                GLib.idle_add(
-                    self._report_sync_worker_progress,
-                    i + 1,
-                    total
-                )
+                GLib.idle_add(self._report_sync_worker_progress, i + 1, total)
 
             # Sin carpetas que reconciliar sólo puede quedar cleanup pendiente.
             if not folders:
@@ -1333,12 +1766,38 @@ class ConfigHandler:
             # cache físico primero, índice lógico después.
             self.save_json("cache", full_cache)
             self.save_json("index", scan_index)
+            self._reconcile_online_origins(full_cache)
 
             # La caché final ya es autoritativa: actualizar ahora parent_total evita
             # conservar el total previo a la reconciliación recién completada.
             self.refresh_history_metadata()
 
-            if stats["modified"] > 0:
+            # Reconciliar los pendientes existentes o inicializarlos
+            # desde el maestro definitivo durante la primera ejecución.
+            if (os.path.isfile(self.files["rotation_h"]) and
+                    os.path.isfile(self.files["rotation_v"])):
+                if not self._reconcile_rotation_pools(state["previous_cache"], full_cache):
+                    log_event("No se pudieron reconciliar los pools H/V",
+                        origin="CONFIG", level="ERROR", reason="LIBRARY")
+            elif not self._initialize_rotation_pools(full_cache):
+                log_event("No se pudieron inicializar los pools H/V",
+                    origin="CONFIG", level="ERROR", reason="LIBRARY")
+
+            # --- Reconciliación selectiva ---
+            # Actualizar los pendientes desde el maestro consolidado,
+            # conservando las imágenes ya consumidas.
+            previous_selective = self._filter_selective_cache(state["previous_cache"], scan_index)
+            current_selective = self._filter_selective_cache(full_cache, scan_index)
+
+            if not self._reconcile_rotation_pools(
+                    previous_selective, current_selective,
+                    pool_keys=("sel_rotation_h", "sel_rotation_v")):
+                log_event("No se pudieron reconciliar los pools selectivos",
+                    origin="CONFIG", level="ERROR", reason="LIBRARY")
+
+            migrated, invalidated, migration_ok = state["exif_migration"]
+
+            if stats["modified"] > 0 or migrated:
                 self._refresh_bookmarks_single_metadata(full_cache)
 
             self._notify_detailed_changes(stats, full_cache)
@@ -1418,8 +1877,152 @@ class ConfigHandler:
         data["sources"] = sources_list # Actualizamos el diccionario original
         self.save_json("sources", data) # Guardamos el objeto completo
 
-        log_event(f"Fuente añadida: {name}", origin="CONFIG", level="INFO", reason="LIBRARY")
+        log_event(f"Fuente añadida: {name}",
+            origin="CONFIG", level="INFO", reason="LIBRARY")
         # self.sync_library() # La sincronización ahora se hace asíncronamente desde el panel
+        return True
+
+    def get_online_source_path(self):
+        """Consulta la ruta de Online sin modificar ni validar su configuración."""
+        sources = self.load_json("sources").get("sources", [])
+        return next((source.get("path") for source in sources
+                     if source.get("id") == "online"), None)
+
+    def record_online_origins(self, entries):
+        """Registra varias procedencias Online con una sola persistencia.
+
+        El lote contiene (ruta, item, url). Sólo admite originales
+        incorporados en Sources/Online; nunca previews temporales.
+        """
+        source = self.get_online_source_path()
+        if not source:
+            return set()
+
+        root = os.path.normcase(os.path.abspath(source))
+        origins = self.load_json("online_origins")
+        if not isinstance(origins, dict):
+            return set()
+
+        expected = {}
+        changed = False
+
+        for img_path, item, page_url in entries:
+            if (not isinstance(img_path, str)
+                    or not isinstance(item, dict)
+                    or not isinstance(page_url, str)
+                    or not page_url
+                    or not os.path.isfile(img_path)):
+                continue
+
+            path = os.path.normcase(os.path.abspath(img_path))
+            if os.path.dirname(path) != root:
+                continue
+
+            record = {
+                "provider": item.get("provider"),
+                "id": item.get("id"),
+                "url": page_url,
+            }
+            if not all(isinstance(value, str) and value
+                       for value in record.values()):
+                continue
+
+            expected[path] = record
+
+            if origins.get(path) != record:
+                origins[path] = record
+                changed = True
+
+        # El JSON se reescribe una sola vez, independientemente
+        # del número de originales incorporados en la operación.
+        if changed:
+            self.save_json("online_origins", origins)
+
+        # save_json registra sus propios errores sin propagarlos.
+        # Confirmar qué entradas quedaron realmente persistidas.
+        saved = self.load_json("online_origins")
+
+        return {path for path, record in expected.items()
+            if saved.get(path) == record}
+
+
+    def _reconcile_online_origins(self, cache):
+        """Retira procedencias de imágenes fuera de image_cache.
+
+        Inactive, Deleted y las bajas físicas comparten una frontera:
+        si la imagen deja de estar materializada, WMM deja de custodiar
+        su procedencia. No se consulta el disco ni se reconstruye después.
+        """
+        origins = self.load_json("online_origins")
+        if not isinstance(origins, dict) or not origins:
+            return
+
+        active_paths = {
+            os.path.normcase(os.path.abspath(entry[0]))
+            for folder in cache.get("folders", {}).values()
+            for orientation in ("h", "v")
+            for entry in folder.get(orientation, [])
+            if isinstance(entry, list) and entry
+            and isinstance(entry[0], str)
+        }
+
+        retained = {
+            path: record for path, record in origins.items()
+            if path in active_paths
+        }
+
+        if len(retained) != len(origins):
+            self.save_json("online_origins", retained)
+
+    def set_online_source_path(self, path):
+        """Configura la ubicación física de Online sin cambiar su identidad."""
+        if not path or not os.path.isdir(path):
+            return False
+
+        path = os.path.abspath(path)
+        data = self.load_json("sources")
+        sources = data.get("sources", [])
+        online = next((s for s in sources if s.get("id") == "online"), None)
+
+        if online is None:
+            return False
+
+        # No registrar dos fuentes físicas sobre el mismo directorio.
+        for source in sources:
+            other = source.get("path")
+            if (source.get("id") != "online"
+                    and source.get("type") == "physical"
+                    and other
+                    and os.path.normcase(os.path.abspath(other))
+                    == os.path.normcase(path)):
+                log_event(f"Directorio Online ya registrado como fuente: {path}",
+                    origin="CONFIG", level="WARN", reason="LIBRARY")
+                return False
+
+        if online.get("path") == path:
+            return True
+
+        online["path"] = path
+        self.save_json("sources", data)
+        log_event(f"Directorio Online configurado: {path}",
+            origin="CONFIG", level="INFO", reason="LIBRARY")
+        return True
+
+    def clear_online_source_path(self):
+        """Desvincula Online sin eliminar su identidad ni los archivos físicos."""
+        data = self.load_json("sources")
+        online = next((s for s in data.get("sources", [])
+            if s.get("id") == "online"), None)
+
+        if not online or not online.get("path"):
+            return False
+
+        old_path = online["path"]
+        online["path"] = ""
+        self.save_json("sources", data)
+
+        log_event(f"Directorio Online desvinculado: {old_path}",
+            origin="CONFIG", level="INFO", reason="LIBRARY")
         return True
 
     def remove_source(self, path):
@@ -1434,7 +2037,8 @@ class ConfigHandler:
         if len(sources_list) < original_count:
             data["sources"] = sources_list
             self.save_json("sources", data)
-            log_event(f"Fuente eliminada: {path}", origin="CONFIG", level="INFO", reason="LIBRARY")
+            log_event(f"Fuente eliminada: {path}",
+                origin="CONFIG", level="INFO", reason="LIBRARY")
             self.sync_library()
             return True
 
@@ -1448,14 +2052,37 @@ class ConfigHandler:
         y borra todas las miniaturas asociadas. Retorna True si se eliminó algo.
         """
         cache = self.load_json("cache")
+
         if "folders" not in cache:
             return False
+
         if folder_path in cache["folders"]:
-            # Borrar miniaturas antes de quitar la entrada
+            # Conservar el maestro anterior para retirar los pendientes
+            # de esta carpeta sin recuperar imágenes ya consumidas.
+            previous_cache = {"folders": cache["folders"].copy()}
+
+            # Borrar miniaturas antes de quitar la entrada.
             deleted = self._delete_thumbnails_for_folder(cache["folders"][folder_path])
             del cache["folders"][folder_path]
             self.save_json("cache", cache)
-            log_event(f"Carpeta purgada: {folder_path}", origin="CONFIG", level="INFO", reason="LIBRARY")
+            self._reconcile_online_origins(cache)
+
+            # La reconciliación retira únicamente las entradas afectadas.
+            # Mantener ambas autoridades coherentes también ante una purga directa.
+            # Desde Sources, la carpeta ya está Inactive y sus pendientes
+            # selectivos deberían haberse retirado al desactivarla.
+            index = self.load_json("index")
+            previous_selective = self._filter_selective_cache(previous_cache, index)
+            current_selective = self._filter_selective_cache(cache, index)
+
+            if not self._reconcile_rotation_pools(
+                    previous_selective, current_selective,
+                    pool_keys=("sel_rotation_h", "sel_rotation_v")):
+                log_event("No se pudieron reconciliar los pools selectivos",
+                    origin="CONFIG", level="ERROR", reason="LIBRARY")
+
+            log_event(f"Carpeta purgada: {folder_path}",
+                origin="CONFIG", level="INFO", reason="LIBRARY")
             return deleted
         return 0
 
@@ -1467,12 +2094,14 @@ class ConfigHandler:
     def has_child_cache(self, parent_path):
         """Retorna True si alguna carpeta hija conserva entrada en image_cache."""
         cache = self.load_json("cache")
-        root = os.path.abspath(parent_path)
 
-        return any(
-            os.path.abspath(path).startswith(root) and os.path.abspath(path) != root
-            for path in cache.get("folders", {})
-        )
+        # Delimitar descendientes por separador, no por prefijo de nombre.
+        # La propia carpeta y sus hermanas quedan excluidas.
+        root = os.path.normcase(os.path.abspath(parent_path))
+        prefix = root if root.endswith(os.sep) else root + os.sep
+
+        return any(os.path.normcase(os.path.abspath(path)).startswith(prefix)
+            for path in cache.get("folders", {}))
 
     def needs_sources_resync(self):
         """Retorna True si el estado materializado no coincide con el ámbito actual de Sources."""
@@ -1506,6 +2135,10 @@ class ConfigHandler:
         if "folders" not in cache:
             cache = {"folders": {}}
 
+        # Conservar las entradas anteriores para distinguir altas reales
+        # de imágenes ya consumidas durante la ronda actual.
+        previous_cache = {"folders": cache["folders"].copy()}
+
         new_h = []
         new_v = []
 
@@ -1530,10 +2163,24 @@ class ConfigHandler:
                     new_v.append([image_path, width, height, mtime_ns])
 
             cache["folders"][folder_path] = {"h": new_h, "v": new_v}
-            index[folder_path] = True
-
             self.save_json("cache", cache)
-            self.save_json("index", index)
+
+            # Actualizar los pendientes H/V con la carpeta materializada.
+            # Las imágenes ya consumidas conservan ese estado.
+            if not self._reconcile_rotation_pools(previous_cache, cache):
+                log_event("No se pudieron reconciliar los pools H/V",
+                    origin="CONFIG", level="ERROR", reason="LIBRARY")
+
+            # Reconciliar la misma materialización con la autoridad selectiva.
+            # El índice determina elegibilidad; no reinicia los consumidos.
+            previous_selective = self._filter_selective_cache(previous_cache, index)
+            current_selective = self._filter_selective_cache(cache, index)
+
+            if not self._reconcile_rotation_pools(
+                    previous_selective, current_selective,
+                    pool_keys=("sel_rotation_h", "sel_rotation_v")):
+                log_event("No se pudieron reconciliar los pools selectivos",
+                    origin="CONFIG", level="ERROR", reason="LIBRARY")
 
             total = len(new_h) + len(new_v)
             log_event(f"Carpeta materializada: {folder_path} ({total} imágenes)",
@@ -1589,6 +2236,95 @@ class ConfigHandler:
             log_event(f"No se pudo eliminar miniatura {thumb_path}: {e}",
                 origin="CONFIG", level="WARN", reason="LIBRARY")
             return False
+
+    def _migrate_exif_orientation_cache(self, cache):
+        """
+        Actualiza la orientación visual de entradas existentes.
+        Invalida sólo miniaturas afectadas por EXIF 2-8.
+        La marca de versión se confirma únicamente si no quedan fallos pendientes.
+        """
+        if cache.get("exif_orientation_version") == 1:
+            return 0, 0, True
+
+        from PIL import Image
+
+        reclassified = 0
+        invalidated = 0
+        pending = False
+
+        for folder_data in cache.get("folders", {}).values():
+            migrated = {"h": [], "v": []}
+
+            for old_orientation in ("h", "v"):
+                for entry in folder_data.get(old_orientation, []):
+                    # El formato legacy seguirá siendo responsabilidad
+                    # de la reconciliación existente.
+                    if not isinstance(entry, list) or len(entry) < 4:
+                        migrated[old_orientation].append(entry)
+                        continue
+
+                    path, saved_mtime = entry[0], entry[3]
+
+                    try:
+                        current_mtime = os.stat(path).st_mtime_ns
+                    except FileNotFoundError:
+                        # Sync eliminará la entrada desaparecida.
+                        migrated[old_orientation].append(entry)
+                        continue
+                    except OSError:
+                        pending = True
+                        migrated[old_orientation].append(entry)
+                        continue
+
+                    if current_mtime != saved_mtime:
+                        # Sync reprocesará esta versión modificada.
+                        migrated[old_orientation].append(entry)
+                        continue
+
+                    try:
+                        with Image.open(path) as img:
+                            exif_orientation = img.getexif().get(274, 1)
+                            width, height = img.size
+                    except (OSError, ValueError, TypeError, SyntaxError):
+                        pending = True
+                        migrated[old_orientation].append(entry)
+                        continue
+
+                    new_orientation = old_orientation
+
+                    if exif_orientation in (5, 6, 7, 8):
+                        width, height = height, width
+                        new_orientation = "h" if width >= height else "v"
+
+                    if exif_orientation in (2, 3, 4, 5, 6, 7, 8):
+                        thumb_path = os.path.join(self.thumbnails_dir,
+                            f"{hashlib.md5(path.encode()).hexdigest()}.jpg")
+
+                        if os.path.exists(thumb_path):
+                            if self._delete_thumbnail_for_image(path):
+                                invalidated += 1
+                            else:
+                                pending = True
+
+                        if new_orientation != old_orientation:
+                            reclassified += 1
+
+                        entry = [path, width, height, *entry[3:]]
+
+                    migrated[new_orientation].append(entry)
+
+            folder_data["h"] = migrated["h"]
+            folder_data["v"] = migrated["v"]
+
+        if not pending:
+            cache["exif_orientation_version"] = 1
+
+        log_event(f"Migración EXIF: {reclassified} reclasificadas, "
+            f"{invalidated} miniaturas invalidadas"
+            + (", con incidencias pendientes" if pending else ""),
+            origin="CONFIG", level="INFO", reason="LIBRARY")
+
+        return reclassified, invalidated, not pending
 
     def _reconcile_folder_cache(self, folder, folder_data, extensions):
         """
@@ -1842,10 +2578,13 @@ class ConfigHandler:
         if os.path.exists(log_path):
             with open(log_path, "r", encoding="utf-8") as f:
                 lines = f.readlines()
+
         # Añadir nueva entrada al principio
         lines.insert(0, entry)
+
         # Mantener solo las últimas 10
         lines = lines[:10]
+
         # Guardar
         with open(log_path, "w", encoding="utf-8") as f:
             f.writelines(lines)
@@ -1856,12 +2595,12 @@ class ConfigHandler:
         total_v = sum(len(d['v']) for d in cache.get("folders", {}).values())
         return total_h, total_v
 
-    def get_flat_lists(self):
+    def get_flat_lists(self, cache=None):
         """
         Extrae todas las imágenes del caché y las devuelve en dos listas planas (H y V).
         Cada elemento de la lista es: [ruta, ancho, alto].
         """
-        full_cache = self.load_json("cache")
+        full_cache = self.load_json("cache") if cache is None else cache
         h_list = []
         v_list = []
 
@@ -1870,6 +2609,238 @@ class ConfigHandler:
             v_list.extend(folder_data.get("v", []))
 
         return h_list, v_list
+
+    def _filter_selective_cache(self, cache, index):
+        """
+        Obtiene la vista selectiva de la biblioteca materializada.
+
+        Sólo participan carpetas Active y marcadas en scan_index.
+        La vista no modifica image_cache ni los historiales.
+        """
+        selected = {}
+
+        for folder_path, folder_data in cache.get("folders", {}).items():
+            state = index.get(folder_path)
+
+            if (isinstance(state, list) and len(state) == 2
+                    and state[0] and state[1]):
+                selected[folder_path] = folder_data
+
+        return {"folders": selected}
+
+    def _get_bookmark_rotation_lists(self, bookmarks=None):
+        """
+        Extrae los favoritos individuales por orientación.
+        bookmarks_single_list.json es el maestro; estos datos no
+        dependen de Sources ni de sus marcas selectivas.
+        """
+        h_list = []
+        v_list = []
+
+        # Permite comparar dos estados del maestro sin releerlo.
+        if bookmarks is None:
+            bookmarks = self.load_json("bookmarks_single")
+
+        for entry in bookmarks:
+            if not isinstance(entry, list) or len(entry) < 4:
+                continue
+
+            if entry[3] == "h":
+                h_list.append(entry[:3])
+            elif entry[3] == "v":
+                v_list.append(entry[:3])
+
+        return h_list, v_list
+
+    def _reconcile_bookmark_rotation_pools(self, previous_bookmarks, current_bookmarks):
+        """
+        Reconcilia los pendientes de favoritos mediante el mismo
+        mecanismo H/V que utilizan las otras autoridades.
+        """
+        def as_cache(bookmarks):
+            h_list, v_list = self._get_bookmark_rotation_lists(bookmarks)
+            return {"folders": {"bookmarks": {"h": h_list, "v": v_list}}}
+
+        return self._reconcile_rotation_pools(
+            as_cache(previous_bookmarks),
+            as_cache(current_bookmarks),
+            pool_keys=("bm_rotation_h", "bm_rotation_v"))
+
+    def _initialize_rotation_pools(self, cache):
+        """
+        Inicializa los pools desde la biblioteca materializada.
+
+        En actualizaciones, descuenta las imágenes del historial legacy.
+        No modifica image_cache.json ni elimina history.json hasta que
+        el trasvase pueda validarse y se cierre la migración.
+        """
+        h_path = self.files["rotation_h"]
+        v_path = self.files["rotation_v"]
+
+        h_exists = os.path.isfile(h_path)
+        v_exists = os.path.isfile(v_path)
+
+        # Los pools existentes conservan sus pendientes.
+        if h_exists and v_exists:
+            return True
+
+        if h_exists or v_exists:
+            log_event("Inicialización H/V incompleta: falta uno de los pools",
+                origin="CONFIG", level="ERROR", reason="LIBRARY")
+            return False
+
+        # El historial antiguo sólo interviene en la primera generación.
+        legacy_path = os.path.join(self.data_dir, "history.json")
+        consumed = set()
+
+        if os.path.isfile(legacy_path):
+            try:
+                with open(legacy_path, "r", encoding="utf-8") as file:
+                    legacy = json.load(file)
+                consumed = set(legacy.get("history_log", []))
+            except (OSError, ValueError, TypeError) as error:
+                log_event(f"No se pudo migrar history.json: {error}",
+                    origin="CONFIG", level="ERROR", reason="LIBRARY")
+                return False
+
+        # Las entradas proceden del maestro vigente, nunca del historial.
+        pending_h = []
+        pending_v = []
+
+        for folder in cache.get("folders", {}).values():
+            pending_h.extend(entry for entry in folder.get("h", [])
+                if entry[0] not in consumed)
+            pending_v.extend(entry for entry in folder.get("v", [])
+                if entry[0] not in consumed)
+
+        self.save_json("rotation_h", pending_h)
+        self.save_json("rotation_v", pending_v)
+
+        # Verificar el trasvase antes de autorizar el cierre legacy.
+        if (self.load_json("rotation_h") != pending_h or
+                self.load_json("rotation_v") != pending_v):
+            log_event("Falló la verificación de los pools H/V",
+                origin="CONFIG", level="ERROR", reason="LIBRARY")
+            return False
+
+        log_event(f"Pools H/V inicializados: {len(pending_h)}H / {len(pending_v)}V; "
+            f"historial legacy: {len(consumed)} rutas",
+            origin="CONFIG", level="INFO", reason="LIBRARY")
+
+        # El trasvase ya se ha verificado: cerrar el legado.
+        self._retire_legacy_rotation_history()
+        return True
+
+    def _retire_legacy_rotation_history(self):
+        """
+        Retira history.json cuando ambos pools H/V están disponibles
+        y contienen listas válidas. Nunca reconstruye sus pendientes.
+        """
+        legacy_path = os.path.join(self.data_dir, "history.json")
+        if not os.path.isfile(legacy_path):
+            return
+
+        keys = ("rotation_h", "rotation_v")
+        if not all(os.path.isfile(self.files[key]) for key in keys):
+            return
+
+        if not all(isinstance(self.load_json(key), list) for key in keys):
+            log_event("No se retira history.json: pools H/V inválidos",
+                origin="CONFIG", level="ERROR", reason="LIBRARY")
+            return
+
+        try:
+            os.remove(legacy_path)
+            log_event("Migración H/V cerrada: history.json eliminado",
+                origin="CONFIG", level="INFO", reason="LIBRARY")
+        except OSError as error:
+            log_event(f"No se pudo eliminar history.json: {error}",
+                origin="CONFIG", level="WARN", reason="LIBRARY")
+
+    def _initialize_bookmark_rotation_pools(self):
+        """
+        Inicializa los pendientes H/V desde los favoritos individuales.
+
+        Sólo durante la primera generación se descuenta el consumo
+        registrado en history_vault.json. Los pools existentes no se
+        reconstruyen: pueden representar rondas ya consumidas.
+        """
+        h_key, v_key = "bm_rotation_h", "bm_rotation_v"
+        h_exists = os.path.isfile(self.files[h_key])
+        v_exists = os.path.isfile(self.files[v_key])
+
+        if h_exists and v_exists:
+            return True
+
+        if h_exists or v_exists:
+            log_event("Inicialización H/V de bookmarks incompleta",
+                origin="CONFIG", level="ERROR", reason="BOOKMARK")
+            return False
+
+        # Migrar únicamente el consumo conocido del historial anterior.
+        # El historial anterior sólo interviene en la primera generación.
+        # Su ausencia no impide crear los pools desde el maestro.
+        history_path = self.files["history_vault"]
+        consumed = set()
+
+        if os.path.isfile(history_path):
+            try:
+                with open(history_path, "r", encoding="utf-8") as file:
+                    legacy = json.load(file)
+                consumed = set(legacy.get("log", []))
+            except (OSError, ValueError, TypeError) as error:
+                log_event(f"No se pudo migrar history_vault.json: {error}",
+                    origin="CONFIG", level="ERROR", reason="BOOKMARK")
+                return False
+
+        h_list, v_list = self._get_bookmark_rotation_lists()
+        pending_h = [entry for entry in h_list if entry[0] not in consumed]
+        pending_v = [entry for entry in v_list if entry[0] not in consumed]
+
+        self.save_json(h_key, pending_h)
+        self.save_json(v_key, pending_v)
+
+        if (self.load_json(h_key) != pending_h or
+                self.load_json(v_key) != pending_v):
+            log_event("Falló la verificación de los pools de bookmarks",
+                origin="CONFIG", level="ERROR", reason="BOOKMARK")
+            return False
+
+        log_event(f"Pools de bookmarks inicializados: "
+            f"{len(pending_h)}H / {len(pending_v)}V; "
+            f"historial anterior: {len(consumed)} rutas",
+            origin="CONFIG", level="INFO", reason="BOOKMARK")
+
+        # El trasvase ya se ha verificado: cerrar el legado.
+        self._retire_legacy_bookmark_history()
+        return True
+
+    def _retire_legacy_bookmark_history(self):
+        """
+        Retira history_vault.json cuando ambos pools H/V de favoritos
+        están disponibles y contienen listas válidas.
+        Nunca reconstruye ni modifica sus pendientes.
+        """
+        legacy_path = self.files["history_vault"]
+        if not os.path.isfile(legacy_path):
+            return
+
+        keys = ("bm_rotation_h", "bm_rotation_v")
+        if not all(os.path.isfile(self.files[key]) for key in keys):
+            return
+
+        if not all(isinstance(self.load_json(key), list) for key in keys):
+            log_event("No se retira history_vault.json: pools H/V inválidos",
+                origin="CONFIG", level="ERROR", reason="BOOKMARK")
+            return
+
+        try:
+            os.remove(legacy_path)
+            log_event("Migración H/V de favoritos cerrada: history_vault.json eliminado",
+                origin="CONFIG", level="INFO", reason="BOOKMARK")
+        except OSError as error:
+            log_event(f"No se pudo eliminar history_vault.json: {error}",
+                origin="CONFIG", level="WARN", reason="BOOKMARK")
 
     def _get_builtin_fallback_images(self):
         """
@@ -1902,16 +2873,57 @@ class ConfigHandler:
 
         return h_list, v_list
 
-    def _update_history(self, entry_id, mode="history"):
+    def _reconcile_rotation_pools(self, previous_cache, current_cache,
+            pool_keys=("rotation_h", "rotation_v")):
+        """
+        Actualiza los pendientes H/V según los cambios del maestro.
+
+        Conserva las imágenes todavía pendientes, incorpora altas reales
+        y descarta las eliminadas. Una imagen previamente consumida no
+        reaparece por sincronizar o modificar sus metadatos.
+        """
+        pending_h = self.load_json(pool_keys[0])
+        pending_v = self.load_json(pool_keys[1])
+
+        if not isinstance(pending_h, list) or not isinstance(pending_v, list):
+            log_event("Pools H/V no válidos para reconciliación",
+                origin="CONFIG", level="ERROR", reason="LIBRARY")
+            return False
+
+        # El maestro anterior distingue una imagen nueva de otra
+        # que ya existía pero fue consumida durante esta ronda.
+        previous_paths = {entry[0]
+            for folder in previous_cache.get("folders", {}).values()
+            for orientation in ("h", "v")
+            for entry in folder.get(orientation, [])}
+
+        pending_paths = {entry[0] for entry in pending_h + pending_v}
+
+        # La orientación y los datos vigentes proceden siempre del maestro.
+        # Las altas entran en su pool; los consumidos siguen excluidos.
+        updated = {}
+        for orientation, key in zip(("h", "v"), pool_keys):
+            updated[key] = [entry
+                for folder in current_cache.get("folders", {}).values()
+                for entry in folder.get(orientation, [])
+                if entry[0] in pending_paths or entry[0] not in previous_paths]
+
+        # No reescribir los archivos cuando el resultado es idéntico.
+        for key, previous in zip(pool_keys, (pending_h, pending_v)):
+            if updated[key] != previous:
+                self.save_json(key, updated[key])
+
+        return True
+
+    def _update_history(self, entry_id, mode):
         """
         Registra una entrada en el historial aplicando 'Aleatoriedad Redonda':
         Si el ciclo está a punto de completarse, se vacía preventivamente para
         garantizar que el último elemento no se repita en el nuevo inicio.
         """
-        # 1. Configuración de claves según el modo
-        is_main = mode == "history"
-        file_key = "history" if is_main else f"history_{mode}"
-        log_key = "history_log" if is_main else "log"
+        # Sólo permanecen los historiales de favoritos y presets.
+        file_key = f"history_{mode}"
+        log_key = "log"
 
         # 2. Carga y metadatos
         hist = self.load_json(file_key)
@@ -1931,10 +2943,7 @@ class ConfigHandler:
 
         # 5. Persistencia y actualización de timestamp
         limit = min(parent_total, 100)
-        hist.update({
-            log_key: log[:limit],
-            "last_update": time.time()
-        })
+        hist.update({log_key: log[:limit], "last_update": time.time()})
         self.save_json(file_key, hist)
 
     def _filter_by_smart_ratio(self, candidates, m_w, m_h, orientation):
@@ -1969,88 +2978,106 @@ class ConfigHandler:
 
         return final_candidates
 
-    def get_vault_selection(self, orientation="h", exclude=None):
+    def get_smart_selection(self, target_w=None, target_h=None, orientation="h",
+        match_orientation=True, rotation_authority=None, exclude_paths=None):
         """
-        Selección inteligente del Vault evitando duplicados inmediatos
-        y respetando el historial global.
+        Selecciona y consume una imagen pendiente de los pools H/V.
+
+        Con orientación vinculada, cada monitor consume su propio pool.
+        Sin vinculación, ambas orientaciones comparten una ronda y cada
+        imagen tiene idéntica probabilidad de selección.
         """
-        exclude = exclude or [] # Rutas ya usadas en este ciclo por otros monitores
-        vault_data = self.load_json("bookmarks_single")
-
-        if not vault_data: return None
-
-        # 1. Filtro: Misma orientación Y que no esté ya en pantalla
-        pool = [img for img in vault_data if len(img) >= 4 and img[3] == orientation and img[0] not in exclude]
-        # Si no hay de esa orientación (libres), buscamos cualquiera que no esté en pantalla
-        if not pool:
-            pool = [img for img in vault_data if img[0] not in exclude]
-        # Si todo falla (caso extremo), usamos todo el vault
-        if not pool: pool = vault_data
-        # 2. Filtro Anti-Repetición (Historial Global)
-        history = self.load_json("history_vault").get("log", [])
-        log_event(f"history_len={len(history)}, vault_total={len(vault_data)}", origin="CONFIG", level="DEBUG")
-        fresh_pool = [img for img in pool if img[0] not in history]
-
-        selected_path = random.choice(fresh_pool)[0] if fresh_pool else random.choice(pool)[0]
-
-        # Registramos para que no se repita pronto
-        self._update_history(selected_path, mode="vault")
-        return selected_path
-
-    def get_smart_selection(self, target_w, target_h, orientation="h"):
-        """Selección avanzada: Área V5 + Ratio Inteligente + Anti-repetición."""
-
-        # 1. Obtener datos base
-        h_list, v_list = self.get_flat_lists()
-
-        # Las imágenes incluidas con WMM son únicamente una red de seguridad:
-        # no forman parte de Sources ni sustituyen una biblioteca del usuario.
-        if not h_list and not v_list:
-            h_list, v_list = self._get_builtin_fallback_images()
-            if h_list or v_list:
-                log_event(
-                    f"Biblioteca vacía: usando fallback interno ({len(h_list)}H / {len(v_list)}V)",
-                    origin="CONFIG", level="DEBUG", reason="LIBRARY")
-
-        history = self.load_json("history").get("history_log", [])
-        log_event(f"history_len={len(history)}, total_h={len(h_list)}, total_v={len(v_list)}",
-            origin="CONFIG", level="DEBUG", reason="LIBRARY")
-        # 2. Intentar selección ideal (Misma orientación - Historial)
-        candidates = v_list if orientation == "v" else h_list
-        # En modo spanned (lienzo panorámico), usar todas las horizontales
-        if orientation == "h" and target_w / target_h > 2.0:
-            pool = [item[0] for item in candidates]  # todas las horizontales, sin filtro de ratio
-        else:
-            pool = self._filter_by_smart_ratio(candidates, target_w, target_h, orientation)
-        log_event(f"candidates_total={len(candidates)}, after_filter={len(pool)}, target_ratio={target_w/target_h:.2f}",
-            origin="CONFIG", level="DEBUG", reason="LIBRARY")
-        # Quitamos lo que ya ha salido recientemente
-        fresh_pool = [p for p in pool if p not in history]
-
-        # 3. Fallback: Si no hay ideales, buscamos en la "otra" lista (solo para verticales)
-        if not fresh_pool and orientation == "v":
-            pool = self._filter_by_smart_ratio(h_list, target_w, target_h, "v")
-            fresh_pool = [p for p in pool if p not in history]
-
-        # 4. Resultado final (Bisturí aplicado aquí)
-        selected = None
-        if fresh_pool:
-            selected = random.choice(fresh_pool)
-        elif pool:
-            selected = random.choice(pool)
-        else:
-            all_candidates = v_list + h_list
-            if all_candidates: # Solo ejecutamos max si hay material
-                selected = max(all_candidates, key=lambda x: x[1] * x[2])[0]
-            else:
-                # El abismo: no hay imágenes en ninguna lista
+        # Conservar la firma dimensional para los consumidores actuales.
+        # Los tamaños y ratios ya no condicionan la selección.
+        # El switch selecciona la autoridad; cada una conserva sus pendientes.
+        # Bookmarks solicita su propia autoridad sin alterar
+        # la selección general/selectiva gobernada por el switch.
+        if rotation_authority == "bookmarks":
+            if not self._initialize_bookmark_rotation_pools():
                 return None
+            prefix = "bm_rotation"
+        else:
+            selective = self.load_json("settings").get("global", {}).get(
+                "selective_rotation_enabled", False)
+            prefix = "sel_rotation" if selective else "rotation"
 
-        # 5. Registrar en el historial solo si tenemos éxito
-        if selected:
-            self._update_history(selected)
 
-        return selected
+        pool_keys = (f"{prefix}_v",) if orientation == "v" else (f"{prefix}_h",)
+        if not match_orientation:
+            pool_keys = (f"{prefix}_h", f"{prefix}_v")
+
+        pending = {key: self.load_json(key) for key in pool_keys}
+
+        # Reponer sólo cuando se agotan los pendientes elegibles.
+        # En modo combinado, ambos pools forman una única ronda.
+        if not any(pending.values()):
+            if rotation_authority == "bookmarks":
+                h_list, v_list = self._get_bookmark_rotation_lists()
+                if not h_list and not v_list:
+                    return None
+            elif selective:
+                cache = self.load_json("cache")
+                index = self.load_json("index")
+                selected_cache = self._filter_selective_cache(cache, index)
+                h_list, v_list = self.get_flat_lists(selected_cache)
+
+                # Sin carpetas elegibles, no recurrir a la autoridad general.
+                if not h_list and not v_list:
+                    return None
+            else:
+                h_list, v_list = self.get_flat_lists()
+
+                # Mantener el fallback original de biblioteca vacía.
+                if not h_list and not v_list:
+                    h_list, v_list = self._get_builtin_fallback_images()
+                    fallback = (v_list if orientation == "v" else h_list) \
+                        if match_orientation else h_list + v_list
+                    return random.choice(fallback)[0] if fallback else None
+
+            master = {f"{prefix}_h": h_list, f"{prefix}_v": v_list}
+            for key in pool_keys:
+                pending[key] = master[key]
+                if pending[key]:
+                    self.save_json(key, pending[key])
+
+            log_event(f"Reposición {prefix}: "
+                f"{len(pending.get(f'{prefix}_h', []))}H / "
+                f"{len(pending.get(f'{prefix}_v', []))}V",
+                origin="CONFIG", level="DEBUG", reason="LIBRARY")
+
+        total = sum(len(records) for records in pending.values())
+        if not total:
+            return None
+
+        # Al completar una composición, priorizar imágenes no asignadas
+        # a otros monitores. Si todas están excluidas, conservar el
+        # comportamiento de reserva: seleccionar entre los pendientes.
+        if exclude_paths:
+            excluded = set(exclude_paths)
+            eligible = [(key, pos)
+                for key in pool_keys
+                for pos, entry in enumerate(pending[key])
+                if entry[0] not in excluded]
+
+            if eligible:
+                key, pos = random.choice(eligible)
+                selected = pending[key].pop(pos)[0]
+                self.save_json(key, pending[key])
+                return selected
+
+        # Un índice uniforme sobre todos los registros pendientes
+        # proporciona proporcionalidad natural entre H y V.
+        index = random.randrange(total)
+
+        for key in pool_keys:
+            records = pending[key]
+            if index < len(records):
+                selected = records.pop(index)[0]
+                self.save_json(key, records)
+                return selected
+            index -= len(records)
+
+        return None
 
     def _process_image(self, path):
         """Delega en ImageEngine el procesado de la imagen."""
@@ -2078,7 +3105,6 @@ class ConfigHandler:
             return False
 
         except Exception as e:
-
             log_event(f"No se pudo abrir archivo: {e}",
                 origin="CONFIG", level="ERROR", reason="LIBRARY")
 

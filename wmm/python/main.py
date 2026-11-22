@@ -7,7 +7,6 @@ WMM - Wallpaper Multi-Monitor Manager
 ----------------------------
 main.py – Motor principal de WMM.
 """
-
 # ==========================================================
 # IMPORTS DE LIBRERÍA ESTÁNDAR
 # ==========================================================
@@ -19,7 +18,6 @@ import json
 import atexit
 import subprocess
 import threading
-import fcntl
 
 # ==========================================================
 # CONFIGURACIÓN DEL PATH DEL PROYECTO
@@ -42,7 +40,7 @@ from config_handler import ConfigHandler
 from image_engine import ImageEngine
 from debug_logger import log_event
 from i18n import _, initialize
-from image_selection import ImageSelectionEngine
+from image_selection import ImageSelectionEngine, build_edit_preview_selection
 from monitor_manager import get_spanned_reference_hash
 import monitor_detection
 
@@ -93,6 +91,7 @@ class WMMDaemon:
         self.display = Gdk.Display.get_default()
         self._busy = False
         self._status_path = os.path.join(self.ch.cache_dir, "engine_status.json")
+
         # 1. Gestión del archivo PID
         self._manage_pid_file()
 
@@ -103,20 +102,39 @@ class WMMDaemon:
 
         # 2. Registro de limpieza al salir (DENTRO del __init__)
         atexit.register(self._cleanup_on_exit)
-        # 3. Iniciar la recepción de comandos
+
+        # 3. Iniciar comandos y consultas independientes.
         self.platform.init_channels()
-        self.platform.start_receiving_commands(self._dispatch_command)
+        self.platform.start_receiving_commands(
+            self._dispatch_command, query_callback=self._query_frontend)
 
         # Publicar en los canales recién registrados el estado autoritativo
         # que el engine ya estableció después de adquirir la instancia.
         self.platform.emit_busy_changed(self._busy)
 
         # Iniciar monitorización de cambios de hardware (delegado en la plataforma)
-        log_event("Llamando a platform.init_monitor_events...",
-            origin="ENGINE", level="DEBUG", reason="HARDWARE")
         if not self.platform.init_monitor_events(self._on_hardware_event):
             log_event("No se pudo iniciar la monitorización de hardware...",
                 origin="ENGINE", level="WARN", reason="HARDWARE")
+
+    def _query_frontend(self, query):
+        """
+        Resuelve consultas de lectura mediante las autoridades existentes.
+        El canal transporta el resultado; no interpreta estados de plataforma.
+        """
+        if query != "keybinding" or not hasattr(self.platform, "request_keybindings"):
+            return ""
+
+        result = self.platform.request_keybindings(self.ch.data_dir, {"action": "get"})
+
+        if not result.get("ok"):
+            log_event(f"No se pudo consultar el atajo: {result.get('error')}",
+                origin="ENGINE", level="WARN", reason="SETTINGS")
+            return ""
+
+        # Reutilizar exactamente la presentación del formulario común.
+        from keybinding_manager import format_keybinding
+        return format_keybinding(result.get("shortcut"))
 
     def _do_cycle_and_notify(self, reason, target_hashes, target_bookmark, temp_settings, event_dict):
         """
@@ -151,26 +169,35 @@ class WMMDaemon:
     def _notify_panel(self, event_dict):
         """
         Envía un evento al panel de control, si está abierto.
-        El panel será notificado automáticamente por Gio.FileMonitor.
 
-        Args:
-            event_dict (dict): Diccionario con la acción y parámetros.
-                               Ej: {"action": "wallpaper_changed"}
+        Las plataformas con transporte nativo pueden entregarlo directamente.
+        El archivo command_panel.json permanece como mecanismo histórico para
+        las plataformas que no implementan ese canal.
         """
-        # Ya no necesitamos comprobar si el panel está vivo,
-        # si el archivo se modifica y el panel no está, simplemente no pasa nada.
-        command_path = os.path.join(self.ch.data_dir, "command_panel.json")
-        try:
-            with open(command_path, "w", encoding="utf-8") as f: json.dump(event_dict, f)
+        # Windows evita FileMonitor porque CHANGES_DONE_HINT no tiene allí la
+        # misma inmediatez que bajo inotify. Si no existe receptor nativo,
+        # conservar el mecanismo histórico sin convertirlo en un error.
+        if self.platform.send_panel_event(event_dict):
             log_event(f"Evento '{event_dict.get('action')}' enviado al panel",
                 origin="ENGINE", level="DEBUG", reason="COMMAND")
+            return
+
+        command_path = os.path.join(self.ch.data_dir, "command_panel.json")
+
+        try:
+            with open(command_path, "w", encoding="utf-8") as f:
+                json.dump(event_dict, f)
+
+            log_event(f"Evento '{event_dict.get('action')}' enviado al panel",
+                origin="ENGINE", level="DEBUG", reason="COMMAND")
+
         except Exception as e:
             log_event(f"Error al escribir command_panel.json: {e}",
                 origin="ENGINE", level="ERROR", reason="COMMAND")
 
-    def _spawn_child(self, argv):
+    def _spawn_child(self, argv, env=None):
         """Lanza un proceso hijo y recoge su estado al terminar sin bloquear el engine."""
-        process = subprocess.Popen(argv, start_new_session=True)
+        process = subprocess.Popen(argv, start_new_session=True, env=env)
         threading.Thread(target=process.wait, name=f"WMMChildWait-{process.pid}", daemon=True).start()
 
         return process
@@ -203,7 +230,7 @@ class WMMDaemon:
         finally:
             if pid_file is not None and not pid_file.closed:
                 try:
-                    fcntl.flock(pid_file.fileno(), fcntl.LOCK_UN)
+                    self.platform.unlock_file(pid_file)
                 except OSError:
                     pass
 
@@ -229,12 +256,13 @@ class WMMDaemon:
         self._pid_file = open(pid_path, "a+")
 
         try:
-            fcntl.flock(
-                self._pid_file.fileno(),
-                fcntl.LOCK_EX | fcntl.LOCK_NB
-            )
+            acquired = self.platform.try_lock_file(self._pid_file)
+        except OSError:
+            self._pid_file.close()
+            self._pid_file = None
+            raise
 
-        except BlockingIOError:
+        if not acquired:
             self._pid_file.seek(0)
             content = self._pid_file.read().strip()
 
@@ -245,11 +273,6 @@ class WMMDaemon:
             print(f" [!] El engine ya está corriendo (PID {pid_text}). Abortando.")
             raise SystemExit(1)
 
-        except OSError:
-            self._pid_file.close()
-            self._pid_file = None
-            raise
-
         # Tenemos el lock: cualquier contenido anterior es obsoleto.
         self._pid_file.seek(0)
         self._pid_file.truncate()
@@ -257,6 +280,112 @@ class WMMDaemon:
         self._pid_file.flush()
 
         print(f" [SISTEMA] PID {os.getpid()} registrado en {pid_path}")
+
+    def _apply_edit_preview(self, snapshot):
+        """Renderiza una composición temporal sin sincronizar ni escribir el Vault."""
+        if self._busy:
+            log_event("Vista previa de edición omitida: engine ocupado",
+                origin="ENGINE", level="DEBUG", reason="COMMAND")
+            return False
+
+        edit_session = snapshot.get("session", {})
+        edit_states = snapshot.get("states", {})
+
+        if not isinstance(edit_session, dict) or not isinstance(edit_states, dict):
+            log_event("Vista previa de edición con datos inválidos",
+                origin="ENGINE", level="ERROR", reason="COMMAND")
+            return False
+
+        monitors_map = self.ch.load_json("geometry").get("monitors", {})
+        if not monitors_map:
+            log_event("Vista previa sin geometría de monitores",
+                origin="ENGINE", level="WARN", reason="HARDWARE")
+            return False
+
+        self._set_busy_state(True)
+
+        try:
+            settings_data = self.ch.load_json("settings")
+            settings = settings_data.get("global", {})
+            vault_session = self.ch.load_json("vault").get("active_session", {})
+
+            color_mode = settings.get("color_mode", "solid_color")
+            solid_color = settings.get("solid_color", "#000000")
+            gradient_h = settings.get("gradient_h", ["#000000", "#8D9797"])
+            gradient_v = settings.get("gradient_v", ["#000000", "#8D9797"])
+            color = ("color", color_mode, solid_color, gradient_h, gradient_v)
+
+            wp_mode = snapshot.get("wallpaper_mode") or settings.get("wallpaper_mode", "fit")
+            image_effect = snapshot.get("wallpaper_effect") or settings.get("wallpaper_effect", "none")
+            effect_scope = snapshot.get("wallpaper_effect_scope") or settings.get("wallpaper_effect_scope", "blur")
+            spanned = snapshot.get("spanned_enabled")
+            if spanned is None:
+                spanned = settings.get("spanned_enabled", False)
+
+            # La selección temporal pertenece a ImageSelection.
+            # Main conserva la orquestación y la aplicación física.
+            selection = build_edit_preview_selection(
+                monitors_map=monitors_map,
+                vault_session=vault_session,
+                edit_session=edit_session,
+                edit_states=edit_states,
+                color=color,
+                spanned=spanned,
+                source_hash=snapshot.get("source_hash")
+            )
+
+            if not selection:
+                return False
+
+            processed_images = self.ie._process_single_image(
+                selection=selection,
+                monitors_map=monitors_map,
+                spanned_enabled=spanned,
+                solid_color=solid_color,
+                color_mode=color_mode,
+                gradient_h=gradient_h,
+                gradient_v=gradient_v,
+                wallpaper_effect_scope=effect_scope,
+                wallpaper_mode=wp_mode,
+                image_effect=image_effect
+            )
+
+            if not processed_images:
+                log_event("Vista previa de edición sin imágenes procesadas",
+                    origin="ENGINE", level="WARN", reason="LIBRARY")
+                return False
+
+            # La edición física tiene prioridad sobre las rotaciones programadas.
+            if settings.get("slideshow_enabled", False):
+                settings["slideshow_enabled"] = False
+                self.ch.save_json("settings", settings_data)
+                self._notify_panel({"action": "settings_updated"})
+
+            if self.timer_id is not None:
+                self.manage_timer(action="stop")
+
+            applied = self.platform.render_master_wallpaper(
+                processed_images=processed_images,
+                monitors_map=monitors_map,
+                config_handler=self.ch
+            )
+
+            if applied is False:
+                log_event("No se pudo aplicar la vista previa física",
+                    origin="ENGINE", level="ERROR", reason="LIBRARY")
+            else:
+                log_event(
+                    f"Vista previa física aplicada: {len(processed_images)} monitores; "
+                    f"spanned={spanned}; modo={wp_mode}; efecto={image_effect}",
+                    origin="ENGINE", level="INFO", reason="LIBRARY")
+
+        except Exception as error:
+            log_event(f"Error en vista previa física: {type(error).__name__}: {error}",
+                origin="ENGINE", level="ERROR", reason="COMMAND")
+        finally:
+            self._set_busy_state(False)
+
+        return False
 
     def _apply_spanned_image(self, image_path, monitors_map=None):
         """Aplica una imagen concreta en modo Spanned temporal."""
@@ -382,7 +511,6 @@ class WMMDaemon:
         Ejecuta la acción correspondiente basada en el comando recibido.
         (Antiguo _handle_sigusr1, extraído para separar la recepción de la ejecución)
         """
-
         # Normalizar acciones contextuales antes del dispatch evita duplicar
         # los workflows finales que ya reciben una ruta de imagen.
         if order == ConfigHandler.CMD_SHELL_ADD_FAV_CURRENT:
@@ -401,13 +529,22 @@ class WMMDaemon:
         if order == ConfigHandler.CMD_UPDATE_TIMER:
             settings = self.ch.load_json("settings")
             g = settings["global"]
+            favorites_was_enabled = g.get("slideshow_bookmark", False)
 
-            # Sincronización de variables desde el Applet
+            # Panel y frontends comparten este comando; los campos omitidos
+            # conservan su valor anterior.
             g["slideshow_enabled"] = action_data.get("enabled", g["slideshow_enabled"])
             g["slideshow_interval"] = int(action_data.get("interval", g["slideshow_interval"]))
             g["slideshow_mode"] = action_data.get("mode", g["slideshow_mode"])
             g["slideshow_bookmark"] = action_data.get("slideshow_bookmark", g["slideshow_bookmark"])
             g["spanned_enabled"] = action_data.get("spanned_enabled", g.get("spanned_enabled", False))
+
+            # Una nueva activación de Favorites Only sustituye Selective
+            # Rotation y requiere Slideshow. No aplicar esta regla cuando
+            # otros controles reenvían un Favorites Only ya activado.
+            if g["slideshow_bookmark"] and not favorites_was_enabled:
+                g["selective_rotation_enabled"] = False
+                g["slideshow_enabled"] = True
 
             self.ch.save_json("settings", settings)
             GLib.idle_add(self._notify_panel, {"action": "settings_updated"})
@@ -415,11 +552,65 @@ class WMMDaemon:
             # Gestión del Temporizador
             GLib.idle_add(self.manage_timer, "start")
 
-            log_event(
-                f"Settings actualizados: enabled={g['slideshow_enabled']}, "
+            log_event(f"Settings actualizados: enabled={g['slideshow_enabled']}, "
                 f"interval={g['slideshow_interval']}, mode={g['slideshow_mode']}, "
                 f"bookmark={g['slideshow_bookmark']}, spanned={g['spanned_enabled']}",
                 origin="ENGINE", level="INFO", reason="SETTINGS")
+
+        # --- 1a. ROTACIÓN SELECTIVA ---
+        # La activación selectiva sustituye Favorites Only y requiere Slideshow.
+        # La desactivación no restaura automáticamente modos anteriores.
+        elif order == ConfigHandler.CMD_SET_SELECTIVE_ROTATION:
+            enabled = action_data.get("enabled")
+            if not isinstance(enabled, bool):
+                return
+
+            # La elegibilidad pertenece al índice, no a los pools pendientes.
+            if enabled:
+                index = self.ch.load_json("index")
+                available = any(
+                    isinstance(entry, list) and len(entry) == 2
+                    and entry[0] and entry[1]
+                    for entry in index.values())
+
+                if not available:
+                    log_event("Rotación selectiva rechazada: sin carpetas elegibles",
+                        origin="ENGINE", level="WARN", reason="SETTINGS")
+                    self._notify_panel({"action": "settings_updated"})
+                    return
+
+            settings = self.ch.load_json("settings")
+            g = settings["global"]
+            slideshow_was_enabled = g.get("slideshow_enabled", True)
+
+            g["selective_rotation_enabled"] = enabled
+
+            if enabled:
+                g["slideshow_bookmark"] = False
+                g["slideshow_enabled"] = True
+
+            self.ch.save_json("settings", settings)
+            GLib.idle_add(self._notify_panel, {"action": "settings_updated"})
+
+            # Sólo arrancar el temporizador si Slideshow estaba apagado.
+            if enabled and not slideshow_was_enabled:
+                GLib.idle_add(self.manage_timer, "start")
+
+        # --- 1b. METADATOS DE IMAGEN ---
+        # Persistir el cambio antes de recomponer: el renderizado consulta
+        # settings.json, igual que cuando la operación procede del Panel.
+        elif order == ConfigHandler.CMD_SET_METADATA_ENABLED:
+            enabled = action_data.get("enabled")
+            if not isinstance(enabled, bool):
+                return
+
+            settings = self.ch.load_json("settings")
+            settings["global"]["exif_metadata_enabled"] = enabled
+            self.ch.save_json("settings", settings)
+
+            GLib.idle_add(self._notify_panel, {"action": "settings_updated"})
+            GLib.idle_add(self._do_cycle_and_notify, ConfigHandler.REASON_SELECTION,
+                None, None, None, {"action": "wallpaper_changed"})
 
         # --- 2. CARGA DE FAVORITO ESPECÍFICO ---
         elif order == ConfigHandler.CMD_LOAD_BOOKMARK:
@@ -436,11 +627,8 @@ class WMMDaemon:
 
             log_event(f"Cargando favorito: {name}",
                 origin="ENGINE", level="INFO", reason="BOOKMARK")
-            GLib.idle_add(
-                self._do_cycle_and_notify,
-                ConfigHandler.REASON_BOOKMARK,
-                None, name, None,
-                {"action": "wallpaper_changed"})
+            GLib.idle_add(self._do_cycle_and_notify, ConfigHandler.REASON_BOOKMARK,
+                None, name, None, {"action": "wallpaper_changed"})
 
         # --- 2.1 ELIMINACION DE FAVORITO ESPECÍFICO ---
         elif order == ConfigHandler.CMD_DELETE_BOOKMARK:
@@ -473,11 +661,8 @@ class WMMDaemon:
 
             log_event("Rotación manual solicitada",
                 origin="ENGINE", level="INFO", reason="LIBRARY")
-            GLib.idle_add(
-                self._do_cycle_and_notify,
-                ConfigHandler.REASON_MANUAL,
-                None, None, None,
-                {"action": "wallpaper_changed"})
+            GLib.idle_add(self._do_cycle_and_notify, ConfigHandler.REASON_MANUAL,
+                None, None, None, {"action": "wallpaper_changed"})
 
         # --- 4. MANTENIMIENTO ---
         elif order == ConfigHandler.CMD_SYNC_LIBRARY:
@@ -503,7 +688,7 @@ class WMMDaemon:
             log_event("Abriendo panel de control", origin="ENGINE", level="INFO", reason="COMMAND")
             panel_path = os.path.join(os.path.dirname(__file__), "panel.py")
             try:
-                self._spawn_child(["python3", panel_path])
+                self._spawn_child([sys.executable, panel_path])
                 log_event("Panel lanzado correctamente",
                     origin="ENGINE", level="DEBUG", reason="COMMAND")
             except Exception as e:
@@ -515,8 +700,20 @@ class WMMDaemon:
             log_event("Lanzando asistente de añadir favorito",
                 origin="ENGINE", level="INFO", reason="BOOKMARK")
             add_bookmark_path = os.path.join(os.path.dirname(__file__), "add_bookmark.py")
+
+            command = [sys.executable, add_bookmark_path]
+
+            # Los frontends pueden aportar un punto de apertura; sin él,
+            # el formulario conserva su posicionamiento histórico.
+            x = action_data.get("x")
+            y = action_data.get("y")
+
+            if isinstance(x, (int, float)) and isinstance(y, (int, float)):
+                command.extend([str(int(x)), str(int(y))])
+
             try:
-                self._spawn_child(["python3", add_bookmark_path])
+                child_env = self.platform.get_positioned_gtk_child_env()
+                self._spawn_child(command, env=child_env)
                 log_event("Asistente de favorito lanzado correctamente",
                     origin="ENGINE", level="DEBUG", reason="BOOKMARK")
             except Exception as e:
@@ -529,21 +726,51 @@ class WMMDaemon:
                 origin="ENGINE", level="INFO", reason="COMMAND")
             docs_viewer_path = os.path.join(os.path.dirname(__file__), "docs_viewer.py")
             try:
-                self._spawn_child(["python3", docs_viewer_path, "help/HELP.md"])
+                self._spawn_child([sys.executable, docs_viewer_path, "help/HELP.md"])
                 log_event("Documentación de ayuda lanzada correctamente",
                     origin="ENGINE", level="DEBUG", reason="COMMAND")
             except Exception as e:
                 log_event(f"No se pudo abrir la documentación de ayuda: {e}",
                     origin="ENGINE", level="ERROR", reason="COMMAND")
 
-        # --- 5d. ABRIR INFORMACIÓN DE WMM ---
+        # --- 5d. ABRIR GESTOR DE ATAJO ---
+        elif order == ConfigHandler.CMD_OPEN_KEYBINDING:
+            log_event("Lanzando gestor de atajo de teclado",
+                origin="ENGINE", level="INFO", reason="COMMAND")
+
+            keybinding_path = os.path.join(
+                os.path.dirname(__file__), "keybinding_manager.py")
+
+            command = [sys.executable, keybinding_path]
+
+            # Los frontends pueden aportar un punto de apertura; sin él,
+            # el formulario conserva su posicionamiento histórico.
+            x = action_data.get("x")
+            y = action_data.get("y")
+
+            if isinstance(x, (int, float)) and isinstance(y, (int, float)):
+                command.extend([str(int(x)), str(int(y))])
+
+            try:
+                child_env = self.platform.get_positioned_gtk_child_env()
+                self._spawn_child(command, env=child_env)
+
+                log_event("Gestor de atajo de teclado lanzado correctamente",
+                    origin="ENGINE", level="DEBUG", reason="COMMAND")
+
+            except Exception as e:
+                log_event(f"No se pudo abrir el gestor de atajo de teclado: {e}",
+                    origin="ENGINE", level="ERROR", reason="COMMAND")
+
+        # --- 5e. ABRIR INFORMACIÓN DE WMM ---
         elif order == ConfigHandler.CMD_OPEN_ABOUT:
             log_event("Lanzando información de WMM",
                 origin="ENGINE", level="INFO", reason="COMMAND")
             about_path = os.path.join(os.path.dirname(__file__), "about.py")
             try:
-                self._spawn_child(["python3", about_path])
-                log_event("Información de WMM lanzada correctamente", origin="ENGINE", level="DEBUG", reason="COMMAND")
+                self._spawn_child([sys.executable, about_path])
+                log_event("Información de WMM lanzada correctamente",
+                    origin="ENGINE", level="DEBUG", reason="COMMAND")
             except Exception as e:
                 log_event(f"No se pudo abrir la información de WMM: {e}",
                     origin="ENGINE", level="ERROR", reason="COMMAND")
@@ -553,11 +780,15 @@ class WMMDaemon:
             log_event("Aplicando selección manual desde el panel",
                 origin="ENGINE", level="INFO", reason="COMMAND")
             temp_settings = action_data.get("temp_settings", None)
-            GLib.idle_add(
-                self._do_cycle_and_notify,
-                ConfigHandler.REASON_SELECTION,
-                None, None, temp_settings,
-                {"action": "wallpaper_changed"})
+            target_hash = action_data.get("target_hash")
+            target_hashes = [target_hash] if target_hash else None
+
+            GLib.idle_add(self._do_cycle_and_notify, ConfigHandler.REASON_SELECTION,
+                target_hashes, None, temp_settings, {"action": "wallpaper_changed"})
+
+        # --- 6b. VISTA PREVIA FÍSICA DEL EDITOR ---
+        elif order == ConfigHandler.CMD_APPLY_EDIT_PREVIEW:
+            GLib.idle_add(self._apply_edit_preview, action_data)
 
         # --- 7. Añadir PRESET desde add_bookmark.py ---
         elif order == ConfigHandler.CMD_BOOKMARK_ADDED:
@@ -592,7 +823,7 @@ class WMMDaemon:
                 origin="ENGINE", level="INFO", reason="COMMAND")
             send_to_monitor_path = os.path.join(os.path.dirname(__file__), "shell_send_to_monitor.py")
             try:
-                self._spawn_child(["python3", send_to_monitor_path, image_path])
+                self._spawn_child([sys.executable, send_to_monitor_path, image_path])
                 log_event("Diálogo enviar a monitor lanzado correctamente",
                     origin="ENGINE", level="DEBUG", reason="COMMAND")
             except Exception as e:
@@ -610,7 +841,7 @@ class WMMDaemon:
                 origin="ENGINE", level="INFO", reason="COMMAND")
             add_fav_path = os.path.join(os.path.dirname(__file__), "shell_add_bookmark.py")
             try:
-                self._spawn_child(["python3", add_fav_path, image_path])
+                self._spawn_child([sys.executable, add_fav_path, image_path])
                 log_event("Asistente añadir a favoritos lanzado correctamente",
                     origin="ENGINE", level="DEBUG", reason="COMMAND")
             except Exception as e:
@@ -690,7 +921,8 @@ class WMMDaemon:
             log_event("Temporizador no iniciado (desactivado o intervalo inválido)",
                 origin="ENGINE", level="INFO", reason="TIMER")
 
-    def execute_full_cycle(self, reason=ConfigHandler.REASON_TIMER, target_hashes=None, target_bookmark=None, temp_settings=None):
+    def execute_full_cycle(self, reason=ConfigHandler.REASON_TIMER,
+        target_hashes=None, target_bookmark=None, temp_settings=None):
         """
         Orquestador principal del cambio de fondo.
         Respeta el flujo de estabilización, gestión de hardware, lógica async
@@ -755,7 +987,7 @@ class WMMDaemon:
             monitors_map=monitors_map,
             active_session=active_session,
             settings=settings,
-            target_hashes=None,  # el motor resuelve async internamente
+            target_hashes=target_hashes,  # Mantener el destino explícito si existe
             target_bookmark=target_bookmark,
             temp_settings=temp_settings
         )
@@ -770,12 +1002,34 @@ class WMMDaemon:
         gradient_h = metadata.get("gradient_h", ["#000000", "#8D9797"])
         gradient_v = metadata.get("gradient_v", ["#000000", "#8D9797"])
 
-        # 5. Renderizado y Aplicación final
+        # Registrar la selección resuelta, antes del procesado.
+        # Su resultado no constituye todavía una confirmación de aplicación.
+        if selection:
+            assigned = []
 
+            for m_hash, source in selection.items():
+                monitor = monitors_map.get(m_hash, {})
+                connector = monitor.get("connector") or m_hash
+                target = f"canvas ({connector})" if spanned_enabled else connector
+
+                if isinstance(source, str):
+                    description = os.path.basename(source)
+                elif isinstance(source, tuple) and source[0] == "color":
+                    description = f"color ({source[1]})"
+                else:
+                    description = repr(source)
+
+                assigned.append(f"{target}: {description}")
+
+            log_event(f"Selección del ciclo: {'; '.join(assigned)}",
+                origin="IMG_SEL", level="INFO", reason="LIBRARY")
+            log_event(f"Composición: modo={wp_mode}; efecto={wallpaper_effect}; "
+                f"alcance={wallpaper_effect_scope}; spanned={spanned_enabled}",
+                origin="IMG_SEL", level="INFO", reason="LIBRARY")
+
+        # 5. Renderizado y Aplicación final
         # Si todos los monitores están inactivos, pintar el color de fondo global
         if not valid_assets_found and selection:
-            log_event("Sin imágenes válidas. Aplicando color de fondo global.",
-                origin="ENGINE", level="DEBUG", reason="LIBRARY")
             processed_images = self.ie._process_single_image(
                 selection=selection,
                 monitors_map=monitors_map,
@@ -788,11 +1042,18 @@ class WMMDaemon:
                 wallpaper_mode=wp_mode,
                 image_effect=wallpaper_effect
             )
-            self.platform.render_master_wallpaper(
+            applied = self.platform.render_master_wallpaper(
                 processed_images=processed_images,
                 monitors_map=monitors_map,
                 config_handler=self.ch
             )
+
+            if applied is False:
+                log_event("Error al aplicar el fondo global sin imágenes válidas",
+                    origin="ENGINE", level="ERROR", reason="LIBRARY")
+            else:
+                log_event("Fondo global aplicado sin imágenes válidas",
+                    origin="ENGINE", level="INFO", reason="LIBRARY")
 
         elif valid_assets_found and selection:
             processed_images = self.ie._process_single_image(
@@ -807,13 +1068,21 @@ class WMMDaemon:
                 wallpaper_mode=wp_mode,
                 image_effect=wallpaper_effect
             )
-            self.platform.render_master_wallpaper(
+            applied = self.platform.render_master_wallpaper(
                 processed_images=processed_images,
                 monitors_map=monitors_map,
                 config_handler=self.ch
             )
-            log_event(f"Fondo aplicado: {len(selection)} monitores, spanned={spanned_enabled}",
-                origin="ENGINE", level="INFO", reason="LIBRARY")
+
+            # El backend es quien confirma la aplicación. No anunciar éxito
+            # cuando devuelve explícitamente un fallo.
+            if applied is False:
+                log_event(f"Error al aplicar el fondo: "
+                    f"{len(selection)} monitores, spanned={spanned_enabled}",
+                    origin="ENGINE", level="WARN", reason="LIBRARY")
+            else:
+                log_event(f"Fondo aplicado: {len(selection)} monitores, spanned={spanned_enabled}",
+                    origin="ENGINE", level="INFO", reason="LIBRARY")
 
             # Aseguramos que el temporizador esté corriendo si no lo está
             if self.timer_id is None:
@@ -826,20 +1095,13 @@ class WMMDaemon:
                 reason=_("No images available"),
                 action=_("Check status of Image Sources in Control Panel."),
                 detail_msg=msg,
-                level="error"
-            )
+                level="error")
+
             # Forzamos el inicio del timer para que reintente en el próximo intervalo
             if self.timer_id is None:
                 self.manage_timer(action="start")
-        self._set_busy_state(False)
 
-        # Registro único del estado del historial tras el ciclo
-        history = self.ch.load_json("history")
-        parent_total = history.get("parent_total", 0)
-        log_len = len(history.get("history_log", []))
-        limit = min(parent_total, 100)
-        log_event(f"parent_total={parent_total}, limit={limit}, log_len antes={log_len}",
-            origin="CONFIG", level="DEBUG", reason="LIBRARY")
+        self._set_busy_state(False)
 
     def _on_hardware_event(self, event_type):
         # Si ya hay un timer pendiente, no logueamos (ya se logueó el primer evento)
@@ -882,31 +1144,27 @@ class WMMDaemon:
         geo_snapshot = {
             "timestamp": time.time(),
             "canvas": {"w": canvas_w, "h": canvas_h},
-            "monitors": monitors_map_real
-        }
-        log_event(f"Guardando geometría en JSON: {len(geo_snapshot['monitors'])} monitores, canvas={geo_snapshot['canvas']}",
-            origin="ENGINE", level="DEBUG", reason="HARDWARE")
+            "monitors": monitors_map_real}
+
         self.ch.save_json("geometry", geo_snapshot)
-        # Verificación de guardado
+
+        # Confirmar el resultado antes de registrar la actualización.
         saved_check = self.ch.load_json("geometry")
         if saved_check.get("monitors") != geo_snapshot["monitors"]:
             log_event("¡ALERTA! Discrepancia justo después de guardar geometry.json",
                 origin="ENGINE", level="ERROR", reason="HARDWARE")
         else:
-            log_event("Verificación de guardado de geometry.json exitosa",
-                origin="ENGINE", level="DEBUG", reason="HARDWARE")
-        log_event(f"Geometría actualizada por {reason}: {canvas_w}x{canvas_h}",
-            origin="ENGINE", level="INFO", reason="HARDWARE")
+            log_event(f"Geometría actualizada por {reason}: {canvas_w}x{canvas_h}",
+                origin="ENGINE", level="INFO", reason="HARDWARE")
+
         return geo_snapshot, canvas_w, canvas_h
+
     def startup_sync(self):
         """
         Sincronización inicial de geometría y vault.
         Garantiza que geometry.json existe y refleja la realidad actual.
         Devuelve True si el vault o la geometría han cambiado.
         """
-        log_event("Sincronizando geometría inicial...",
-            origin="ENGINE", level="INFO", reason="HARDWARE")
-
         # 1. Obtener la realidad actual del hardware
         monitors_map_real = monitor_detection.detect_monitors()
 
@@ -917,6 +1175,23 @@ class WMMDaemon:
         if not self.ch.load_json("geometry"):
             log_event("Geometría inicial creada (no existía)",
                 origin="ENGINE", level="INFO", reason="HARDWARE")
+
+        # La orientación inicial se decide una sola vez, con la geometría
+        # persistida. Los cambios posteriores de hardware no deben
+        # sobrescribir una preferencia que ya pertenece al usuario.
+        settings_data = self.ch.load_json("settings")
+        if "match_orientation" not in settings_data["global"]:
+            monitors = self.ch.load_json("geometry").get("monitors", {})
+            orientations = {monitor.get("orientation")
+                for monitor in monitors.values()}
+
+            if orientations and orientations <= {"horizontal", "vertical"}:
+                match_orientation = len(orientations) == 2
+                settings_data["global"]["match_orientation"] = match_orientation
+                self.ch.save_json("settings", settings_data)
+
+                log_event(f"Orientación inicial: match_orientation={match_orientation}",
+                    origin="ENGINE", level="INFO", reason="SETTINGS")
 
         # 3. Sincronizar el vault con los monitores detectados
         active_hashes = list(monitors_map_real.keys())
@@ -934,8 +1209,6 @@ class WMMDaemon:
                 origin="ENGINE", level="INFO", reason="HARDWARE")
             return True
 
-        log_event("Geometría sin cambios. Se mantiene el fondo actual.",
-            origin="ENGINE", level="DEBUG", reason="SETTINGS")
         return False
 
     def run(self):
@@ -944,24 +1217,27 @@ class WMMDaemon:
         Sincroniza la biblioteca, verifica la geometría y lanza el bucle GLib.
         """
         log_event("ENGINE iniciado", origin="ENGINE", level="INFO", reason="NOTIFY")
-        log_event(f"[DIAG] Engine: platform.cache_dir={self.platform.cache_dir!r}, platform.locale_dir={self.platform.locale_dir!r}",
-            origin="ENGINE", level="DEBUG", reason="SETTINGS")
+
         # ----------------------------------------------------------
         # 1. LIMPIEZA Y SINCRONIZACIÓN INICIAL
         # ----------------------------------------------------------
         # Limpieza de miniaturas de efectos de fondo
         self.ch._cleanup_blur_thumbnails()
+
         # Configuración de plataforma
         self.platform._ensure_platform_config()
+
         # ----------------------------------------------------------
         # Verificación de integridad de la instalación
         # ----------------------------------------------------------
         # Asegurar que las acciones del shell están instaladas
         if hasattr(self.platform, "ensure_shell_actions"):
             self.platform.ensure_shell_actions(self.ch.app_root, self.platform.data_base)
+
         # Asegurar que el atajo de teclado está registrado
         if hasattr(self.platform, "ensure_keybindings"):
             self.platform.ensure_keybindings(self.platform.app_dir)
+
         # Sincronizar liberia
         try:
             result = self.ch.sync_library()
@@ -970,7 +1246,8 @@ class WMMDaemon:
                 log_event(f"Biblioteca sincronizada: {h}H / {v}V",
                     origin="ENGINE", level="INFO", reason="LIBRARY")
             else:
-                log_event("Biblioteca: No se pudo obtener el total", origin="ENGINE", level="WARN", reason="LIBRARY")
+                log_event("Biblioteca: No se pudo obtener el total",
+                    origin="ENGINE", level="WARN", reason="LIBRARY")
         except Exception as e:
             log_event(f"Error en escaneo inicial: {e}",
                 origin="ENGINE", level="ERROR", reason="LIBRARY")
@@ -979,33 +1256,47 @@ class WMMDaemon:
         # ----------------------------------------------------------
         settings = self.ch.load_json("settings").get("global", {})
         persist = settings.get("persist_on_reboot", True)
-        log_event(f"Valor de persist_on_reboot: {persist}",
-            origin="ENGINE", level="DEBUG", reason="SETTINGS")
+
         # Sincronizar geometría y vault (startup_sync ahora hace todo el trabajo)
         needs_cycle = self.startup_sync()
         if not persist:
+
             # El usuario quiere cambiar el fondo al iniciar
             log_event("Persistencia desactivada. Generando nuevo fondo.",
                 origin="ENGINE", level="INFO", reason="SETTINGS")
             self.execute_full_cycle(reason=ConfigHandler.REASON_SERVICE)
+
         elif needs_cycle:
             # El hardware ha cambiado: regenerar
             log_event("Cambio de hardware detectado. Regenerando fondo...",
                 origin="ENGINE", level="INFO", reason="HARDWARE")
             self.execute_full_cycle(reason=ConfigHandler.REASON_HARDWARE)
+        else:
+            # Persistencia activa y ninguna condición requiere regeneración.
+            log_event("Fondo actual conservado: no se requiere regeneración",
+                origin="ENGINE", level="INFO", reason="SETTINGS")
+
+        # Garantizar el temporizador aunque la persistencia evite
+        # ejecutar un ciclo inicial. No reiniciar uno ya existente.
+        # thanks Nilloow
+        if self.timer_id is None:
+            self.manage_timer(action="start")
+
         # ----------------------------------------------------------
         # 3. BUCLE PRINCIPAL
         # ----------------------------------------------------------
         # Si durante este arranque se han creado o actualizado traducciones y
         # la plataforma necesita recargar su shell, programar una única recarga
         # cuando el bucle principal del engine ya esté operativo.
-        if self._translations_changed and hasattr(self.platform, "refresh_shell_after_translation_update"):
+        if self._translations_changed and hasattr(
+            self.platform, "refresh_shell_after_translation_update"):
             GLib.idle_add(self._refresh_shell_after_translation_update)
 
         try:
             self.loop.run()
         except (KeyboardInterrupt, SystemExit):
-            log_event("Cerrando motor...", origin="ENGINE", level="INFO", reason="NOTIFY")
+            log_event("Cerrando motor...",
+                origin="ENGINE", level="INFO", reason="NOTIFY")
             self.manage_timer(action="stop")
             self.loop.quit()
 
@@ -1017,14 +1308,8 @@ class WMMDaemon:
         if not hasattr(self.platform, 'compile_translations'):
             return False
 
-        log_event(f"[DIAG] _ensure_translations: locale_dir={self.platform.locale_dir!r}",
-            origin="ENGINE", level="DEBUG", reason="SETTINGS")
-
         translations_changed = self.platform.compile_translations(
-            self.ch.app_root,
-            self.platform.locale_dir,
-            self.platform.app_domain
-        )
+            self.ch.app_root, self.platform.locale_dir, self.platform.app_domain)
 
         self._translations_changed = self._translations_changed or bool(translations_changed)
         return bool(translations_changed)
@@ -1049,10 +1334,8 @@ class WMMDaemon:
         config = self.platform._ensure_platform_config()
         resolved = self.platform._resolve_common_paths(config)
 
-        derived_keys = [
-            'wmm_id', 'cache_dir', 'locale_dir', 'app_dir',
-            'app_config', 'data_dir'
-        ]
+        derived_keys = ['wmm_id', 'cache_dir', 'locale_dir',
+            'app_dir','app_config', 'data_dir']
 
         # frontend_dir pertenece al frontend, no al espacio común.
         if config.get('desktop') == 'xfce':
@@ -1099,7 +1382,7 @@ class WMMDaemon:
         # 2. Crear atajo de teclado
         if hasattr(self.platform, 'ensure_keybindings'):
             self.platform.ensure_keybindings(self.platform.app_dir)
-            log_event("Atajo de teclado creado",
+            log_event("Configuración del atajo solicitada",
                 origin="ENGINE", level="INFO", reason="SETTINGS")
 
         log_event("Configuración post-instalación completada",

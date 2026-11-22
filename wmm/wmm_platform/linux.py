@@ -13,13 +13,44 @@ Contiene funciones comunes a todos los escritorios de Linux.
 import os
 import sys
 import subprocess
+import signal
 import fcntl
 import shutil
 import hashlib
 import json
 
-from wmm_platform.file_utils import lock_file, unlock_file
 from debug_logger import log_event
+from wmm_platform.core import _build_launch_command
+
+def terminate_process(pid):
+    """
+    Finaliza forzosamente un proceso Linux ya identificado por su PID.
+
+    La identidad del proceso debe validarse antes de llegar aquí; esta función
+    conserva la terminación SIGKILL utilizada históricamente por el panel.
+    """
+    os.kill(pid, signal.SIGKILL)
+
+def lock_file(f):
+    """Bloquea el archivo f (debe estar abierto en modo escritura)."""
+    fcntl.flock(f, fcntl.LOCK_EX)
+
+def unlock_file(f):
+    """Desbloquea el archivo f."""
+    fcntl.flock(f, fcntl.LOCK_UN)
+
+def try_lock_file(f):
+    """
+    Intenta adquirir un lock exclusivo sin bloquear.
+
+    Devuelve False únicamente cuando otro proceso mantiene el lock.
+    Cualquier otro error se propaga al consumidor.
+    """
+    try:
+        fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return True
+    except BlockingIOError:
+        return False
 
 def set_process_name(name):
     """Asigna un nombre visible al proceso actual en Linux."""
@@ -1020,63 +1051,6 @@ def get_system_paths():
         'cache_dir': cache_dir,
     }
 
-def _load_launch_profiles(data_dir):
-    """Carga los perfiles estáticos desde el DATA_DIR resuelto por el núcleo."""
-    if not data_dir:
-        return {}
-
-    profiles_path = os.path.join(data_dir, "launch_profiles.json")
-
-    try:
-        with open(profiles_path, "r", encoding="utf-8") as f:
-            profiles = json.load(f)
-        return profiles if isinstance(profiles, dict) else {}
-
-    except (OSError, json.JSONDecodeError) as e:
-        log_event(f"No se pudieron cargar perfiles de lanzamiento: {e}",
-            origin="LINUX", level="WARN", reason="GENERIC")
-        return {}
-
-def _build_launch_command(path, capability, params, data_dir):
-    """Construye un lanzamiento enriquecido para la aplicación predeterminada."""
-    try:
-        from gi.repository import Gio
-
-        file = Gio.File.new_for_path(path)
-        info = file.query_info("standard::content-type", Gio.FileQueryInfoFlags.NONE, None)
-        content_type = info.get_content_type()
-        app_info = Gio.AppInfo.get_default_for_type(content_type, False) if content_type else None
-
-        if not app_info:
-            return None
-
-        executable = app_info.get_executable()
-        executable_name = os.path.basename(executable) if executable else ""
-
-        if not executable_name:
-            return None
-
-        values = {"file": path, **params}
-
-        for profile in _load_launch_profiles(data_dir).values():
-            if executable_name not in profile.get("executables", []):
-                continue
-            arguments = profile.get(capability)
-            if not isinstance(arguments, list):
-                return None
-            try:
-                return [executable] + [argument.format(**values) for argument in arguments]
-
-            except KeyError as e:
-                log_event(f"Parámetro de lanzamiento no disponible: {e}",
-                    origin="LINUX", level="WARN", reason="GENERIC")
-                return None
-
-    except Exception as e:
-        log_event(f"No se pudo resolver la aplicación predeterminada: {e}",
-            origin="LINUX", level="WARN", reason="GENERIC")
-        return None
-
 def open_file(path, capability=None, data_dir=None, **params):
     """
     Abre una ruta con la aplicación predeterminada.
@@ -1086,7 +1060,24 @@ def open_file(path, capability=None, data_dir=None, **params):
     En cualquier otro caso conserva el comportamiento normal mediante xdg-open.
     """
     if capability and data_dir:
-        command = _build_launch_command(path, capability, params, data_dir)
+        try:
+            from gi.repository import Gio
+
+            # Gio identifica el editor predeterminado; el núcleo se encarga
+            # exclusivamente de interpretar su perfil de lanzamiento.
+            file = Gio.File.new_for_path(path)
+            info = file.query_info("standard::content-type", Gio.FileQueryInfoFlags.NONE, None)
+            content_type = info.get_content_type()
+            app_info = Gio.AppInfo.get_default_for_type(content_type, False) if content_type else None
+            executable = app_info.get_executable() if app_info else None
+
+            command = _build_launch_command(executable, path, capability, params, data_dir)
+
+        except Exception as e:
+            log_event(f"No se pudo resolver la aplicación predeterminada: {e}",
+                origin="LINUX", level="WARN", reason="GENERIC")
+            command = None
+
         if command:
             try:
                 subprocess.Popen(command)
@@ -1095,6 +1086,8 @@ def open_file(path, capability=None, data_dir=None, **params):
             except OSError as e:
                 log_event(f"No se pudo ejecutar lanzamiento enriquecido: {e}",
                     origin="LINUX", level="WARN", reason="GENERIC")
+
+    # Sin capacidad compatible o ante un fallo, conservar la apertura nativa.
     subprocess.run(["xdg-open", path], check=False)
 
 def compile_translations(app_root, locale_dir, app_domain):

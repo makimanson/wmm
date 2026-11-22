@@ -1,0 +1,254 @@
+[English]
+
+WALLHAVEN — INTEGRATION AND RESPONSIBLE USE IN WMM
+
+1. ABOUT WALLHAVEN
+
+Wallhaven (https://wallhaven.cc) is an online wallpaper platform that provides a public API allowing third-party applications to access certain resources from its catalog.
+
+WMM (Wallpaper Multi-Monitor Manager) is an independent open-source project that uses the Wallhaven API to allow users to search, browse, and download wallpapers directly from the application.
+
+This integration does not imply any official affiliation, endorsement, sponsorship, or partnership between WMM and Wallhaven.
+
+
+2. USE OF WALLHAVEN RESOURCES
+
+WMM uses the Wallhaven public API to perform searches and retrieve information about available wallpapers, including their properties, thumbnails, and download addresses.
+
+Searches performed through WMM are restricted to content classified as SFW (Safe For Work), excluding sensitive or explicit content categories.
+
+To respect Wallhaven's resources and infrastructure, WMM implements preventive measures for responsible usage:
+
+- An internal limit of 40 API requests per minute, below Wallhaven's published limit of 45 requests per minute.
+- A maximum of five original images per download batch.
+- Sequential downloads, with a deliberate one-second delay between download attempts.
+- Respect for service rate-limit responses, avoiding repeated requests when Wallhaven indicates that a limit has been reached.
+
+These measures are voluntary WMM design decisions and should not be interpreted as additional restrictions imposed by Wallhaven.
+
+WMM is designed for browsing wallpapers and manually downloading small selections, not for mass downloading or automated extraction of the Wallhaven catalog.
+
+
+3. IMAGE ORIGIN AND COPYRIGHT
+
+Wallpapers available through Wallhaven may be protected by copyright and subject to usage conditions established by their respective rights holders.
+
+WMM does not claim ownership of these images or grant any rights over them. Its role is limited to facilitating access to resources made available through Wallhaven.
+
+The GNU General Public License version 3, under which WMM is distributed, applies to the software and does not grant additional rights over images obtained from external services.
+
+When a wallpaper is added through Wallpapers Online, WMM retains its source reference while the image remains registered in the local library. The application also provides a Website link to the corresponding information page on Wallhaven.
+
+This reference identifies where the image was obtained. It does not constitute a declaration of authorship or determine the image's licensing conditions.
+
+Users are responsible for respecting the copyright and applicable usage conditions of the images they download.
+
+
+4. TERMS OF SERVICE AND PRIVACY
+
+Access to Wallhaven resources through WMM is subject to the terms and policies established by Wallhaven.
+
+Searches, thumbnail requests, and image downloads involve communication with Wallhaven's servers and may be subject to its privacy and data-processing policies.
+
+WMM does not control Wallhaven's infrastructure or the way the service processes requests received from external applications.
+
+Official information and current policies are available at:
+
+Wallhaven website:
+https://wallhaven.cc/
+
+API documentation:
+https://wallhaven.cc/help/api
+
+Terms of Service:
+https://wallhaven.cc/terms
+
+Privacy Policy:
+https://wallhaven.cc/privacy-policy
+
+Wallhaven may modify its terms, policies, or technical restrictions independently of WMM.
+
+The official documentation published by Wallhaven remains the authoritative reference and takes precedence over the informative descriptions contained in this document.
+
+
+5. WMM COMMITMENT
+
+The integration of Wallhaven into WMM aims to expand the application's capabilities while respecting the independence, resources, infrastructure, and rights of those who make the service possible.
+
+Responsible resource usage is part of WMM's development principles and reflects its commitment to maintaining a respectful relationship with Wallhaven, its community, and the users of the application.
+
+This document is provided for informational purposes only. It does not replace or modify Wallhaven's official terms and policies, nor does it alter the licenses or rights applicable to WMM or the images accessed through the service.
+
+
+
+[Català]
+
+WALLHAVEN — INTEGRACIÓ I ÚS RESPONSABLE A WMM
+
+1. SOBRE WALLHAVEN
+
+Wallhaven (https://wallhaven.cc) és una plataforma en línia dedicada als fons de pantalla que posa a disposició de les aplicacions de tercers una API pública per accedir a determinats recursos del seu catàleg.
+
+WMM (Wallpaper Multi-Monitor Manager) és un projecte independent de codi obert que utilitza l'API de Wallhaven per permetre als usuaris cercar, explorar i descarregar fons de pantalla directament des de l'aplicació.
+
+Aquesta integració no implica cap afiliació, aprovació, patrocini ni relació de col·laboració oficial entre WMM i Wallhaven.
+
+
+2. ÚS DELS RECURSOS DE WALLHAVEN
+
+WMM utilitza l'API pública de Wallhaven per fer cerques i obtenir informació sobre els fons de pantalla disponibles, incloses les seves característiques, miniatures i adreces de descàrrega.
+
+Les cerques efectuades des de WMM es limiten als continguts classificats com a SFW (Safe For Work), i exclouen les categories de contingut sensible o explícit.
+
+Amb la finalitat de respectar els recursos i la infraestructura de Wallhaven, WMM incorpora mesures preventives d'ús responsable:
+
+- Un límit intern de 40 sol·licituds a l'API per minut, inferior al límit de 45 sol·licituds per minut publicat per Wallhaven.
+- Un màxim de cinc imatges originals per lot de descàrrega.
+- Descàrregues seqüencials, amb una pausa deliberada d'un segon entre intents de descàrrega.
+- Respecte per les respostes de limitació del servei, evitant sol·licituds repetides quan Wallhaven indica que s'ha assolit un límit.
+
+Aquestes mesures són decisions voluntàries de disseny de WMM i no s'han d'interpretar com a restriccions addicionals imposades per Wallhaven.
+
+WMM està concebut per explorar fons de pantalla i descarregar manualment petites seleccions, no per efectuar descàrregues massives ni extraccions automatitzades del catàleg de Wallhaven.
+
+
+3. PROCEDÈNCIA I DRETS D'AUTOR DE LES IMATGES
+
+Els fons de pantalla disponibles a través de Wallhaven poden estar protegits per drets d'autor i subjectes a condicions d'utilització establertes pels seus respectius titulars.
+
+WMM no reclama la propietat d'aquestes imatges ni concedeix cap dret sobre elles. La seva funció es limita a facilitar l'accés als recursos disponibles mitjançant Wallhaven.
+
+La Llicència Pública General GNU, versió 3, sota la qual es distribueix WMM, s'aplica al programari i no concedeix drets addicionals sobre les imatges obtingudes de serveis externs.
+
+Quan s'incorpora un fons de pantalla mitjançant Wallpapers Online, WMM conserva la seva referència de procedència mentre la imatge continua registrada a la biblioteca local. L'aplicació també ofereix un enllaç Website per consultar la pàgina informativa corresponent a Wallhaven.
+
+Aquesta referència identifica d'on s'ha obtingut la imatge. No constitueix una declaració d'autoria ni determina les condicions de llicència de la imatge.
+
+Correspon als usuaris respectar els drets d'autor i les condicions d'utilització aplicables a les imatges que descarreguen.
+
+
+4. CONDICIONS DEL SERVEI I PRIVACITAT
+
+L'accés als recursos de Wallhaven des de WMM està subjecte a les condicions i polítiques establertes per Wallhaven.
+
+Les cerques, les sol·licituds de miniatures i les descàrregues d'imatges impliquen comunicacions amb els servidors de Wallhaven i poden estar subjectes a les seves polítiques de privacitat i tractament de dades.
+
+WMM no controla la infraestructura de Wallhaven ni la manera com el servei processa les sol·licituds rebudes d'aplicacions externes.
+
+La informació oficial i les polítiques vigents es poden consultar a:
+
+Lloc web de Wallhaven:
+https://wallhaven.cc/
+
+Documentació de l'API:
+https://wallhaven.cc/help/api
+
+Condicions del servei:
+https://wallhaven.cc/terms
+
+Política de privacitat:
+https://wallhaven.cc/privacy-policy
+
+Wallhaven pot modificar les seves condicions, polítiques o restriccions tècniques independentment de WMM.
+
+La documentació oficial publicada per Wallhaven constitueix la referència autoritzada i preval sobre les descripcions informatives incloses en aquest document.
+
+
+5. COMPROMÍS DE WMM
+
+La integració de Wallhaven a WMM té com a objectiu ampliar les possibilitats de l'aplicació respectant la independència, els recursos, la infraestructura i els drets de les persones i entitats que fan possible el servei.
+
+L'ús responsable dels recursos forma part dels principis de desenvolupament de WMM i reflecteix el seu compromís de mantenir una relació respectuosa amb Wallhaven, la seva comunitat i els usuaris de l'aplicació.
+
+Aquest document té caràcter exclusivament informatiu. No substitueix ni modifica les condicions i polítiques oficials de Wallhaven, ni altera les llicències o els drets aplicables a WMM o a les imatges accessibles mitjançant el servei.
+
+
+
+[Castellano]
+
+WALLHAVEN — INTEGRACIÓN Y USO RESPONSABLE EN WMM
+
+1. SOBRE WALLHAVEN
+
+Wallhaven (https://wallhaven.cc) es una plataforma en línea dedicada a los fondos de pantalla que pone a disposición de las aplicaciones de terceros una API pública para acceder a determinados recursos de su catálogo.
+
+WMM (Wallpaper Multi-Monitor Manager) es un proyecto independiente de código abierto que utiliza la API de Wallhaven para permitir a los usuarios buscar, explorar y descargar fondos de pantalla directamente desde la aplicación.
+
+Esta integración no implica afiliación, respaldo, patrocinio ni relación de colaboración oficial entre WMM y Wallhaven.
+
+
+2. USO DE LOS RECURSOS DE WALLHAVEN
+
+WMM utiliza la API pública de Wallhaven para realizar búsquedas y obtener información sobre los fondos de pantalla disponibles, incluyendo sus características, miniaturas y direcciones de descarga.
+
+Las búsquedas realizadas desde WMM se limitan a contenidos clasificados como SFW (Safe For Work), excluyendo las categorías de contenido sensible o explícito.
+
+Con el propósito de respetar los recursos y la infraestructura de Wallhaven, WMM incorpora medidas preventivas de uso responsable:
+
+- Un límite interno de 40 solicitudes a la API por minuto, inferior al límite de 45 solicitudes por minuto publicado por Wallhaven.
+- Un máximo de cinco imágenes originales por lote de descarga.
+- Descargas secuenciales, con una pausa deliberada de un segundo entre intentos de descarga.
+- Respeto a las respuestas de limitación del servicio, evitando solicitudes repetidas cuando Wallhaven indica que se ha alcanzado un límite.
+
+Estas medidas son decisiones voluntarias de diseño de WMM y no deben interpretarse como restricciones adicionales impuestas por Wallhaven.
+
+WMM está concebido para explorar fondos de pantalla y descargar manualmente pequeñas selecciones, no para realizar descargas masivas ni extracciones automatizadas del catálogo de Wallhaven.
+
+
+3. PROCEDENCIA Y DERECHOS DE AUTOR DE LAS IMÁGENES
+
+Los fondos de pantalla disponibles a través de Wallhaven pueden estar protegidos por derechos de autor y sujetos a condiciones de utilización establecidas por sus respectivos titulares.
+
+WMM no reclama la propiedad de estas imágenes ni concede derechos sobre ellas. Su función se limita a facilitar el acceso a los recursos disponibles mediante Wallhaven.
+
+La Licencia Pública General de GNU, versión 3, bajo la que se distribuye WMM, se aplica al software y no concede derechos adicionales sobre las imágenes obtenidas de servicios externos.
+
+Cuando se incorpora un fondo de pantalla mediante Wallpapers Online, WMM conserva su referencia de procedencia mientras la imagen permanece registrada en la biblioteca local. La aplicación también ofrece un enlace Website para consultar su página informativa correspondiente en Wallhaven.
+
+Esta referencia identifica de dónde se ha obtenido la imagen. No constituye una declaración de autoría ni determina las condiciones de licencia de la imagen.
+
+Corresponde a los usuarios respetar los derechos de autor y las condiciones de utilización aplicables a las imágenes que descargan.
+
+
+4. CONDICIONES DEL SERVICIO Y PRIVACIDAD
+
+El acceso a los recursos de Wallhaven desde WMM está sujeto a las condiciones y políticas establecidas por Wallhaven.
+
+Las búsquedas, las solicitudes de miniaturas y las descargas de imágenes implican comunicaciones con los servidores de Wallhaven y pueden estar sujetas a sus políticas de privacidad y tratamiento de datos.
+
+WMM no controla la infraestructura de Wallhaven ni la manera en que el servicio procesa las solicitudes recibidas de aplicaciones externas.
+
+La información oficial y las políticas vigentes pueden consultarse en:
+
+Sitio web de Wallhaven:
+https://wallhaven.cc/
+
+Documentación de la API:
+https://wallhaven.cc/help/api
+
+Condiciones del servicio:
+https://wallhaven.cc/terms
+
+Política de privacidad:
+https://wallhaven.cc/privacy-policy
+
+Wallhaven puede modificar sus condiciones, políticas o restricciones técnicas independientemente de WMM.
+
+La documentación oficial publicada por Wallhaven constituye la referencia autorizada y prevalece sobre las descripciones informativas incluidas en este documento.
+
+
+5. COMPROMISO DE WMM
+
+La integración de Wallhaven en WMM tiene como objetivo ampliar las posibilidades de la aplicación respetando la independencia, los recursos, la infraestructura y los derechos de quienes hacen posible el servicio.
+
+El uso responsable de los recursos forma parte de los principios de desarrollo de WMM y refleja su compromiso de mantener una relación respetuosa con Wallhaven, su comunidad y los usuarios de la aplicación.
+
+Este documento tiene carácter exclusivamente informativo. No sustituye ni modifica las condiciones y políticas oficiales de Wallhaven, ni altera las licencias o los derechos aplicables a WMM o a las imágenes accesibles mediante el servicio.
+
+
+────────────────────────────────────────
+
+Copyright © 2026 makimanson
+WMM — Wallpaper Multi-Monitor Manager
+
+────────────────────────────────────────

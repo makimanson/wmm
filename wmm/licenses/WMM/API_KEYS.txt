@@ -1,0 +1,52 @@
+[English]
+
+To make Online search more accessible, WMM uses either a public API or a key shared among its users, depending on the provider. This allows you to enjoy the service without configuring a personal key, although usage limits may depend on the combined activity of all users.
+If you regularly use Online search, we recommend obtaining your own API key. It is free from the providers available in WMM and gives you an independent usage allowance, without relying on the shared quota.
+This way, we can all contribute to responsible use, respect the limits established by the providers, and help preserve the availability of the services they make available to us.
+
+────────  How to use your API key  ────────
+
+- Once you have obtained your API key, save it in a plain text file (.txt) in a location accessible to WMM.
+- Then use the corresponding provider's button to link the file.
+
+WMM does not store your API key in its configuration.
+It simply accesses the file when the key is needed to make requests to the provider.
+
+[Català]
+
+Per facilitar l'accés a la cerca en línia, WMM utilitza, segons el proveïdor, una API pública o una clau compartida entre els seus usuaris.
+Això permet gaudir del servei sense haver de configurar una clau personal, tot i que els límits d'ús poden dependre de l'activitat conjunta.
+Si feu servir habitualment la cerca en línia, us recomanam obtenir la vostra pròpia clau API.
+És gratuïta als proveïdors disponibles a WMM i us permet disposar d'una quota d'ús independent, sense dependre del consum compartit.
+D'aquesta manera, entre tots contribuïm a fer-ne un ús responsable, respectant els límits establerts pels proveïdors i ajudant a preservar la disponibilitat dels serveis que posen al nostre abast.
+
+────────  Com utilitzar la vostra clau API  ────────
+
+- Una vegada hàgiu obtingut la vostra clau API, desau-la en un fitxer de text (.txt) en una ubicació accessible per a WMM.
+- Després, utilitzau el botó del proveïdor corresponent per vincular-hi el fitxer.
+
+WMM no desa la vostra clau API a la seva configuració.
+Simplement accedeix al fitxer quan necessita la clau per fer consultes al proveïdor.
+
+[Castellano]
+
+Para facilitar el acceso a la búsqueda Online, WMM utiliza, según el proveedor, una API pública o una clave compartida entre sus usuarios. Esto permite disfrutar del servicio sin necesidad de configurar una clave personal, aunque los límites de uso pueden depender de la actividad del conjunto.
+Si utilizas habitualmente la búsqueda Online, te recomendamos obtener tu propia clave API. Es gratuita en los proveedores disponibles en WMM y te permite disponer de una cuota de uso independiente, sin depender del consumo compartido.
+De esta manera, entre todos contribuimos a un uso responsable, respetando los límites establecidos por los proveedores y ayudando a preservar la disponibilidad de los servicios que ponen a nuestra disposición.
+
+────────  Cómo utilizar tu clave API  ────────
+
+- Una vez obtenida tu clave API, guárdala en un archivo de texto (.txt) en una ubicación accesible para WMM.
+- Después, utiliza el botón del proveedor correspondiente para vincular el archivo.
+
+WMM no almacena tu clave API en su configuración.
+Simplemente accede al archivo cuando necesita utilizarla para realizar consultas al proveedor.
+
+[Copyright]
+
+────────────────────────────────────────
+
+Copyright © 2026 makimanson
+WMM — Wallpaper Multi-Monitor Manager
+
+────────────────────────────────────────

@@ -1,0 +1,425 @@
+/*
+ * SPDX-FileCopyrightText: 2026 makimanson
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * WMM - Wallpaper Multi-Monitor Manager
+ * wmm.css - Estilos comunes y específicos de los módulos Python.
+ */
+
+/* ==========================================================
+ * WMM - ESTILOS GTK COMPARTIDOS (BORRADOR PARA REVISIÓN)
+ * Archivo previsto: wmm_platform/shell/common/wmm.css
+ *
+ * Reúne la presentación GTK de los módulos Python independientes
+ * y del Panel. No incluye CSS de los frontends.
+ *
+ * Las reglas existentes conservan sus valores originales.
+ * Las clases nuevas deberán asociarse desde Python al migrar.
+ * Los tamaños de iconos, texto por fragmentos y geometrías
+ * dinámicas continúan siendo responsabilidad de GTK/Python.
+ * ========================================================== */
+
+/* ==========================================================
+ * COMÚN - Tipografía, indicadores y vistas de texto
+ * ========================================================== */
+
+/* Títulos Pango size="large" + weight="bold" en las secciones. */
+.wmm-section-heading {
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+/* Etiquetas que actualmente contienen sólo <b>...</b>. */
+.wmm-label-bold {
+    font-weight: bold;
+}
+
+/* Titulares x-large + bold usados por About e Install Manager. */
+.wmm-heading-xlarge {
+    font-weight: bold;
+    font-size: 1.44em;
+}
+
+/* Conserva el icono Adwaita y rota únicamente su presentación. */
+.wmm-playback-down {
+    -gtk-icon-transform: rotate(90deg);
+}
+
+/* Las áreas "text" de ambos TextView heredan los colores
+ * del propio control; no se sustituyen los colores del tema. */
+textview.wmm-log-view text,
+textview.wmm-docs-view text {
+    color: inherit;
+    background-color: inherit;
+}
+
+/* Contraste común para separadores de WMM.
+ * Sólo lo utilizan los contenedores que adoptan esta clase.
+ */
+.wmm-themed-separators separator {
+    min-width: 1px;
+    min-height: 1px;
+    background-color: alpha(@theme_fg_color, 0.10);
+}
+
+/* Separador móvil Displays / Thumbnails.
+ * Ampliar la zona de agarre sin afectar a otros Gtk.Paned.
+ */
+paned.wmm-monitors-split > separator.wide {
+    min-height: 2px;
+    background-color: alpha(@theme_fg_color, 0.10);
+    border-top: 1px solid alpha(@theme_fg_color, 0.18);
+    border-bottom: 1px solid alpha(@theme_fg_color, 0.18);
+    border-radius: 3px;
+}
+
+paned.wmm-monitors-split > separator.wide:hover {
+    background-color: alpha(@theme_selected_bg_color, 0.22);
+}
+
+/* ==========================================================
+ * python/panel.py - Ventana y controles del Panel
+ * ========================================================== */
+
+/* Candidatos: propiedades estáticas hoy definidas en Python.
+ * La equivalencia geométrica de border_width y padding se
+ * comprobará antes de eliminar set_border_width(). */
+.wmm-panel-main-layout {
+    padding: 10px;
+}
+
+.wmm-panel-collapsed-bar {
+    margin-left: 0;
+    margin-right: 6px;
+}
+
+.wmm-panel-collapsed-extra-button {
+    margin-top: 10px;
+}
+
+/* ==========================================================
+ * python/panel/options_section.py
+ * ========================================================== */
+
+/* El icono de plegado lateral pertenece sólo a Options. */
+.wmm-playback-left {
+    -gtk-icon-transform: rotate(180deg);
+}
+
+.wmm-options-heading {
+    margin-top: 8px;
+    margin-bottom: 8px;
+}
+
+.wmm-options-restart-button {
+    margin-left: 10px;
+}
+
+.wmm-options-collapse-button {
+    margin-left: 8px;
+}
+
+/* Los valores de los sliders conservan el contraste del texto normal,
+ * independientemente del tratamiento visual del tema GTK. */
+.wmm-control-panel scale value {
+    color: @theme_fg_color;
+}
+
+/* Separación entre el valor numérico y el carril.
+ * Desplazar contents sin modificar la posición del texto. */
+.wmm-control-panel scale.horizontal > contents {
+    margin-left: 8px;
+}
+
+/* Diálogo construido desde OptionsSection. */
+.wmm-options-dialog-actions {
+    padding: 12px;
+}
+
+/* ==========================================================
+ * python/panel/favorites_section.py
+ * ========================================================== */
+
+.favorites-panel {
+    border: 1px solid @theme_selected_bg_color;
+    border-radius: 2px;
+}
+
+/* ==========================================================
+ * python/panel/monitors_section.py
+ * ========================================================== */
+
+.monitor-frame {
+    border: 2px solid @theme_fg_color;
+    background: alpha(@theme_fg_color, 0.05);
+}
+
+/* El hover y el D&D comparten apariencia, pero no estado. */
+.monitor-frame.monitor-hover,
+.monitor-frame.dnd-target {
+    border-color: @theme_selected_bg_color;
+}
+
+.align-active {
+    background-color: alpha(@theme_fg_color, 0.3);
+    border-radius: 3px;
+    padding: 0px 2px;
+}
+
+.edit-aspects-box {
+    border: 1px solid alpha(@theme_fg_color, 0.4);
+    border-radius: 4px;
+    padding: 4px 4px;
+}
+
+/* Las etiquetas de edición con Pango <b> usarían
+ * .wmm-label-bold desde la sección común. */
+
+/* ==========================================================
+ * python/panel/sources_section.py
+ * ========================================================== */
+
+.wmm-sources-recursive-check {
+    margin-right: 10px;
+    margin-bottom: 10px;
+}
+
+/* ==========================================================
+ * python/panel/thumbnails_section.py
+ * ========================================================== */
+
+.dnd-source {
+    border: 2px solid @warning_color;
+}
+
+.favorite-thumbnail {
+    border: 2px solid @theme_selected_bg_color;
+    border-radius: 4px;
+    padding: 2px;
+}
+
+.wmm-thumbnail-item {
+    margin-left: 4px;
+    margin-right: 4px;
+}
+
+/* La negrita de las etiquetas de navegación pasa a
+ * .wmm-label-bold; el relieve de los botones se estudiará
+ * antes de sustituir Gtk.Button.set_relief(NONE). */
+
+/* ==========================================================
+ * python/panel/online_section.py
+ * ========================================================== */
+
+/* Estilo original del selector de descarga, sin alteraciones. */
+button.wmm-online-select,
+button.wmm-online-source-link {
+    background-color: transparent;
+    background-image: none;
+    border: none;
+    box-shadow: none;
+    padding: 1px;
+    color: #ffffff;
+    -gtk-icon-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Resaltado al pasar el ratón sobre el selector Online. */
+button.wmm-online-select:hover,
+button.wmm-online-source-link:hover {
+    background-image: none;
+    background-color: alpha(@theme_fg_color, 0.60);
+    box-shadow: 0 0 0 1px alpha(@theme_fg_color, 0.45);
+    border-radius: 4px;
+}
+
+button.wmm-online-select:checked {
+    color: #3fd276;
+}
+
+button.wmm-online-select.wmm-online-downloaded,
+button.wmm-online-select.wmm-online-downloaded:disabled {
+    color: #3fd276;
+    opacity: 1;
+}
+
+/* Márgenes de miniaturas actualmente definidos en Python. */
+.wmm-online-item {
+    margin-left: 4px;
+    margin-right: 4px;
+}
+
+.wmm-online-placeholder {
+    margin-top: 24px;
+}
+
+/* ==========================================================
+ * python/about.py
+ * ========================================================== */
+
+.wmm-about-content {
+    padding: 22px;
+}
+
+.wmm-about-legal {
+    margin-top: 8px;
+}
+
+.wmm-about-links {
+    margin-top: 10px;
+}
+
+/* Botón de regreso de la historia oculta.
+ * Eliminar el tamaño mínimo y relleno impuestos por el tema GTK.
+ * La regla afecta exclusivamente a este control.
+ */
+button.wmm-history-back {
+    min-width: 0px;
+    min-height: 0px;
+    padding: 0px;
+    border: 0px;
+}
+
+/* Nombre: .wmm-heading-xlarge de la sección común.
+ * Los enlaces Pango <a> permanecen en Python. */
+
+/* ==========================================================
+ * python/add_bookmark.py
+ * ========================================================== */
+
+.wmm-bookmark-warning {
+    color: #D4A017;
+    font-weight: bold;
+}
+
+/* ==========================================================
+ * python/debug_log_viewer.py
+ * ========================================================== */
+
+.wmm-debug-log-content {
+    padding: 8px;
+}
+
+/* El TextView usa la regla común textview.wmm-log-view.
+ * El tamaño Pango absoluto del indicador de orden se
+ * mantiene en Python hasta validar una equivalencia CSS. */
+
+/* ==========================================================
+ * python/docs_viewer.py
+ * ========================================================== */
+
+.wmm-docs-pane {
+    padding: 6px;
+}
+
+/* Índice: .wmm-label-bold. TextView: regla común.
+ * Los GtkTextTags Markdown conservan sus formatos Pango;
+ * CSS no sustituye el formato de fragmentos de GtkTextBuffer. */
+
+
+/* ==========================================================
+ * python/keybinding_manager.py
+ * ========================================================== */
+
+.wmm-keybinding-content {
+    padding: 12px;
+}
+
+.wmm-keybinding-capture-content {
+    padding: 6px;
+}
+
+.wmm-keybinding-remove-button {
+    margin-right: 30px;
+}
+
+.wmm-keybinding-capture-row {
+    margin-bottom: 4px;
+}
+
+.wmm-keybinding-cancel-button {
+    margin-right: 8px;
+}
+
+/* Título: .wmm-section-heading de la sección común. */
+
+/* ==========================================================
+ * python/shell_send_to_monitor.py
+ * ========================================================== */
+
+.wmm-send-to-monitor-content {
+    margin-left: 10px;
+    margin-right: 10px;
+    margin-top: 10px;
+}
+
+/* ==========================================================
+ * wmm_platform/shell/installer/wmm-install_manager.py
+ * ========================================================== */
+
+/* Ventana principal y cuadro de estado (border_width=24). */
+.wmm-install-manager-window {
+    padding: 24px;
+}
+
+.wmm-install-status-box {
+    padding: 24px;
+}
+
+/* La imagen conserva en GTK su pixel_size=50. */
+.wmm-install-header-icon {
+    margin-left: 48px;
+}
+
+/* Los títulos usan .wmm-heading-xlarge y .wmm-section-heading. */
+
+/* ==========================================================
+ * wmm_platform/shell/po/pot_manager.py
+ * ========================================================== */
+
+/* Regla original del indicador de plegado. */
+image.wmm-pot-arrow-down {
+    -gtk-icon-transform: rotate(90deg);
+}
+
+.wmm-pot-main-content {
+    padding: 12px;
+}
+
+/* Search, New, Pending, Translations y estadísticas. */
+.wmm-pot-indented {
+    margin-left: 8px;
+}
+
+.wmm-pot-difference-header {
+    margin-left: 4px;
+    margin-right: 4px;
+}
+
+/* Contenedores de filas con border_width(4) actualmente. */
+.wmm-pot-row {
+    padding: 4px;
+}
+
+/* Etiqueta de las cadenas nuevas o pendientes. */
+.wmm-pot-pending-label {
+    margin: 4px;
+}
+
+.wmm-pot-column-separator {
+    margin-left: 5px;
+    margin-right: 5px;
+}
+
+/* Eliminar el marco nativo del Statusbar y su decoración
+ * interna. GTK win32 dibuja ambos en nodos diferentes. */
+statusbar.wmm-pot-statusbar > frame,
+statusbar.wmm-pot-statusbar > frame > border {
+    background-image: none;
+    border: none;
+    border-image: none;
+    box-shadow: none;
+}
+
+/* Las etiquetas <b> usarían .wmm-label-bold.
+ * Los enlaces a líneas de origen mantienen su marcado Pango;
+ * los anchos dinámicos de columnas siguen bajo control GTK. */

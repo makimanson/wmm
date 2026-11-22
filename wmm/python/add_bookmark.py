@@ -37,7 +37,7 @@ sys.path.insert(0, _PROJECT_ROOT)
 # ==========================================================
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, Gio
+from gi.repository import Gtk, Gio, Gdk
 
 # ==========================================================
 # IMPORTS DE MÓDULOS DEL PROYECTO
@@ -52,6 +52,47 @@ if hasattr(platform, "set_process_name"):
     platform.set_process_name("WMM AddBookmark")
 initialize(platform)
 
+def _position_window_at_point(window, x, y):
+    """Centra la ventana sobre un punto sin salir del workarea."""
+    workarea = platform.get_point_available_area(int(x), int(y))
+
+    if workarea is not None:
+        area_x = workarea["x"]
+        area_y = workarea["y"]
+        area_width = workarea["width"]
+        area_height = workarea["height"]
+
+    else:
+        display = Gdk.Display.get_default()
+        if display is None:
+            return
+
+        monitor = display.get_monitor_at_point(int(x), int(y))
+        if monitor is None:
+            return
+
+        gdk_workarea = monitor.get_workarea()
+
+        area_x = gdk_workarea.x
+        area_y = gdk_workarea.y
+        area_width = gdk_workarea.width
+        area_height = gdk_workarea.height
+
+    _, natural = window.get_preferred_size()
+    default_width, default_height = window.get_default_size()
+
+    width = max(natural.width, default_width)
+    height = max(natural.height, default_height)
+
+    target_x = int(x - width / 2)
+    target_y = int(y - height / 2)
+
+    target_x = max(area_x, min(target_x, area_x + area_width - width))
+    target_y = max(area_y, min(target_y, area_y + area_height - height))
+
+    window.set_position(Gtk.WindowPosition.NONE)
+    window.move(target_x, target_y)
+
 # ==========================================================
 # DIÁLOGO PRINCIPAL: AÑADIR FAVORITO
 # ==========================================================
@@ -65,7 +106,6 @@ class AddBookmarkDialog(Gtk.ApplicationWindow):
         super().__init__(application=app, title=_("Add Favorite Preset"))
         self.set_icon_name("bookmark-new")  # Icono de añadir favorito
         self.app = app
-        platform = PlatformManager()
         self.handler = ConfigHandler(cache_base_dir=platform.cache_dir)
         try:
             # Capturamos la sesión activa de monitores EN ESTE PRECISO INSTANTE.
@@ -110,7 +150,8 @@ class AddBookmarkDialog(Gtk.ApplicationWindow):
             self.default_text = f"Bookmark {next_id:02d}"
 
         except Exception as e:
-            log_event(f"Fallo al inicializar diálogo: {e}", origin="ADD_BOOK", level="ERROR", reason="BOOKMARK")
+            log_event(f"Fallo al inicializar diálogo: {e}",
+                origin="ADD_BOOK", level="ERROR", reason="BOOKMARK")
             self.show_warning(_("Error loading data. Please restart panel"))
             self._build_ui = lambda: None  # Anular la construcción de la UI
         self._build_ui()
@@ -136,6 +177,7 @@ class AddBookmarkDialog(Gtk.ApplicationWindow):
 
         # Campo de entrada de texto
         self.entry = Gtk.Entry()
+        self.entry.get_style_context().add_class("wmm-entry-border")
         self.entry.set_text(self.default_text)
         self.entry.set_activates_default(True)  # Permite confirmar con Enter
         vbox.pack_start(self.entry, False, False, 0)
@@ -187,10 +229,12 @@ class AddBookmarkDialog(Gtk.ApplicationWindow):
             cmd = json.dumps({"action": "bookmark_added", "name": name})
             script = os.path.join(os.path.dirname(__file__), "send_command.py")
             try:
-                subprocess.run(["python3", script, cmd], check=True)
+                subprocess.run([sys.executable, script, cmd], check=True)
             except Exception as e:
-                log_event(f"No se pudo notificar al motor: {e}", origin="ADD_BOOK", level="WARN", reason="COMMAND")
-            log_event(f"Preset guardado correctamente: {name}", origin="ADD_BOOK", level="INFO", reason="COMMAND")
+                log_event(f"No se pudo notificar al motor: {e}",
+                    origin="ADD_BOOK", level="WARN", reason="COMMAND")
+            log_event(f"Preset guardado correctamente: {name}",
+                origin="ADD_BOOK", level="INFO", reason="COMMAND")
             self.destroy()
         else:
             # Gestionar los errores conocidos
@@ -221,28 +265,51 @@ class BookmarkApplication(Gtk.Application):
     Garantiza que solo exista un diálogo de añadir favorito a la vez.
     """
 
-    def __init__(self):
+    def __init__(self, anchor=None):
         # Identificador único para el bus de sesión (D-Bus)
         super().__init__(application_id="org.wmm.BookmarkDialog")
         self.window = None
+        self.anchor = anchor
 
     def do_activate(self):
         """
         Crea la ventana del diálogo si no existe o la trae al frente.
         """
+        if hasattr(platform, "prepare_gtk_color_scheme"):
+            platform.prepare_gtk_color_scheme()
+
         if not self.window:
             self.window = AddBookmarkDialog(self)
             self.add_window(self.window)
+
+            if self.anchor is not None:
+                # Preparar los controles para medir sin mostrar la ventana.
+                self.window.get_child().show_all()
+                _position_window_at_point(
+                    self.window, self.anchor[0], self.anchor[1])
+
             self.window.show_all()
+
             # Configurar el botón por defecto después de que la ventana sea visible
             self.window.ok_btn.grab_default()
             self.window.set_default(self.window.ok_btn)
-        self.window.present()
 
+        if hasattr(platform, "present_window"):
+            platform.present_window(self.window)
+        else:
+            self.window.present()
 
 # ==========================================================
 # PUNTO DE ENTRADA
 # ==========================================================
 if __name__ == "__main__":
-    app = BookmarkApplication()
-    app.run(sys.argv)
+    anchor = None
+
+    if len(sys.argv) == 3:
+        try:
+            anchor = (int(sys.argv[1]), int(sys.argv[2]))
+        except ValueError:
+            pass
+
+    app = BookmarkApplication(anchor)
+    app.run([sys.argv[0]])

@@ -11,8 +11,8 @@ docs_viewer.py - Visor común de documentación Markdown.
 Carga un documento Markdown recibido por parámetro, resuelve automáticamente
 su variante de idioma y genera un índice de navegación a partir de sus títulos.
 
-El visor es deliberadamente independiente del engine y de PlatformManager:
-puede utilizarse aunque el engine no esté disponible.
+El visor es deliberadamente independiente del engine:
+sólo utiliza PlatformManager para consumir capacidades propias del sistema operativo.
 """
 
 # ==========================================================
@@ -25,18 +25,25 @@ import re
 import sys
 
 # ==========================================================
+# RUTAS Y RESOLUCIÓN DEL DOCUMENTO
+# ==========================================================
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
+
+# ==========================================================
 # IMPORTS DE TERCEROS (GTK)
 # ==========================================================
 import gi
 gi.require_version("Gtk", "3.0")
-from gi.repository import Gtk, Pango, GLib
-
+from gi.repository import Gtk, Gdk, Pango, GLib
 
 # ==========================================================
-# RUTAS Y RESOLUCIÓN DEL DOCUMENTO
+# IMPORTS DE MÓDULOS DEL PROYECTO
 # ==========================================================
-_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
+from wmm_platform.core import PlatformManager
+from debug_logger import set_cache_dir
+from i18n import _, initialize
 
 def _resolve_base_path(argument):
     """Resuelve rutas relativas respecto a la raíz de WMM, no al CWD."""
@@ -45,7 +52,6 @@ def _resolve_base_path(argument):
         path = os.path.join(_PROJECT_ROOT, path)
     return os.path.abspath(path)
 
-
 def _get_session_language():
     """Obtiene el código corto de idioma de la sesión."""
     raw = (os.environ.get("LANGUAGE") or os.environ.get("LC_ALL")
@@ -53,13 +59,11 @@ def _get_session_language():
     raw = raw.split(":", 1)[0].split(".", 1)[0]
     return raw.split("_", 1)[0].lower() or "en"
 
-
 def _resolve_document(base_path):
     """Prefiere nombre_<idioma>.ext y usa el documento base como fallback."""
     root, ext = os.path.splitext(base_path)
     localized_path = f"{root}_{_get_session_language()}{ext}"
     return localized_path if os.path.isfile(localized_path) else base_path
-
 
 def _build_settings_key(base_path):
     """Deriva una clave estable y legible de la ruta base del documento."""
@@ -70,7 +74,6 @@ def _build_settings_key(base_path):
     stem = os.path.splitext(relative_path)[0]
     safe_name = re.sub(r"[^A-Za-z0-9]+", "_", stem).strip("_").lower() or "document"
     return f"docs_viewer_{safe_name}"
-
 
 def _build_application_id(base_path):
     """Una aplicación por documento permite coexistencia sin duplicar el mismo visor."""
@@ -96,13 +99,12 @@ def _set_process_name(base_path):
 class DocsViewer(Gtk.Window):
     """Ventana común con índice de navegación y contenido Markdown."""
 
-    def __init__(self, base_path, parent=None):
+    def __init__(self, base_path, settings_path, parent=None):
         self._base_path = base_path
         self._document_path = _resolve_document(base_path)
         self._document_name = os.path.splitext(os.path.basename(base_path))[0]
         self._settings_key = _build_settings_key(base_path)
-        self._settings_path = os.path.join(
-            GLib.get_user_config_dir(), "wmm@maki", "data", "settings.json")
+        self._settings_path = settings_path
 
         super().__init__(title=f"WMM - {self._document_name}")
 
@@ -158,6 +160,31 @@ class DocsViewer(Gtk.Window):
         scrolled_index.add(self.index_tree)
         left_box.pack_start(scrolled_index, True, True, 0)
 
+        # --- FUENTE DEL DOCUMENTO ---
+        # El índice conserva la zona flexible; el selector queda abajo
+        # sin añadir altura ni barras al formulario.
+        font_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        font_label = Gtk.Label(label=_("Font and size") + ":", xalign=0)
+        font_box.pack_start(font_label, False, False, 0)
+
+        self.font_button = Gtk.FontButton()
+        self.font_button.set_use_font(True)
+        self.font_button.set_use_size(False)
+
+        # Mantener el selector a la izquierda, sin estirarlo
+        # cuando el usuario amplía la columna del índice.
+        self.font_button.set_halign(Gtk.Align.START)
+        self.font_button.set_hexpand(False)
+        self.font_button.set_size_request(180, -1)
+
+        self.font_button.set_font(self._viewer_state["font"])
+        self.font_button.connect("font-set", self._on_font_changed)
+        self.font_button.connect("notify::font", self._truncate_font_label)
+        self._truncate_font_label(self.font_button, None)
+
+        font_box.pack_start(self.font_button, False, False, 0)
+        left_box.pack_start(font_box, False, False, 0)
+
         # --- PANEL DERECHO: CONTENIDO ---
         right_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         right_box.set_border_width(6)
@@ -171,18 +198,14 @@ class DocsViewer(Gtk.Window):
         self.content_view.set_left_margin(10)
         self.content_view.set_right_margin(10)
 
+        # El CSS compartido conserva los colores del tema GTK
+        # para el área interna del visor.
         content_context = self.content_view.get_style_context()
         content_context.add_class("view")
         content_context.add_class("wmm-docs-view")
 
-        content_css = Gtk.CssProvider()
-        content_css.load_from_data(b"""
-            textview.wmm-docs-view text {
-                color: inherit;
-                background-color: inherit;
-            }
-        """)
-        content_context.add_provider(content_css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        # Aplicar la preferencia persistida al documento y su índice.
+        self._apply_document_font(self._viewer_state["font"])
 
         self.textbuffer = self.content_view.get_buffer()
         scrolled_content.add(self.content_view)
@@ -233,6 +256,49 @@ class DocsViewer(Gtk.Window):
         self._restore_section_id = self.connect("map-event", self._restore_section)
         self.show_all()
 
+    def _load_collection(self):
+        """Muestra archivos legales independientes bajo sus carpetas originales."""
+        self.set_title("WMM - Licenses")
+        self.index_label.set_markup("<b>Licenses</b>")
+        self.textbuffer.set_text("")
+        self.index_store.clear()
+        self._collection_files = {}
+
+        parents = {self._document_path: None}
+        first_document = None
+        wmm_document = None
+
+        for directory, subdirs, filenames in os.walk(self._document_path):
+            subdirs.sort(key=str.casefold)
+            parent = parents[directory]
+
+            for name in subdirs:
+                path = os.path.join(directory, name)
+                parents[path] = self.index_store.append(parent, [name, -1, ""])
+
+            for name in sorted(filenames, key=str.casefold):
+                path = os.path.join(directory, name)
+                if not os.path.isfile(path):
+                    continue
+
+                tree_iter = self.index_store.append(parent, [name, -1, ""])
+                tree_path = self.index_store.get_path(tree_iter)
+                self._collection_files[tree_path.to_string()] = path
+
+                if first_document is None:
+                    first_document = tree_path
+
+                if (wmm_document is None and
+                        os.path.relpath(directory, self._document_path).casefold() == "wmm"):
+                    wmm_document = tree_path
+
+        if first_document is not None and not self._viewer_state.get("section"):
+            initial_document = wmm_document or first_document
+            self.index_tree.expand_to_path(initial_document)
+            self.index_tree.set_cursor(initial_document)
+            GLib.idle_add(self.index_tree.scroll_to_cell,
+                initial_document, None, True, 0.5, 0.0)
+
     def _parse_document_metadata(self, content):
         """Lee metadatos WMM únicamente del comentario HTML inicial."""
         metadata = {}
@@ -255,8 +321,11 @@ class DocsViewer(Gtk.Window):
     # ----------------------------------------------------------
     def _load_document(self):
         """Carga el Markdown resuelto y genera el índice desde sus títulos."""
+        if os.path.isdir(self._document_path):
+            self._load_collection()
+            return
+
         if not os.path.isfile(self._document_path):
-            self._show_error(f"Document not found:\n{self._document_path}")
             return
 
         try:
@@ -372,6 +441,37 @@ class DocsViewer(Gtk.Window):
         if not tree_iter:
             return
 
+        if hasattr(self, "_collection_files"):
+            path = model.get_path(tree_iter).to_string()
+            document = self._collection_files.get(path)
+            if not document:
+                return
+
+            try:
+                with open(document, "r", encoding="utf-8-sig") as file:
+                    content = file.read()
+            except (OSError, UnicodeError) as error:
+                self._show_error(f"Could not read document:\n{error}")
+            else:
+                # Los documentos WMM trilingües declaran sus puntos de entrada.
+                # Las licencias externas mantienen la lectura literal habitual.
+                markers = {"en": "[English]", "ca": "[Català]", "es": "[Castellano]"}
+                lines = content.splitlines()
+                line_number = 0
+
+                if all(marker in lines for marker in markers.values()):
+                    selected = markers.get(_get_session_language(), markers["en"])
+                    line_number = lines.index(selected)
+
+                self.textbuffer.set_text(content)
+                self.textbuffer.move_mark(
+                    self._section_scroll_mark, self.textbuffer.get_iter_at_line(line_number))
+
+                # Posicionar tras actualizar la disposición del nuevo documento.
+                GLib.idle_add(self.content_view.scroll_to_mark,
+                    self._section_scroll_mark, 0.0, line_number > 0, 0.0, 0.0)
+            return
+
         new_line = model.get_value(tree_iter, 1)
 
         # --- 1. Restaurar la línea anterior ---
@@ -407,12 +507,61 @@ class DocsViewer(Gtk.Window):
         self.textbuffer.move_mark(self._section_scroll_mark, start_iter)
         self.content_view.scroll_to_mark(self._section_scroll_mark, 0.0, True, 0.0, 0.5)
 
+    def _apply_document_font(self, font):
+        """Aplica una única preferencia tipográfica al documento y su índice."""
+        description = Pango.FontDescription.from_string(font)
+
+        # El contenido Markdown conserva las escalas y atributos
+        # definidos en sus GtkTextTag.
+        self.content_view.override_font(description)
+
+        # El título conserva la negrita definida mediante markup.
+        self.index_label.override_font(description)
+
+        # Los elementos del índice se dibujan mediante CellRendererText:
+        # su fuente debe actualizarse explícitamente.
+        for column in self.index_tree.get_columns():
+            for renderer in column.get_cells():
+                if isinstance(renderer, Gtk.CellRendererText):
+                    renderer.set_property("font-desc", description)
+
+    def _on_font_changed(self, button):
+        """Actualiza la tipografía de ambas columnas sin reconstruirlas."""
+        font = button.get_font()
+        self._apply_document_font(font)
+        self._viewer_state["font"] = font
+        self._save_viewer_state({"font": font})
+
+    def _truncate_font_label(self, button, _param):
+        """Limita el texto del selector sin alterar la fuente seleccionada."""
+        container = button.get_child()
+        if not isinstance(container, Gtk.Box):
+            return
+
+        for child in container.get_children():
+            if isinstance(child, Gtk.Label):
+                name = child.get_text()
+                if len(name) > 18:
+                    child.set_text(name[:17] + "…")
+                break
+
+        button.set_tooltip_text(button.get_font())
+
     # ==========================================================
     # PREFERENCIAS DEL VISOR
     # ==========================================================
     def _load_viewer_state(self):
         """Carga tamaño y última sección propios de este documento."""
-        defaults = {"window_size": [900, 650], "section": None}
+        # La fuente inicial procede del tema GTK para conservar
+        # la apariencia actual mientras no exista elección del usuario.
+        gtk_settings = Gtk.Settings.get_default()
+        default_font = gtk_settings.get_property("gtk-font-name") if gtk_settings else "Sans 10"
+
+        defaults = {
+            "window_size": [900, 650],
+            "section": None,
+            "font": default_font,
+        }
 
         try:
             with open(self._settings_path, "r", encoding="utf-8") as file:
@@ -436,6 +585,8 @@ class DocsViewer(Gtk.Window):
 
         section = viewer_state.get("section")
         state["section"] = section if isinstance(section, str) and section else None
+        font = viewer_state.get("font")
+        state["font"] = font if isinstance(font, str) and font.strip() else defaults["font"]
 
         return state
 
@@ -481,8 +632,8 @@ class DocsViewer(Gtk.Window):
 
         return False
 
-    def _save_viewer_state(self, window_size, section):
-        """Guarda estado visual del documento sin reformatear settings.json."""
+    def _save_viewer_state(self, values):
+        """Actualiza las preferencias indicadas sin reformatear settings.json."""
         try:
             with open(self._settings_path, "r", encoding="utf-8") as file:
                 raw_settings = file.read()
@@ -496,8 +647,6 @@ class DocsViewer(Gtk.Window):
         viewer_state = settings.get(self._settings_key)
         if self._settings_key in settings and not isinstance(viewer_state, dict):
             return
-
-        values = {"window_size": window_size, "section": section}
 
         if isinstance(viewer_state, dict) and all(
             viewer_state.get(key) == value for key, value in values.items()
@@ -537,13 +686,21 @@ class DocsViewer(Gtk.Window):
             if end < 0:
                 return
 
+            # Conservar el formato y la separación al crear
+            # las preferencias de un documento todavía inexistente.
             prefix = raw_settings[:end].rstrip()
             separator = "," if prefix and not prefix.endswith("{") else ""
+
+            # La primera preferencia puede ser la fuente, antes de que
+            # exista geometría persistida para este documento.
+            fields = ",\n".join(
+                f'        "{key}": {json.dumps(value, ensure_ascii=False)}'
+                for key, value in values.items()
+            )
             updated = (
                 prefix + separator +
                 f'\n    "{self._settings_key}": {{\n'
-                f'        "window_size": {json.dumps(window_size)},\n'
-                f'        "section": {json.dumps(section, ensure_ascii=False)}\n'
+                f'{fields}\n'
                 "    }\n" +
                 raw_settings[end:]
             )
@@ -561,7 +718,7 @@ class DocsViewer(Gtk.Window):
         model, tree_iter = self.index_tree.get_selection().get_selected()
         section = model.get_path(tree_iter).to_string() if tree_iter else None
 
-        self._save_viewer_state([width, height], section)
+        self._save_viewer_state({ "window_size": [width, height], "section": section, })
         return False
 
     # ----------------------------------------------------------
@@ -574,26 +731,51 @@ class DocsViewer(Gtk.Window):
         self.textbuffer.apply_tag(
             error_tag, self.textbuffer.get_start_iter(), self.textbuffer.get_end_iter())
 
-
 # ==========================================================
 # APLICACIÓN GTK
 # ==========================================================
 class DocsApplication(Gtk.Application):
     """Mantiene una sola instancia por documento base."""
 
-    def __init__(self, base_path):
+    def __init__(self, base_path, platform):
         super().__init__(application_id=_build_application_id(base_path))
         self.base_path = base_path
+        self._platform = platform
 
     def do_activate(self):
+        if hasattr(self._platform, "prepare_gtk_color_scheme"):
+            self._platform.prepare_gtk_color_scheme()
+
         window = self.props.active_window
         if window is None:
-            window = DocsViewer(self.base_path)
+            # ----------------------------------------------------------
+            # CSS COMPARTIDO DE WMM
+            # ----------------------------------------------------------
+            # El visor es una aplicación independiente del Panel.
+            # Cargar los estilos una sola vez, antes de crear su ventana.
+            css_path = os.path.join(
+                self._platform.app_dir, "wmm_platform", "shell", "common", "wmm.css")
+
+            if os.path.isfile(css_path):
+                css_provider = Gtk.CssProvider()
+                css_provider.load_from_path(css_path)
+                Gtk.StyleContext.add_provider_for_screen(
+                    Gdk.Screen.get_default(), css_provider,
+                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+            else:
+                print(f"[WMM DOCS] CSS compartido no disponible: {css_path}",
+                    file=sys.stderr)
+
+            settings_path = os.path.join(self._platform.data_dir, "settings.json")
+
+            window = DocsViewer(self.base_path, settings_path)
             window.connect("destroy", lambda *_: self.quit())
             self.add_window(window)
 
-        window.present()
-
+        if hasattr(self._platform, "present_window"):
+            self._platform.present_window(window)
+        else:
+            window.present()
 
 # ==========================================================
 # ENTRY POINT
@@ -605,7 +787,16 @@ def main():
 
     base_path = _resolve_base_path(sys.argv[1])
     _set_process_name(base_path)
-    app = DocsApplication(base_path)
+    platform = PlatformManager()
+
+    # El selector utiliza el mismo dominio de traducciones que el Panel.
+    initialize(platform)
+
+    # El visor autónomo no pasa por ConfigHandler; habilitamos el logger
+    # común para registrar el resultado real de la activación Win32.
+    set_cache_dir(platform.cache_dir)
+
+    app = DocsApplication(base_path, platform)
     return app.run([sys.argv[0]])
 
 

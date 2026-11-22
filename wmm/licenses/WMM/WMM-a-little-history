@@ -1,0 +1,53 @@
+[English]
+
+Hi everyone,
+
+I created WMM (Wallpaper Multi-Monitor Manager), a free and open-source wallpaper manager designed specifically for multi-monitor Linux setups.
+
+It originally started as a small applet for Linux Mint, but over time I decided to expand it with more functionality and support for other desktop environments.
+
+The project came from a problem I had with my own setup: I use two 49" monitors together with a third 27" monitor in portrait orientation. I was never completely satisfied with how wallpaper managers handled images with very different monitor orientations, particularly when automatically choosing suitable images or using a single panoramic image across multiple displays.
+
+That eventually became WMM.
+
+I’d like to take this little space to thank Pere for his initial tests on Linux, to Pauki for contributing those wild ideas of his that have really kept me on my toes, and also, a note for Xisco: Arthas not move... yet ;)
+
+Also to Aint, to Senders, and to so many others who have accompanied me on this long journey that has not yet ended...
+
+— Maki
+
+[Català]
+
+Hola a tothom,
+
+He creat WMM (Wallpaper Multi-Monitor Manager), un gestor de fons de pantalla gratuït i de codi obert, dissenyat específicament per a configuracions de Linux amb diversos monitors.
+
+Al principi va sorgir com una petita aplicació per a Linux Mint, però amb el temps vaig decidir ampliar-la amb més funcionalitats i compatibilitat amb altres entorns d'escriptori.
+
+El projecte va néixer arran d'un problema que tenia amb la meva pròpia configuració: utilitzo dos monitors de 49 polzades juntament amb un tercer monitor de 27 polzades en orientació vertical. Mai no vaig quedar del tot satisfet amb la manera com els gestors de fons de pantalla tractaven les imatges en configuracions amb orientacions de pantalla molt dispars; especialment a l'hora de seleccionar automàticament imatges adequades o d'utilitzar una única imatge panoràmica que s'estengués per diverses pantalles.
+
+D'aquí va sorgir, finalment, WMM.
+
+Voldria aprofitar aquest petit racó per agrair-li al Pere pels seus primers tests al Linux, al Pauki per aportar les seves boges idees que m'han duït de cap, i també, per al Xisco: Arthas not move... yet ;)
+
+També al Aint, al Senders i a tants altres que m'han acompanyat en aquest llarc viatge que encara no s'ha acabat...
+
+— Maki
+
+[Castellano]
+
+Hola a todos:
+
+He creado WMM (Wallpaper Multi-Monitor Manager), un gestor de fondos de pantalla gratuito y de código abierto, diseñado específicamente para configuraciones de varios monitores en Linux.
+
+En sus inicios, era una pequeña aplicación para Linux Mint, pero con el tiempo decidí ampliarla, añadiendo más funcionalidades y compatibilidad con otros entornos de escritorio.
+
+El proyecto surgió a raíz de un problema que tenía con mi propia configuración: utilizo dos monitores de 49 pulgadas junto con un tercero de 27 pulgadas en orientación vertical. Nunca quedé del todo satisfecho con la forma en que los gestores de fondos de pantalla manejaban las imágenes en configuraciones con orientaciones tan distintas; sobre todo a la hora de seleccionar automáticamente imágenes adecuadas o de utilizar una única imagen panorámica a lo largo de varias pantallas.
+
+Así fue como nació WMM.
+
+Quisiera aprovechar este pequeño rincón para agradecerle a Pere por sus primeros test en Linux, a Pauki por aportar sus locas ideas que me han traído de cabeza, y tambien, para Xisco: Arthas not move... yet ;)
+
+Tambien a Aint, a Senders y a tantos otros que me han acompañado en este lago viaje que aun no ha terminado...
+
+— Maki

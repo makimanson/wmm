@@ -2,8 +2,6 @@
     "KPlugin": {
         "Id": "org.maki.wmm",
         "Name": "WMM - Wallpaper Multi-Monitor Manager",
-        "Name[es]": "WMM - Administrador de Fondos de Pantalla",
-        "Name[ca]": "WMM - Administrador de Fons de Pantalla",
         "Description": "Control WMM from the system tray",
         "Description[es]": "Controla WMM desde la bandeja del sistema",
         "Description[ca]": "Controla WMM des de la safata del sistema",

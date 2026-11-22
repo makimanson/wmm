@@ -37,7 +37,7 @@ from pathlib import Path
 import gi
 gi.require_version("Gtk", "3.0")
 gi.require_version("Vte", "2.91")
-from gi.repository import Gtk, GLib, Vte, Pango
+from gi.repository import Gtk, GLib, Vte, Pango, GdkPixbuf, Gdk
 
 # ==========================================================
 # CONFIGURACIÓN DEL PATH DEL PROYECTO
@@ -164,7 +164,6 @@ class InstallManagerWindow(Gtk.ApplicationWindow):
         self.set_position(Gtk.WindowPosition.CENTER)
 
         self.set_title("WMM Install Manager")
-        self.set_icon_name("video-display")
         self.set_resizable(False)
         self.set_default_size(605, 493)
 
@@ -173,7 +172,8 @@ class InstallManagerWindow(Gtk.ApplicationWindow):
         self._current_operation = None
 
         self.connect("delete-event", self._on_delete_event)
-        content = Gtk.Box( orientation=Gtk.Orientation.VERTICAL, spacing=16 )
+        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=16)
+        content.get_style_context().add_class("wmm-themed-separators")
         self.add(content)
 
         # --------------------------------------------------
@@ -199,8 +199,20 @@ class InstallManagerWindow(Gtk.ApplicationWindow):
 
         header.add(header_text)
 
-        icon = Gtk.Image.new_from_icon_name("video-display", Gtk.IconSize.DIALOG)
-        icon.set_pixel_size(50)
+        # Identidad gráfica compartida con About.
+        # Conservar el icono del tema si el recurso no está disponible.
+        icon_path = os.path.join(platform.app_dir, "icon.png")
+
+        try:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(
+                icon_path, -1, 50, True)
+            self.set_icon(pixbuf)
+            icon = Gtk.Image.new_from_pixbuf(pixbuf)
+        except (GLib.Error, OSError):
+            self.set_icon_name("video-display")
+            icon = Gtk.Image.new_from_icon_name("video-display", Gtk.IconSize.DIALOG)
+            icon.set_pixel_size(50)
+
         icon.set_halign(Gtk.Align.START)
         icon.set_valign(Gtk.Align.CENTER)
         icon.set_margin_start(48)
@@ -979,14 +991,26 @@ class InstallManagerApplication(Gtk.Application):
         window = self.props.active_window
 
         if window is None:
+            # El instalador es un proceso GTK independiente del Panel.
+            # Debe registrar su propia instancia del CSS compartido.
+            css_path = os.path.join(
+                platform.app_dir, "wmm_platform", "shell", "common", "wmm.css")
+
+            if os.path.isfile(css_path):
+                css_provider = Gtk.CssProvider()
+                css_provider.load_from_path(css_path)
+                Gtk.StyleContext.add_provider_for_screen(
+                    Gdk.Screen.get_default(), css_provider,
+                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+
             window = InstallManagerWindow(self)
-            window.connect(
-                "destroy",
-                lambda *_: self.quit()
-            )
+            window.connect("destroy", lambda *_: self.quit())
             self.add_window(window)
 
-        window.present()
+        if hasattr(platform, "present_window"):
+            platform.present_window(window)
+        else:
+            window.present()
 
 
 if __name__ == "__main__":

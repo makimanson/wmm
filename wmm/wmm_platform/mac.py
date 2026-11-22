@@ -83,20 +83,6 @@ def ensure_shell_actions(applet_root, data_base):
     """
     pass
 
-def get_monitors():
-    """
-    Devuelve un diccionario con la geometría e identidad de todos los monitores en macOS.
-    TODO: Implementar usando NSScreen (PyObjC) o CoreGraphics (ctypes).
-    Actualmente es un esqueleto que devuelve un diccionario vacío.
-
-    Returns:
-        dict: {hash: {connector, manufacturer, x, y, width, height, width_mm, height_mm, inches, orientation, primary}}
-    """
-    # TODO: Usar NSScreen.screens() para obtener geometría.
-    # En macOS, el monitor primario tiene frame.origin = (0,0) en el espacio global.
-    return {}
-
-
 def set_wallpaper(path, config_handler=None):
     """
     Aplica el fondo de pantalla en macOS.
@@ -105,7 +91,6 @@ def set_wallpaper(path, config_handler=None):
     # TODO: Usar NSWorkspace.sharedWorkspace().setDesktopImageURL_forScreen_options_error()
     # o la API de CoreGraphics CGSSetDesktopImage.
     pass
-
 
 def compile_translations(app_root, locale_dir, app_domain):
     """
@@ -116,7 +101,6 @@ def compile_translations(app_root, locale_dir, app_domain):
     # En macOS, se puede instalar via Homebrew: brew install gettext
     pass
 
-
 def ensure_keybindings(app_dir):
     """
     Crea un atajo de teclado para "Next Background" en macOS.
@@ -126,7 +110,6 @@ def ensure_keybindings(app_dir):
     # la API de servicios de macOS (NSServices).
     pass
 
-
 def init_channels(data_dir):
     """
     Registra los canales de comunicación soportados por macOS.
@@ -135,19 +118,6 @@ def init_channels(data_dir):
     # TODO: Registrar FileChannel (similar a linux) y quizás un canal
     # basado en Apple Events / Distributed Objects para comunicación entre procesos.
     pass
-
-
-def init_monitor_events(callback):
-    """
-    Inicia la monitorización de cambios de hardware en macOS.
-    TODO: Implementar usando NSWorkspace (notificaciones de dispositivos) o
-    CoreGraphics para detectar cambios de configuración de pantalla.
-    """
-    # TODO: Usar NSWorkspace.sharedWorkspace().notificationCenter.addObserver
-    # para detectar cambios de pantalla (NSWorkspaceDidChangeScreenConfigurationNotification)
-    # o usar CGDisplayRegisterReconfigurationCallback.
-    return False
-
 
 def normalize_desktop(desktop):
     """

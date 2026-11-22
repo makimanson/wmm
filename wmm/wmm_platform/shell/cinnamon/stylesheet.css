@@ -1,0 +1,84 @@
+/*
+ * SPDX-FileCopyrightText: 2026 makimanson
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * WMM - Wallpaper Multi-Monitor Manager
+ * Cinnamon frontend stylesheet
+ */
+
+/* ----------------------------------------------------------
+ * MENÚS
+ * ---------------------------------------------------------- */
+
+/*
+ * El color medio conserva contraste sobre temas claros y oscuros.
+ * El alpha queda centralizado aquí para poder ajustar la presencia
+ * visual de todos los separadores WMM desde un único punto.
+ */
+.wmm-menu .popup-separator-menu-item {
+    -gradient-height: 1px;
+    -gradient-start: rgba(128, 128, 128, 0.35);
+    -gradient-end: rgba(128, 128, 128, 0.35);
+    -margin-horizontal: 0;
+    height: 1px;
+}
+
+/*
+ * Cinnamon aplica por sí mismo el pseudoclase :open a las cabeceras
+ * PopupSubMenuMenuItem. El resaltado pertenece por tanto al tema.
+ */
+.wmm-submenu-header:open {
+    font-weight: bold;
+}
+
+/* Atajo mostrado junto a Next Background. */
+.wmm-hotkey-label {
+    font-style: italic;
+}
+
+/*
+ * El tema de Cinnamon impone min-width: 15em al slider nativo.
+ * Dentro del submenú WMM debe adaptarse al ancho ya disponible.
+ */
+.wmm-slider {
+    min-width: 0;
+}
+
+
+/* ----------------------------------------------------------
+ * FAVORITOS
+ * ---------------------------------------------------------- */
+
+.wmm-favorites-scroll-item {
+    padding: 0;
+    margin: 0;
+    background-color: transparent;
+}
+
+.wmm-favorites-box {
+    margin-left: 10px;
+    padding: 0 6px 0 0;
+    spacing: 3px;
+}
+
+.wmm-favorite-row {
+    padding: 0;
+    spacing: 2px;
+}
+
+.wmm-menu .popup-sub-menu .popup-menu-item.wmm-favorite-action {
+    padding: 1px 6px;
+    spacing: 0;
+}
+
+.wmm-favorite-delete-icon {
+    icon-size: 16px;
+}
+
+.wmm-favorites-scroll {
+    border: none;
+    background-color: transparent;
+    padding: 0;
+    margin: 0;
+    max-height: 115px;
+}

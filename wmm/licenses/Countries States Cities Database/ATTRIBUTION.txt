@@ -1,0 +1,36 @@
+WMM - GEOGRAPHICAL DATA ATTRIBUTION
+
+Dataset distributed by WMM:
+countries+states+cities.json
+
+Original project:
+Countries States Cities Database (dr5hn)
+https://github.com/dr5hn/countries-states-cities-database
+
+License:
+Open Database License 1.0 (ODbL)
+https://opendatacommons.org/licenses/odbl/1-0/
+
+WMM uses an adapted version of Countries States Cities Database.
+
+The adaptation prepared on 2026-10-15 removes fields not needed for
+geographical identification while preserving the geographical hierarchy,
+names, translations and coordinates. One invalid ASCII byte was corrected.
+
+The complete adaptation record and file hashes are documented in:
+WMM-GEODATA-PROVENANCE.txt
+
+Additional source credits and legal notices:
+SOURCES.txt
+Unicode-3.0.txt
+
+The original database license is included as:
+LICENSE
+
+The source register identifies additional sources whose redistribution
+conditions remain under review. Including these documents does not, by
+itself, establish that every underlying source has been legally cleared
+for redistribution.
+
+This attribution concerns the geographical dataset and does not change
+the license of the WMM application.

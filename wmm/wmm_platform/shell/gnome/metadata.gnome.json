@@ -2,7 +2,7 @@
   "uuid": "wmm@maki",
   "name": "WMM Manager",
   "description": "Wallpaper Multi-Monitor Manager",
-  "shell-version": ["45","46", "47", "48", "49", "50"],
+  "shell-version": ["45","46", "47", "48", "49", "50", "51"],
   "url": "https://github.com/makimanson/wmm",
   "version-name": "@VERSION@"
 }

@@ -57,6 +57,65 @@ def scale_monitors_to_area(monitors_map, area_w, area_h, margin=10):
         }
     return scaled_monitors
 
+def get_virtual_monitor_layout(monitors_map, area_w, area_h):
+    """
+    Calcula la disposición virtual de los monitores.
+    Conserva el orden y las coordenadas del escalado común.
+    """
+    if not monitors_map or area_w <= 20 or area_h <= 20:
+        return []
+
+    scaled = scale_monitors_to_area(monitors_map, area_w, area_h)
+
+    return [
+        {
+            'hash': m_hash,
+            'x': coords['x'],
+            'y': coords['y'],
+            'w': coords['w'],
+            'h': coords['h'],
+        }
+        for m_hash, coords in scaled.items()
+    ]
+
+
+def get_max_visual_area_height(monitors_map, area_width, min_height, margin=10):
+    """Calcula la altura a partir de la cual la anchura limita el escalado."""
+    if not monitors_map or area_width <= margin * 2:
+        return None
+
+    monitors = tuple(monitors_map.values())
+
+    min_x = min(m['x'] for m in monitors)
+    min_y = min(m['y'] for m in monitors)
+    max_x = max(m['x'] + m['width'] for m in monitors)
+    max_y = max(m['y'] + m['height'] for m in monitors)
+
+    bb_width = max_x - min_x
+    bb_height = max_y - min_y
+    if bb_width <= 0 or bb_height <= 0:
+        return None
+
+    height = margin * 2 + math.ceil(
+        (area_width - margin * 2) * bb_height / bb_width)
+
+    return max(min_height, height)
+
+def get_virtual_canvas_size(layout_data, margin=10):
+    """Calcula las dimensiones necesarias del lienzo de monitores virtuales."""
+    if not layout_data:
+        return 0, 0
+
+    min_x = min(m['x'] for m in layout_data)
+    max_x = max(m['x'] + m['w'] for m in layout_data)
+    max_y = max(m['y'] + m['h'] for m in layout_data)
+
+    width = int(max_x - min_x)
+    if width <= 0:
+        return 0, 0
+
+    return width + margin, int(max_y) + margin
+
 def get_total_canvas_geometry(monitors_map):
     """
     Calcula el tamaño del lienzo basándose en el punto más lejano

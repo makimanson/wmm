@@ -7,6 +7,296 @@ WMM - Wallpaper Multi-Monitor Manager
 Changelog
 -->
 
+# v2.0.0 - 2026-11-20
+
+## HIGHLIGHTS
+
+### GNOME Shell 51
+
+- Extended WMM support to **GNOME Shell 51**, retaining compatibility with GNOME Shell 45 onward.
+
+### Windows — native integration
+
+- First WMM system-tray frontend for Windows, with menus, rotation, presets and tools.
+- Native IPC, single-instance management, shortcuts, notifications and Explorer integration.
+- Private runtime, standalone executable, light/dark themes and unified PowerShell 5.1 maintenance.
+
+### Wallpapers Online
+
+- Online gallery with filtered search, **Load More** pagination, thumbnails, selection and original-image downloads.
+- Online editing via drag-and-drop onto virtual monitors, with live desktop preview.
+- Automatic Sources, Library and Thumbnails import/synchronization; duplicate downloads avoided through cached originals.
+- Persistent per-image **Website** provenance, provider branding and links to original pages.
+- Personal API key management from the Panel, without storing credentials in settings.
+- Preventive request limits, HTTP 429 handling and explicit acceptance of responsible-use terms.
+- WebP thumbnail support in the Windows runtime, verified in compiled and installed builds.
+- **Integrated providers:** Wallhaven and Alpha Coders.
+
+### Image metadata
+
+- Wallpaper metadata overlay for images containing supported EXIF/XMP data.
+- Configurable visible fields, including geographic information when available.
+- Per-monitor overlay positioning, opacity and display settings.
+- Per-monitor settings adapt the overlay to each wallpaper.
+
+### Thumbnails — progressive display
+
+- Sequential generation and incremental rendering of new and cached thumbnails.
+- Stable Library navigation as the gallery grows, without reordering visible items.
+
+### Selective rotation and favorites
+
+- Selectable Sources folders for rotation, with independent Active/Inactive flags.
+- Separate H/V rotation queues for the full library, Selective Rotation and Favorites Only.
+- Verified mutual exclusion between Selective Rotation and Favorites Only, with Slideshow remaining enabled.
+
+### Panel — adaptive geometry
+
+- Resizable Displays/Thumbnails divider with persistent position.
+- Smooth virtual-monitor scaling with preserved image references.
+
+## Added
+
+### Windows
+
+- `win32.py` backend with Named Pipes, `LockFileEx` and private gettext resolution.
+- System-tray frontend with main/context menus and recovery after Explorer restart.
+- Favorites, Slideshow, interval, SYNC/ASYNC, Spanned, preset and tool menus.
+- Event-driven *busy* detection via `ReadDirectoryChangesW`, without polling.
+- Configurable global shortcut via `RegisterHotKey`.
+- Notifications via `Shell_NotifyIconW` and `WM_COPYDATA`.
+- Explorer and desktop actions to send, span or favorite images.
+- Per-user autostart via `HKCU\...\Run`.
+- Light/dark theme tracking in the frontend and GTK forms.
+- PyInstaller build with a private runtime.
+
+### Windows — installation and maintenance
+
+- `wmm-install.ps1` as the authoritative Install, Upgrade, Downgrade, Reinstall and Uninstall manager.
+- `wmm-install.cmd` as the PowerShell 5.1 STA launcher.
+- Windows Forms operation/progress dialogs with a separate runspace worker.
+- Self-contained `wmm-repair.zip` containing the runtime using `ZIP_STORED`.
+- Transactional staging, data/settings preservation, integration backups and rollback.
+- Start menu/desktop shortcuts and uninstall registration managed by PowerShell.
+- Operation selection based on installed, local and GitHub-published versions.
+- Asynchronous GitHub queries that do not block local operations.
+- Worker-side verification of the selected source and version.
+- Localized forms and operations in English, Spanish and Catalan.
+- Windows theming for native forms and compatible title bars.
+- Milestone-based progress replacing `Marquee`.
+- Reinstall and repair through Install Manager.
+- Previous-installation recovery if replacement fails.
+
+### Wallpapers Online
+
+- `online_wallpapers.py`: shared provider registry, search, thumbnail/original caches, image downloads and source-page links.
+- `online_section.py`: filters, asynchronous gallery, multi-selection, download states and criteria-bound, on-demand **Load More** pagination.
+- `application/x-wmm-online-image` D&D target for dragging gallery images onto virtual monitors.
+- Original-image resolution from Sources, temporary cache or download, reusing existing files.
+- Live Online editor preview via `apply_edit_preview`.
+- Import of originals into Sources and path updates when edits are accepted.
+- Library synchronization and differential thumbnail regeneration after an edit or download.
+- Optional preset saving and Favorites updates.
+- Reactive *Downloaded* indicator to avoid duplicate downloads.
+- Persistent per-image Website provenance and provider links from Online and Library.
+- `image_online.json` with compact `[provider, id, url]` records and batched writes.
+- Provenance removal/recovery when Online originals are removed and re-imported.
+- Responsible-use screen with explicit consent and independent **Do not show again** preference.
+- Preventive request throttling: 40 local Wallhaven queries per 60 seconds, plus HTTP 429 and `Retry-After` handling.
+- Per-provider branding with banners, logos and text fallback.
+- Dedicated **API Keys** form accessible from Online, with provider selection, linked personal file and **Browse**/**Unlink** actions.
+- Only personal-file paths persisted in `settings.json`; credentials read from selected files.
+- File validation before linking, persistence checks and unlinking without modifying user files.
+- Alpha Coders shared key fallback when no personal path is configured; the shared key is neither displayed nor stored in the form.
+- API Keys file chooser adapted to Windows light/dark themes and drive navigation.
+- WebP thumbnail support on Windows.
+- Reuse of previously downloaded or previewed originals to prevent duplicate downloads.
+- **Integrated providers:** Wallhaven and Alpha Coders.
+
+### Thumbnails — worker and diagnostics
+
+- Sequential `WMM-Thumbnails` worker, handing widgets to the GTK main thread.
+- Progressive rendering of new and cached thumbnails.
+- Progress tracked through completion of both generation and on-screen rendering.
+- Pillow `Truncated File Read` warnings logged with the source-image path.
+
+### Selective rotation by Sources
+
+- Per-folder `[active, selective]` state in `scan_index.json`.
+- Context actions to select/deselect folders and subtrees for rotation.
+- Green/amber indicators for full or partial selection.
+- **Selective rotation** switch in Options, independent of persisted selection flags.
+- `sel_rotation_h.json` and `sel_rotation_v.json` added to persisted-state preservation.
+- Differential reconciliation of selective lists on Sources changes.
+- Informationally disabled switch when no active folders are selected.
+- Event-driven Selective availability updates on Sources events.
+
+### Individual-favorite rotation
+
+- `bookmark_rotation_h.json` and `bookmark_rotation_v.json`, independent of other rotation pools.
+- H/V reconciliation on changes to `bookmarks_single_list.json`.
+- Migration of the previous favorites rotation history to the new queues.
+
+### Virtual monitors
+
+- Direct D&D from Thumbnails, with live wallpaper application and selective Vault updates.
+- Image swapping between active monitors via `application/x-wmm-monitor`.
+- Source-monitor selection when spanning one image across all monitors.
+
+### Linux and common tools
+
+- Shortcut manager for GNOME, KDE Plasma 6, MATE and XFCE.
+- GNOME Shell frontend supporting versions 45–51 and event-driven preset updates.
+- Separate Favorites, Slideshow and Tools submenus in GNOME.
+- Contextual placement of `Add Preset Favorite` in GNOME, KDE and MATE.
+- `licenses/` tree integrated into Docs Viewer.
+- Transactional POT/PO validation in Translation Manager.
+- Dedicated WMM icon for Plasma, installed/removed with its integration.
+- Actual **Next Background** shortcut displayed in the KDE menu.
+
+### Documentation
+
+- Updated `README_es.md`, `README.md` and `Readme.txt` for Windows, GNOME Shell 45–51, Online providers and installation/uninstallation procedures by distribution type.
+- Updated bilingual quick-install guide to v2.0.0, covering Windows open-code and compiled distributions.
+- Online-provider information retained in the acknowledgments section.
+
+### Image metadata
+
+- Extraction and normalization of XMP/Dublin Core, XMP GPS and `Iptc4xmpExt:LocationCreated`.
+- EXIF/XMP cache migrated to schema 3, with differential reuse.
+- Demo-image metadata available from the first wallpaper.
+- Initial Image Metadata preferences and compact confirmation dialog.
+- Asynchronous EXIF extraction, `mtime_ns`-based caching and inter-process exclusion.
+- Local GPS enrichment via `geo_lookup.py`.
+- Options for font, position, margins, opacity and visible fields.
+- Metadata overlay rendering via PangoCairo/Pillow, including Spanned compositions.
+- Metadata changes applied without forcing wallpaper rotation.
+
+## Changed
+
+### General rotation and Panel
+
+- Replaced anti-repeat history with `rotation_h.json` and `rotation_v.json`.
+- Differential Sources reconciliation while preserving consumed images.
+- One-time `match_orientation` initialization, respecting subsequent user changes.
+- Panel options reordered to match their visual layout.
+- Selective Rotation retains folder flags when disabled; selecting folders does not automatically enable it.
+- `get_smart_selection()` consumes only the active pool and honors H/V filtering.
+- Full-library, selective and favorites pools retain independent progress.
+- Selective Rotation and Favorites Only are mutually exclusive at Engine level.
+- Enabling Favorites Only or Selective Rotation keeps Slideshow enabled.
+
+### Panel — layout and presentation
+
+- Displays and Thumbnails arranged in a vertical `Gtk.Paned`.
+- Virtual monitors scaled from `GdkPixbuf` references without recomposition during dragging.
+- Expansion constrained by available width; progressive Displays contraction.
+- Persistent divider position and spacing around its handle.
+- Virtual layout and dimensions centralized in `monitor_manager.py`.
+- D&D frames and targets unified across Normal and Edit modes.
+- Options controls normalized using `pack_start` and vertical containers with `spacing=2`.
+- Monitor switches use a local 2-pixel margin and native GTK sizing.
+
+### Wallpapers Online and Library
+
+- Compact search controls without removing filters.
+- Orientation and aspect ratio grouped in a visual H/V selector.
+- **Search** and **Load More** react to filter changes and restored criteria.
+- Provider-specific capability rules.
+- Batched provenance insertion through `ConfigHandler`.
+- Compact provenance format and decoupled reading in `image_online.json`.
+- Horizontal/Vertical ordering planned before progressive Library rendering.
+- New thumbnails appended visually without reordering rendered items.
+- Thumbnail generation separated from GTK presentation.
+- Thumbnail preparation optimized with `os.scandir()` and JPEG quality 75.
+
+### Wallpapers Online — compatibility and originals
+
+- Previously downloaded originals reused from temporary storage when importing into Sources, without a second download.
+- After import, monitor paths referring to temporary files are updated; Sources and thumbnails are synchronized.
+- Alpha Coders retains the standard `thumb` thumbnail while alternatives are evaluated; Wallhaven uses a higher-resolution thumbnail with fallback where applicable.
+
+### Windows — maintenance experience
+
+- Manager operations differentiated by effective version and source.
+- Compact selector with dynamic buttons and two-column version details.
+- Progress dialog with long messages and line-fitted log output.
+- Graceful frontend shutdown before replacements, with a process barrier during Reinstall.
+
+### Windows — GTK presentation
+
+- Windows `GtkSpinButton` sizing and visual states adjusted for both themes.
+- File chooser headers and columns adjusted for contrast without changing behavior.
+- API Keys file chooser integrated with existing Panel/dialog styles.
+
+### Editing and Library
+
+- Deferred application in normal editing and presets; immediate live preview in Online editing.
+- Temporary selection and Spanned source centralized in `image_selection.py`.
+- Accept action and preset checkbox adapted to editing context.
+- Contextual editing tooltips and active-view navigation in Thumbnails.
+
+### Frontends and platform
+
+- Independent GNOME Shell 45–51 gestures and menus.
+- Persistent menus and available-area-aware tooltips in MATE and XFCE.
+- Shortcut capture split into Clear, Cancel and Accept actions.
+- Single Panel instance via `Gtk.Application`.
+- Send to Monitor coordinated through platform locks.
+- Slideshow and metadata changes coalesced to avoid repeated recompositions.
+- Common data assets centralized in `wmm_platform/shell/data`.
+- Gettext resolution delegated to `PlatformManager`.
+- XFCE **Next Background** entry uses separate action and shortcut labels.
+
+## Fixed
+
+### Panel and Library
+
+- Intermittently missing virtual-monitor frames after Panel resize.
+- `Gtk.Fixed` synchronization in Normal, Edit and preset-loading modes.
+- Visual aspect-ratio restoration when loading presets.
+- Repeated monitor scaling without cumulative quality loss.
+- Virtual-monitor updates when displays are connected/disconnected during editing.
+- Preservation of images assigned to unavailable monitors when updating presets.
+- Unintended thumbnail shifts/reordering during generation.
+- Recoverable EXIF/TIFF warnings identified by source file in Debug Log.
+
+### Common Engine
+
+- Slideshow startup with `persist_on_reboot` and no initial rotation; corrected timer initialization in `WMMDaemon.run()`.
+- [Issue #14](https://github.com/makimanson/wmm/issues/14) fix verified with persistence enabled and disabled (Thanks **Nilloow** for helping identify this issue).
+
+### Linux and Library
+
+- Automatic Options/Favorites/Sources collapse based on usable left-column height.
+- GNOME Shell 51 adaptation for `St.BoxLayout` and wallpaper cache.
+- Stable Cinnamon menu/submenu widths.
+- D&D between monitors and source-image selection in Spanned mode.
+- H/V orientation based on EXIF and `exif_transpose()` without modifying originals.
+- EXIF reading and validation of valid PNG files.
+- Pillow import and `__*__` key filtering in `sync_bookmarks_flat_list()`.
+- Sources synchronization and *Downloaded* updates after Online image imports.
+- Online live preview isolated from deferred behavior in other edit modes.
+- `gi-cairo` dependency added for Linux metadata rendering.
+- Slideshow activation from Favorites Only in the Panel via `update_timer_settings`.
+- Selective availability updated on selection and Sources Active/Inactive changes.
+- XFCE **Next Background** width no longer reserves `Gtk.AccelLabel` space.
+
+## Removed
+
+- Legacy `history.json` and `history_vault.json` from regular rotation.
+- Legacy geometry methods `_center_monitor_layout()` and `_adjust_fixed_size()`.
+- `set_window_size_limit()` from the Windows backend.
+- Unused Panel variables `cache_base` and `self._sources_need_refresh`.
+- POSIX dependencies and `msvcrt.locking()` from native Windows paths.
+- Legacy PID-based single-instance and Send to Monitor controls.
+- `GtkMenuShell` from primary Windows popups.
+- Immediate shortcut removal on Clear and obsolete state from the previous dialog.
+- Temporary Online diagnostic traces.
+- Separate `wmm-uninstall.ps1`, superseded by functions in `wmm-install.ps1`.
+- Redundant detail controls and unused translation keys from the Windows selector.
+- Discarded thumbnail-insertion pagination/sorting and navigation-compensation attempts.
+
 # v1.5.0 - 2026-09-29
 
 WMM 1.5.0 introduces full support for **XFCE 4.20 / X11** and consolidates a common Linux architecture for **Cinnamon, GNOME Shell, KDE Plasma 6, MATE and XFCE**, separating the core, persistent data, cache and desktop-specific frontends.
@@ -263,8 +553,6 @@ This release also strengthens the Install, Upgrade, Reinstall and Uninstall life
 - Added `launch_profiles.json`.
 - Added resizing for main `pot_manager.py` columns.
 
----
-
 ## Changed
 
 ### Installation and maintenance lifecycle
@@ -406,8 +694,6 @@ This release also strengthens the Install, Upgrade, Reinstall and Uninstall life
 - Updated dependent paths and tools.
 - File opening now uses default application through GIO, with line-aware capabilities only where supported.
 
----
-
 ## Fixed
 
 - Fixed possibility of signaling an unrelated process when an old engine PID had been recycled.
@@ -445,8 +731,6 @@ This release also strengthens the Install, Upgrade, Reinstall and Uninstall life
 - Fixed opposite risk of leaving Sources permanently insensitive due to incomplete busy-counter balancing between phases.
 - Fixed asynchronous Sync error closure: `_async_state` no longer remains resident after UI is released.
 - Restored double-click on Sources folders after migration from old `open_in_file_manager()` API to `open_file()`.
-
----
 
 ## Removed
 

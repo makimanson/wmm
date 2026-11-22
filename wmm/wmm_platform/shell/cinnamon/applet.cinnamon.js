@@ -7,16 +7,34 @@
  * Gestión de fondos multi-monitor con soporte para temporizador, favoritos,
  * modos SYNC/ASYNC y Spanned.
  *
+ * MAPA DE NAVEGACIÓN DEL ARCHIVO:
+ * 1. Arranque y lifecycle: engine, traducciones y construcción inicial.
+ * 2. Menú principal (izquierdo): Favorites, Slideshow, Displays,
+ *    Spanned Mode, Image Metadata y Next Background; diálogo de borrado.
+ * 3. Menú contextual (derecho): Settings, Sync Library, Install Manager,
+ *    Debug Log Viewer, Help, About y Exit.
+ * 4. Sincronización: settings y favoritos desde disco; persistencia.
+ * 5. Engine y estado: órdenes, rotación y señalización busy.
+ * 6. Eventos del applet: clics y retirada del panel.
+ *
+ * CONTRATO DE MENÚS:
+ * - Principal: permanece abierto salvo al añadir/eliminar favoritos y
+ *   al abrir Keybinding Manager. La confirmación de borrado mantiene
+ *   su comportamiento de diálogo hijo ya validado.
+ * - Contextual: todas las opciones lo cierran antes de actuar.
+ *
  * FLUJO DE CONTROL:
- * 1. UI (JS) -> send_command.py -> commands.json / canal del engine.
- * 2. Engine (Python) -> ejecuta la acción -> actualiza settings/bookmarks/estado.
- * 3. UI (JS) -> sincroniza settings/bookmarks al abrir el menú.
+ * UI (JS) -> send_command.py -> engine -> settings/bookmarks/estado.
+ * El menú principal relee settings/bookmarks al abrirse.
  */
 
 const Applet = imports.ui.applet;
 const AppletManager = imports.ui.appletManager;
+const Main = imports.ui.main;
+const Tooltips = imports.ui.tooltips;
 const Util = imports.misc.util;
 const PopupMenu = imports.ui.popupMenu;
+const Clutter = imports.gi.Clutter;
 const Gio = imports.gi.Gio;
 const GLib = imports.gi.GLib;
 const St = imports.gi.St;
@@ -34,15 +52,34 @@ function _(text) { return Gettext.dgettext('wmm@maki', text); }
 
 class WMMApplet extends Applet.IconApplet {
 
-    /**
-     * BLOQUE 1: CONSTRUCTOR
-     * Configuración de rutas, UI inicial y arranque del engine.
-     */
+    // ================================================================
+    // 1. ARRANQUE Y LIFECYCLE · Cinnamon, engine y traducciones
+    // ================================================================
+
+    /** Rutas del frontend, menús compartidos y bootstrap hasta tener gettext listo. */
     constructor(metadata, orientation, panel_height, instance_id) {
         super(orientation, panel_height, instance_id);
 
         try {
+            /*
+             * ICONO PROVISIONAL DEL BOOTSTRAP
+             *
+             * Se establece antes de resolver appletPath. El actor dispone
+             * así de un icono válido durante la inicialización, mientras
+             * permanece invisible hasta que el engine esté preparado.
+             *
+             * _onEngineAppeared() sustituye este icono por la identidad
+             * gráfica definitiva mediante _setNormalAppletIcon().
+             */
             this.set_applet_icon_name("video-display");
+
+            /*
+             * El actor padre del applet es la única autoridad de puntero.
+             * El icono interior no necesita recibir eventos y, si los recibe,
+             * puede provocar falsas transiciones de hover en el tooltip nativo.
+             */
+            this._applet_icon.reactive = false;
+            this._applet_icon.track_hover = false;
             this.appletPath = metadata.path;
 
             // Desde v1.5.0 el frontend Cinnamon ya no contiene el core ni data.
@@ -80,11 +117,34 @@ class WMMApplet extends Applet.IconApplet {
             this._ignoreNextBusy = false;
             this._cachedSettings = null;
             this._cachedBookmarks = null;
+            this._deleteConfirmMenu = null;
 
             /*
-             * Cinnamon carga el applet antes que el engine. Mantenerlo oculto
-             * evita materializar textos traducidos antes de que el engine haya
-             * podido compilar los catálogos pendientes.
+             * Cinnamon ya administra el menú contextual mediante _menuManager.
+             * Registrar el menú principal en ese mismo manager conserva una única
+             * autoridad para apertura/cierre entre ambos popups.
+             */
+            this._mainMenu = new Applet.AppletPopupMenu(this, orientation);
+            this._mainMenu.actor.add_style_class_name("wmm-menu");
+
+            this._applet_context_menu.actor.add_style_class_name("wmm-menu");
+
+            this._menuManager.addMenu(this._mainMenu);
+
+            /*
+             * BOOTSTRAP DE TRADUCCIONES
+             *
+             * Cinnamon puede cargar el applet antes de que el engine compile los
+             * catálogos .mo. bindtextdomain() puede ejecutarse antes, pero una
+             * primera consulta dgettext() sin catálogo puede quedar cacheada en
+             * el proceso del shell y mantener textos sin traducir durante la sesión.
+             *
+             * Por eso no se construyen los menús ni el tooltip traducible hasta
+             * detectar org.maki.wmm por D-Bus: el engine publica ese servicio
+             * después de preparar las traducciones.
+             *
+             * Mientras tanto, el applet permanece invisible y sin interacción,
+             * conservando su geometría para evitar la regresión de Flashspot.
              */
             this._uiReady = false;
             this._engineWatchId = 0;
@@ -118,18 +178,19 @@ class WMMApplet extends Applet.IconApplet {
         catch (e) { global.logError("WMM Constructor Error: " + e.message); }
     }
 
-    finalizeContextMenu() {
-        /*
-         * Cinnamon finaliza automáticamente el menú nada más cargar el applet.
-         * Su implementación base traduce metadata.name con dgettext(uuid, ...);
-         * si el catálogo aún no existe, ese fallo queda cacheado durante la vida
-         * del proceso Cinnamon. Aplazar la finalización hasta org.maki.wmm evita
-         * consultar el dominio antes de que el engine haya creado los .mo.
-         */
-        if (!this._uiReady) return;
-        super.finalizeContextMenu();
-    }
+    /**
+     * CONTEXTUAL — Anulación permanente de la construcción nativa.
+     *
+     * WMM construye su menú contextual mediante _populateContextMenu(),
+     * después de que el engine haya preparado las traducciones.
+     *
+     * La sobrescritura vacía impide que Cinnamon añada sus elementos
+     * nativos, tanto durante el bootstrap como posteriormente.
+     * No delegar en super.finalizeContextMenu().
+     */
+    finalizeContextMenu() {}
 
+    /** Construye ambos menús al estar disponible el engine y su catálogo gettext. */
     _onEngineAppeared() {
         if (this._uiReady) return;
         this._uiReady = true;
@@ -138,24 +199,31 @@ class WMMApplet extends Applet.IconApplet {
          * org.maki.wmm sólo aparece después de que el engine haya preparado
          * las traducciones. A partir de aquí ya es seguro materializar la UI.
          */
-        this.set_applet_icon_name("video-display");
-        this.set_applet_tooltip(
-            "WMM: " + _("Wallpaper Multi-Monitor Manager") + "\n" +
-            _("Click action") + ": " + _("Next Background") + "\n" +
-            _("Secondary Click") + ": " + _("Context Menu"));
+        this._setNormalAppletIcon();
 
-        this._populateMenu();
+        const tooltipTitle = GLib.markup_escape_text("Wallpaper Multi-Monitor Manager", -1);
+        const tooltipActions = GLib.markup_escape_text(
+            _("Click action") + ": " + _("Main Menu") + "\n" +
+            _("Middle Click") + ": " + _("Next Background") + "\n" +
+            _("Secondary Click") + ": " + _("Context Menu"), -1);
+
+        this.set_applet_tooltip("<b>" + tooltipTitle + "</b>\n" + tooltipActions, true);
 
         /*
-         * El menú propio se construye primero porque _populateMenu() hace
-         * removeAll(). Sólo después Cinnamon puede añadir sus entradas estándar,
-         * ya con el catálogo de WMM disponible.
+         * El tooltip nativo centra por presentación sus líneas. WMM utiliza varias
+         * acciones independientes, por lo que la lectura resulta más clara alineada
+         * desde un mismo margen izquierdo.
          */
-        this.finalizeContextMenu();
+        this._applet_tooltip._tooltip.set_style('text-align: left;');
 
-        // Lectura de settings/bookmarks únicamente al abrir el menú principal.
-        this._applet_context_menu.connect('open-state-changed', (menu, open) => {
-            if (open) this._refreshSettingsFromDisk();
+        this._populateMenu();
+        this._populateContextMenu();
+
+        // Settings y presets pertenecen al menú principal; el contextual no
+        // necesita provocar lecturas ni reconstrucciones de ese estado.
+        this._mainMenu.connect('open-state-changed', (menu, open) => {
+            if (open)
+                this._refreshSettingsFromDisk();
         });
 
         // Estado operativo del engine para reflejar busy en el icono del applet.
@@ -174,151 +242,404 @@ class WMMApplet extends Applet.IconApplet {
         this._bootstrapState = null;
     }
 
-    _bindSubmenuHeaderBold(submenuItem) {
-        // Resalta la cabecera únicamente mientras su submenú permanece abierto.
-        submenuItem.menu.connect('open-state-changed', (menu, open) => {
-            submenuItem.label.set_style(open ? 'font-weight: bold;' : null);
-        });
-    }
-
+    // ================================================================
+    // 2. MENÚ PRINCIPAL · orden visual y opciones (clic izquierdo)
+    // ================================================================
 
     /**
-     * BLOQUE 2: CONSTRUCCIÓN DE LA INTERFAZ
-     * Esqueleto del menú contextual del applet.
+     * MENÚ PRINCIPAL · orden físico de arriba abajo.
+     * Se reconstruye tras el bootstrap de traducciones y sincroniza estado al abrir.
+     * El menú permanece abierto salvo añadir/borrar favoritos y abrir Keybinding Manager.
      */
     _populateMenu() {
         try {
-            this._applet_context_menu.removeAll();
-            this._applet_context_menu.actor.width_request = 200;
+            this._mainMenu.removeAll();
+            this._mainMenu.actor.width_request = 200;
 
-            // --- 2.2 SUBMENÚ FAVORITOS ---
-            this.menuBookmarks = new PopupMenu.PopupSubMenuMenuItem(_("Favorites"));
-            this._bindSubmenuHeaderBold(this.menuBookmarks);
-            this._applet_context_menu.addMenuItem(this.menuBookmarks);
-
-            this.favRotationSwitch = new PopupMenu.PopupSwitchMenuItem(_("Favorites Only"), false);
-            this.favRotationSwitch.connect('toggled', (item, state) => {
-                if (state && !this.masterItem.state) this._syncTimerUI(true);
-                this._updateTimerSettings();
-            });
-            this.menuBookmarks.menu.addMenuItem(this.favRotationSwitch);
-            this.menuBookmarks.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-
-            let itemAddBookmark = new PopupMenu.PopupMenuItem(_("Add Preset Favorite"));
-            itemAddBookmark.connect('activate', () => this._sendActionToEngine({ action: "add_bookmark" }));
-            this.menuBookmarks.menu.addMenuItem(itemAddBookmark);
-            this.menuBookmarks.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-
-            // --- 2.3 SUBMENÚ TEMPORIZADOR ---
-            this.menuTimer = new PopupMenu.PopupSubMenuMenuItem(_("Slideshow"));
-            this._bindSubmenuHeaderBold(this.menuTimer);
-            this._applet_context_menu.addMenuItem(this.menuTimer);
-
-            this.masterItem = new PopupMenu.PopupSwitchMenuItem(_("Disabled"), false);
-            this.menuTimer.menu.addMenuItem(this.masterItem);
-
-            let infoItem = new PopupMenu.PopupBaseMenuItem({ reactive: false });
-            let infoBox = new St.BoxLayout({ style: "margin-left: 110px;" });
-            this.labelMin = new St.Label();
-            infoBox.add(this.labelMin);
-            infoItem.addActor(infoBox);
-            this.menuTimer.menu.addMenuItem(infoItem);
-
-            this.slider = new PopupMenu.PopupSliderMenuItem(0.25);
-            this.menuTimer.menu.addMenuItem(this.slider);
-
-            // --- 2.4 MODO SYNC/ASYNC ---
-            this.modeSwitch = new PopupMenu.PopupSwitchMenuItem(_("Displays") + ": " + _("ASYNC (One)"), false);
-            this._applet_context_menu.addMenuItem(this.modeSwitch);
-
-            // --- 2.4b MODO SPANNED ---
-            this.spannedSwitch = new PopupMenu.PopupSwitchMenuItem(_("Spanned Mode"), false);
-            this.spannedSwitch.connect('toggled', () => this._updateTimerSettings());
-            this._applet_context_menu.addMenuItem(this.spannedSwitch);
-
-            // --- 2.5 EVENTOS Y LÓGICA ---
-            this.slider.connect('value-changed', () => {
-                if (!this.masterItem || !this.masterItem.state) {
-                    if (this.masterItem) this._refreshSettingsFromDisk();
-                    return;
-                }
-
-                let mins = Math.max(1, Math.round(this.slider.value * this._currentMaxInterval));
-                this.labelMin.set_text(mins + " " + _("minutes"));
-            });
-
-            this.slider.connect('drag-end', () => {
-                if (this.masterItem && this.masterItem.state) this._updateTimerSettings();
-            });
-
-            this.masterItem.connect('toggled', (item, state) => {
-                item.label.set_text(state ? _("Enabled") : _("Disabled"));
-                this._syncTimerUI(state);
-                this._updateTimerSettings();
-            });
-
-            this.modeSwitch.connect('toggled', (item, state) => {
-                item.label.set_text(state ? _("Displays") + ": " + _("SYNC (All)") : _("Displays") + ": " + _("ASYNC (One)"));
-                this._updateTimerSettings();
-            });
-
-            // --- 2.6 TOOLS ---
-            this._applet_context_menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-
-            this.menuTools = new PopupMenu.PopupSubMenuMenuItem(_("Tools"));
-            this._bindSubmenuHeaderBold(this.menuTools);
-            this._applet_context_menu.addMenuItem(this.menuTools);
-
-            let itemControlPanel = new PopupMenu.PopupMenuItem(_("Settings"));
-            itemControlPanel.connect('activate', () => this._openSettingsPanel());
-            this.menuTools.menu.addMenuItem(itemControlPanel);
-
-            let itemSync = new PopupMenu.PopupMenuItem(_("Sync Library"));
-            itemSync.connect('activate', () => this._sendActionToEngine({ action: "sync_library" }));
-            this.menuTools.menu.addMenuItem(itemSync);
-
-            let itemInstallManager = new PopupMenu.PopupMenuItem(_("Install Manager"));
-            itemInstallManager.connect('activate', () => this._launchIndependentTool(
-                this.appDir + "/wmm_platform/shell/installer/wmm-install_manager.py"));
-            this.menuTools.menu.addMenuItem(itemInstallManager);
-
-            let itemDebugLog = new PopupMenu.PopupMenuItem(_("Debug Log Viewer"));
-            itemDebugLog.connect('activate', () => this._launchIndependentTool(
-                this.appDir + "/python/debug_log_viewer.py"));
-            this.menuTools.menu.addMenuItem(itemDebugLog);
-
-            let itemHelp = new PopupMenu.PopupMenuItem(_("Help"));
-            itemHelp.connect('activate', () => this._sendActionToEngine({ action: "open_help" }));
-            this.menuTools.menu.addMenuItem(itemHelp);
-
-            /*
-             * WMM sustituye deliberadamente el bloque nativo About/Remove de
-             * Cinnamon por sus propias acciones una vez finalizado el bootstrap.
-             */
-            this._applet_context_menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
-
-            let itemAbout = new PopupMenu.PopupMenuItem(_("About") + " WMM Manager");
-            itemAbout.connect('activate', () => this._sendActionToEngine({ action: "open_about" }));
-            this._applet_context_menu.addMenuItem(itemAbout);
-
-            let itemExit = new PopupMenu.PopupMenuItem(_("Exit") + " WMM");
-            itemExit.connect('activate', () => {
-                /*
-                 * Exit WMM omite deliberadamente la confirmación genérica de Cinnamon.
-                 * La retirada sigue pasando por AppletManager para conservar el lifecycle
-                 * nativo y llegar a on_applet_removed_from_panel(), que detiene el engine.
-                 */
-                AppletManager._removeAppletFromPanel(this._uuid, this.instance_id);
-            });
-            this._applet_context_menu.addMenuItem(itemExit);
+            this._buildFavoritesMenu();
+            this._buildSlideshowMenu();
+            this._buildDisplayControls();
+            this._mainMenu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+            this._buildNextBackgroundAction();
         }
         catch (e) { global.logError("WMM PopulateMenu Error: " + e.message); }
     }
 
+    /** Impide que las columnas del submenú modifiquen el ancho del principal. */
+    _isolateSubmenuLayout(submenuItem) {
+        submenuItem.actor.add_style_class_name("wmm-submenu-header");
+
+        /*
+         * Cinnamon sincroniza las columnas de todos los PopupBaseMenuItem y
+         * Eso permite que una columna interna ensanche el menú principal aunque
+         * su contenido ya quepa dentro del ancho total disponible.
+         *
+         * WMM convierte la cabecera en una única fila local que ocupa todo el
+         * ancho asignado y corta únicamente la propagación de columnas hacia
+         * arriba. setColumnWidths() permanece intacto, por lo que el ancho del
+         * menú principal sigue distribuyéndose normalmente hacia abajo.
+         */
+        let headerRow = new St.BoxLayout();
+
+        submenuItem.removeActor(submenuItem.label);
+        submenuItem.removeActor(submenuItem._triangleBin);
+
+        headerRow.add(submenuItem.label, {
+            expand: true,
+            x_fill: true
+        });
+
+        headerRow.add(submenuItem._triangleBin, {
+            expand: false,
+            x_fill: false
+        });
+
+        submenuItem.addActor(headerRow, {
+            span: -1,
+            expand: true
+        });
+
+        /*
+         * La cabecera y su contenido son una unidad geométrica subordinada al
+         * menú principal: reciben el ancho disponible, pero sus columnas locales
+         * no participan en el cálculo de las columnas del nivel superior.
+         */
+        submenuItem.getColumnWidths = () => [];
+        submenuItem.menu.getColumnWidths = () => [];
+    }
+
+    /** PRINCIPAL/Favorites: cabecera, Favorites Only y Add Preset Favorite. */
+    _buildFavoritesMenu() {
+        // FAVORITOS · cabecera y política de rotación exclusiva.
+        this.menuBookmarks = new PopupMenu.PopupSubMenuMenuItem(_("Favorites"));
+        this._isolateSubmenuLayout(this.menuBookmarks);
+        this._mainMenu.addMenuItem(this.menuBookmarks);
+        this.favRotationSwitch = new PopupMenu.PopupSwitchMenuItem(_("Favorites Only"), false);
+        this.favRotationSwitch.connect('toggled', (item, state) => {
+            if (state && !this.masterItem.state) this._syncTimerUI(true);
+            this._updateTimerSettings();
+        });
+        this.menuBookmarks.menu.addMenuItem(this.favRotationSwitch);
+        this.menuBookmarks.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+        // FAVORITOS · añadir preset: esta operación sí abandona el menú principal.
+        let itemAddBookmark = new PopupMenu.PopupBaseMenuItem();
+
+        let addBookmarkRow = new St.BoxLayout();
+
+        let addBookmarkLabel = new St.Label({text: _("Add Preset Favorite")});
+
+        addBookmarkRow.add(addBookmarkLabel, {
+            expand: true,
+            x_fill: true
+        });
+
+        itemAddBookmark.addActor(addBookmarkRow, {
+            span: -1,
+            expand: true
+        });
+
+        itemAddBookmark.actor.label_actor = addBookmarkLabel;
+
+        itemAddBookmark.connect('activate', () => {
+            const [x, y] = itemAddBookmark.actor.get_transformed_position();
+            const [width, height] = itemAddBookmark.actor.get_transformed_size();
+
+            this._mainMenu.close();
+
+            this._sendActionToEngine({
+                action: "add_bookmark",
+                x: Math.round(x + width / 2),
+                y: Math.round(y + height / 2)
+            });
+        });
+
+        this.menuBookmarks.menu.addMenuItem(itemAddBookmark);
+        this.menuBookmarks.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+    }
+
+    /** Elimina solo los elementos dinámicos; la cabecera y el switch son fijos. */
+    _clearBookmarksUI() { this.favItems.forEach(item => item.destroy()); this.favItems = []; }
+
     /**
-     * BLOQUE 3: SINCRONIZACIÓN EN CALIENTE
-     * Actualiza la UI sin realizar lecturas de disco.
+     * FAVORITOS · filas dinámicas con dos controles independientes.
+     * Nombre y papelera mantienen hover propio; la lista crece hasta 115 px
+     * y luego ofrece desplazamiento vertical, sin estirar las filas.
      */
+    _paintBookmarks(bookmarks) {
+        this._clearBookmarksUI();
+        let keys = Object.keys(bookmarks);
+        if (keys.length === 0) {
+            let info = new PopupMenu.PopupMenuItem(_("No saved favorites"), {reactive: false});
+            this.menuBookmarks.menu.addMenuItem(info);
+            this.favItems.push(info);
+            return;
+        }
+
+        // Item estructural neutro que aloja el ScrollView.
+        let scrollItem = new PopupMenu.PopupBaseMenuItem({reactive: false, activate: false});
+
+        scrollItem.actor.add_style_class_name("wmm-favorites-scroll-item");
+        scrollItem.actor.remove_all_children();
+
+        // Contenido vertical. El padding derecho da aire a la papelera respecto al borde.
+        let favBox = new St.BoxLayout({vertical: true});
+
+        favBox.add_style_class_name("wmm-favorites-box");
+
+        keys.forEach(name => {
+            let row = new St.BoxLayout();
+            row.add_style_class_name("wmm-favorite-row");
+
+            // Nombre del preset: item de menú nativo con hover independiente.
+            let nameItem = new PopupMenu.PopupMenuItem(name, {
+                reactive: true,
+                activate: true,
+                focusOnHover: false
+            });
+
+            nameItem.actor.add_style_class_name("wmm-favorite-action");
+            nameItem.connect('activate', () => {
+                this._syncTimerUI(false);
+                // Cargar un preset no cierra el principal: permite seguir operando.
+                this._sendActionToEngine({ action: "load_bookmark", name: name, timer_force_off: true });
+            });
+
+            // Papelera: item independiente para disponer de hover y zona de clic propios.
+            let deleteItem = new PopupMenu.PopupBaseMenuItem({
+                reactive: true,
+                activate: false,
+                focusOnHover: false
+            });
+
+            deleteItem.actor.add_style_class_name("wmm-favorite-action");
+
+            let deleteIcon = new St.Icon({
+                icon_name: 'user-trash-symbolic',
+                style_class: 'popup-menu-icon',
+                reactive: false
+            });
+
+            deleteIcon.add_style_class_name("wmm-favorite-delete-icon");
+            deleteItem.addActor(deleteIcon, {
+                expand: false,
+                align: St.Align.MIDDLE
+            });
+
+            deleteItem.actor.connect('button-release-event',
+                (actor, event) => {
+                    if (event.get_button() !== 1)
+                        return false;
+
+                    this._confirmDeleteBookmark(name, deleteItem.actor);
+                    return true;
+                });
+
+            row.add(nameItem.actor, { expand: true, x_fill: true, x_align: St.Align.START });
+            row.add(deleteItem.actor, { expand: false, x_fill: false });
+
+            // IMPORTANTE: false evita repartir artificialmente la altura del ScrollView entre filas.
+            favBox.add(row, { expand: false, x_fill: true });
+        });
+
+        // Altura natural hasta 115 px; después, scroll vertical automático.
+        let scrollView = new St.ScrollView();
+        scrollView.add_style_class_name("wmm-favorites-scroll");
+        scrollView.set_policy(PolicyType.NEVER, PolicyType.AUTOMATIC);
+        scrollView.add_actor(favBox);
+        scrollItem.addActor(scrollView, { expand: true, span: -1 });
+        this.menuBookmarks.menu.addMenuItem(scrollItem);
+        this.favItems.push(scrollItem);
+    }
+
+    /** Libera el diálogo hijo antes de abrir otro o retirar el applet. */
+    _destroyDeleteConfirmMenu() {
+        if (!this._deleteConfirmMenu)
+            return;
+
+        const menu = this._deleteConfirmMenu;
+        this._deleteConfirmMenu = null;
+
+        if (this._mainMenu.isChildMenu(menu))
+            this._mainMenu.removeChildMenu(menu);
+
+        menu.destroy();
+    }
+
+    /**
+     * FAVORITOS · confirmación con apariencia de diálogo Cinnamon.
+     * Conservar su geometría, señales y cierre: comportamiento ya validado.
+     */
+    _confirmDeleteBookmark(name, sourceActor) {
+        this._destroyDeleteConfirmMenu();
+
+        const monitor = Main.layoutManager.findMonitorForActor(sourceActor);
+        const [sourceX] = sourceActor.get_transformed_position();
+        const [sourceWidth] = sourceActor.get_transformed_size();
+
+        let orientation = St.Side.LEFT;
+
+        // La confirmación se abre hacia el interior del monitor para no
+        // invadir el monitor contiguo cuando la papelera está junto al borde.
+        if (monitor &&
+                sourceX + sourceWidth / 2 >
+                monitor.x + monitor.width / 2) {
+            orientation = St.Side.RIGHT;
+        }
+
+        const menu = new PopupMenu.PopupMenu(sourceActor, orientation);
+
+        menu.actor.add_style_class_name("wmm-menu");
+        Main.uiGroup.add_actor(menu.actor);
+        menu.actor.hide();
+
+        this._deleteConfirmMenu = menu;
+        this._mainMenu.addChildMenu(menu);
+
+        /*
+         * Conservamos la composición de GNOME, pero usamos las clases
+         * nativas de diálogo de Cinnamon para que el tema proporcione
+         * fondo, borde, tipografía y botones reales.
+         */
+        const content = new St.BoxLayout({
+            vertical: true,
+            style_class: "dialog"
+        });
+
+        const dialogContent = new St.BoxLayout({
+            vertical: true,
+            style_class: "dialog-content-box"
+        });
+
+        const messageContent = new St.BoxLayout({
+            vertical: true,
+            style_class: "message-dialog-content"
+        });
+
+        const title = new St.Label({
+            text: _("Delete preset"),
+            style_class: "message-dialog-title"
+        });
+
+        const body = new St.Label({
+            text: _("Delete") + ' "' + name + '"?',
+            style_class: "message-dialog-description"
+        });
+
+        const buttons = new St.Widget({
+            style_class: "dialog-button-box",
+            layout_manager: new Clutter.BoxLayout({
+                homogeneous: true,
+                spacing: 12
+            })
+        });
+
+        const cancelButton = new St.Button({
+            label: _("Cancel"),
+            style_class: "dialog-button",
+            important: true,
+            reactive: true,
+            can_focus: true,
+            x_expand: true,
+            y_expand: true
+        });
+
+        const deleteButton = new St.Button({
+            label: _("Delete"),
+            style_class: "dialog-button",
+            important: true,
+            reactive: true,
+            can_focus: true,
+            x_expand: true,
+            y_expand: true
+        });
+
+        deleteButton.add_style_pseudo_class("destructive-action");
+
+        messageContent.add_child(title);
+        messageContent.add_child(body);
+        dialogContent.add_child(messageContent);
+
+        buttons.add_child(cancelButton);
+        buttons.add_child(deleteButton);
+
+        content.add_child(dialogContent);
+        content.add_child(buttons);
+
+        menu.box.add_child(content);
+
+        cancelButton.connect('clicked', () => { menu.close(true); });
+
+        deleteButton.connect('clicked', () => { menu.close(true);
+            this._sendActionToEngine({action: "delete_bookmark", name: name}); });
+
+        menu.connect('open-state-changed', (currentMenu, open) => {
+            if (open)
+                return;
+
+            GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+                if (this._deleteConfirmMenu === currentMenu)
+                    this._destroyDeleteConfirmMenu();
+
+                return GLib.SOURCE_REMOVE;
+            });
+        });
+
+        menu.open(true);
+    }
+
+    /** PRINCIPAL/Slideshow: maestro e intervalo con sus señales. */
+    _buildSlideshowMenu() {
+        // SLIDESHOW · interruptor maestro, intervalo y deslizador.
+        this.menuTimer = new PopupMenu.PopupSubMenuMenuItem(_("Slideshow"));
+        this._isolateSubmenuLayout(this.menuTimer);
+        this._mainMenu.addMenuItem(this.menuTimer);
+        this.masterItem = new PopupMenu.PopupSwitchMenuItem(_("Disabled"), false);
+        this.menuTimer.menu.addMenuItem(this.masterItem);
+
+        let infoItem = new PopupMenu.PopupBaseMenuItem({ reactive: false });
+        this.labelMin = new St.Label();
+
+        let infoBox = new St.Bin({x_align: St.Align.MIDDLE});
+        infoBox.child = this.labelMin;
+        infoItem.addActor(infoBox, {span: -1, expand: true});
+
+        this.menuTimer.menu.addMenuItem(infoItem);
+
+        this.slider = new PopupMenu.PopupSliderMenuItem(0.25);
+
+        /*
+         * El tema de Cinnamon impone min-width: 15em al slider nativo.
+         * Dentro del submenú ese mínimo supera el ancho ya disponible y obliga
+         * al popup completo a crecer. WMM necesita que el slider se adapte al
+         * ancho existente, que PopupSliderMenuItem ya sabe repartir.
+         */
+        this.slider._slider.add_style_class_name("wmm-slider");
+
+        this.menuTimer.menu.addMenuItem(this.slider);
+
+        // SLIDESHOW · las señales pertenecen a los controles que acaban de crearse.
+        this.slider.connect('value-changed', () => {
+            if (!this.masterItem || !this.masterItem.state) {
+                if (this.masterItem) this._refreshSettingsFromDisk();
+                return;
+            }
+
+            let mins = Math.max(1, Math.round(this.slider.value * this._currentMaxInterval));
+            this.labelMin.set_text(mins + " " + _("minutes"));
+        });
+
+        this.slider.connect('drag-end', () => {
+            if (this.masterItem && this.masterItem.state) this._updateTimerSettings();
+        });
+
+        this.masterItem.connect('toggled', (item, state) => {
+            item.label.set_text(state ? _("Enabled") : _("Disabled"));
+            this._syncTimerUI(state);
+            this._updateTimerSettings();
+        });
+    }
+
     _syncTimerUI(enabled) {
         if (!this.masterItem) return;
 
@@ -328,6 +649,232 @@ class WMMApplet extends Applet.IconApplet {
         this.slider.actor.reactive = enabled;
     }
 
+    /** PRINCIPAL/Displays, Spanned Mode e Image Metadata. */
+    _buildDisplayControls() {
+        // DISPLAYS · SYNC/ASYNC, aplicación a todos o un monitor.
+        this.modeSwitch = new PopupMenu.PopupSwitchMenuItem(_("Displays") + ": " + _("ASYNC (One)"), false);
+        this._mainMenu.addMenuItem(this.modeSwitch);
+
+        // SPANNED · tratamiento de imagen panorámica.
+        this.spannedSwitch = new PopupMenu.PopupSwitchMenuItem(_("Spanned Mode"), false);
+        this.spannedSwitch.connect('toggled', () => this._updateTimerSettings());
+        this._mainMenu.addMenuItem(this.spannedSwitch);
+
+        // IMAGE METADATA · visibilidad de información EXIF.
+        this.metadataSwitch = new PopupMenu.PopupSwitchMenuItem(_("Image Metadata"), false);
+        this.metadataSwitch.connect('toggled', (_item, state) => {
+            // Reflejar inmediatamente el cambio mientras el Engine lo persiste.
+            if (this._cachedSettings) this._cachedSettings.exif_metadata_enabled = state;
+            this._sendActionToEngine({ action: "set_metadata_enabled", enabled: state });
+        });
+        this._mainMenu.addMenuItem(this.metadataSwitch);
+
+        this.modeSwitch.connect('toggled', (item, state) => {
+            item.label.set_text(state ? _("Displays") + ": " + _("SYNC (All)")
+                : _("Displays") + ": " + _("ASYNC (One)"));
+            this._updateTimerSettings();
+        });
+    }
+
+    /** PRINCIPAL/Next Background: rotación y acceso al gestor de atajos. */
+    _buildNextBackgroundAction() {
+        /*
+         * Next Background es una fila propia: activate:false evita que Cinnamon
+         * cierre el menú al rotar. La etiqueta del atajo comparte una sola fila
+         * y no añade columnas globales que ensanchen el popup.
+         * Clic secundario: cerrar antes de abrir el gestor de atajos.
+         */
+        this.nextBackgroundItem = new PopupMenu.PopupBaseMenuItem({
+            reactive: true,
+            activate: false,
+            focusOnHover: true
+        });
+
+        let nextBackgroundRow = new St.BoxLayout();
+
+        let nextBackgroundLabel = new St.Label({text: _("Next Background")});
+
+        this.nextBackgroundHotkeyLabel = new St.Label({
+            text: "", style_class: "wmm-hotkey-label"
+        });
+
+        nextBackgroundRow.add(nextBackgroundLabel, {
+            expand: true
+        });
+
+        nextBackgroundRow.add(this.nextBackgroundHotkeyLabel);
+
+        this.nextBackgroundItem.addActor(nextBackgroundRow, {
+            span: -1,
+            expand: true
+        });
+
+        this.nextBackgroundItem.actor.label_actor = nextBackgroundLabel;
+
+        this.nextBackgroundItem.actor.connect('button-release-event',
+            (actor, event) => {
+                const button = event.get_button();
+
+                if (button === 1) {
+                    this._requestNextBackground();
+                    return true;
+                }
+
+                if (button === 3) {
+                    const [x, y] = actor.get_transformed_position();
+                    const [width, height] = actor.get_transformed_size();
+
+                    this._mainMenu.close();
+
+                    this._sendActionToEngine({
+                        action: "open_keybinding",
+                        x: Math.round(x + width / 2),
+                        y: Math.round(y + height / 2)
+                    });
+
+                    return true;
+                }
+
+                return false;
+            });
+
+        this._nextBackgroundTooltip = new Tooltips.Tooltip(
+            this.nextBackgroundItem.actor, _("Secondary click: assign a keyboard shortcut")
+        );
+
+        this._mainMenu.addMenuItem(this.nextBackgroundItem);
+    }
+
+    /** Recupera el acelerador antes de mostrar el menú y evitar un relayout. */
+    _refreshNextBackgroundKeybinding() {
+        if (!this.nextBackgroundItem)
+            return;
+
+        let text = "";
+
+        try {
+            const mainSettings = Gio.Settings.new("org.cinnamon.desktop.keybindings");
+
+            const schema = "org.cinnamon.desktop.keybindings.custom-keybinding";
+            const basePath = "/org/cinnamon/desktop/keybindings/custom-keybindings/";
+            const fullName = "WMM - " + _("Next Background");
+
+            for (const item of mainSettings.get_strv("custom-list")) {
+                if (item === "__dummy__")
+                    continue;
+
+                const custom = Gio.Settings.new_with_path(schema, basePath + item + "/");
+
+                if (custom.get_string("name") !== fullName)
+                    continue;
+
+                const bindings = custom.get_strv("binding");
+                const binding = bindings.length > 0 ? bindings[0] : "";
+
+                if (binding) {
+                    const [keyval, modifiers] = Gtk.accelerator_parse(binding);
+
+                    if (keyval)
+                        text = Gtk.accelerator_get_label(keyval, modifiers);
+                }
+
+                break;
+            }
+        } catch (e) {
+            global.logError("WMM: Error leyendo el atajo Next Background: " + e.message);
+        }
+
+        this.nextBackgroundHotkeyLabel.set_text(text);
+    }
+
+    // ================================================================
+    // 3. MENÚ CONTEXTUAL · acciones externas y cierre (clic derecho)
+    // ================================================================
+
+    /**
+     * MENÚ CONTEXTUAL · clic derecho; cada opción cierra antes de ejecutarse.
+     * La reconstrucción sustituye el About/Remove nativo de Cinnamon tras bootstrap.
+     * Ningún elemento del contextual se crea desde el menú principal.
+     */
+    _populateContextMenu() {
+        this._applet_context_menu.removeAll();
+        this._applet_context_menu.actor.width_request = 200;
+
+        // SETTINGS · panel de configuración del engine.
+        let itemControlPanel = new PopupMenu.PopupMenuItem(_("Settings"));
+        itemControlPanel.connect('activate', () => {
+            this._applet_context_menu.close();
+            this._openSettingsPanel();
+        });
+        this._applet_context_menu.addMenuItem(itemControlPanel);
+
+        // SYNC LIBRARY · reconciliar las fuentes y miniaturas disponibles.
+        let itemSync = new PopupMenu.PopupMenuItem(_("Sync Library"));
+        itemSync.connect('activate', () => {
+            this._applet_context_menu.close();
+            this._sendActionToEngine({ action: "sync_library" });
+        });
+        this._applet_context_menu.addMenuItem(itemSync);
+
+        // INSTALL MANAGER · proceso GTK independiente del engine.
+        let itemInstallManager = new PopupMenu.PopupMenuItem(_("Install Manager"));
+        itemInstallManager.connect('activate', () => {
+            this._applet_context_menu.close();
+            this._launchIndependentTool(
+                this.appDir + "/wmm_platform/shell/installer/wmm-install_manager.py");
+        });
+        this._applet_context_menu.addMenuItem(itemInstallManager);
+
+        // DEBUG LOG VIEWER · visor independiente de diagnóstico.
+        let itemDebugLog = new PopupMenu.PopupMenuItem(_("Debug Log Viewer"));
+        itemDebugLog.connect('activate', () => {
+            this._applet_context_menu.close();
+            this._launchIndependentTool(this.appDir + "/python/debug_log_viewer.py");
+        });
+        this._applet_context_menu.addMenuItem(itemDebugLog);
+
+        // HELP · documentación de WMM mediante el engine.
+        let itemHelp = new PopupMenu.PopupMenuItem(_("Help"));
+        itemHelp.connect('activate', () => {
+            this._applet_context_menu.close();
+            this._sendActionToEngine({ action: "open_help" });
+        });
+        this._applet_context_menu.addMenuItem(itemHelp);
+
+        this._applet_context_menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+        // ABOUT · información, licencia e historia del proyecto.
+        let itemAbout = new PopupMenu.PopupMenuItem(_("About") + " WMM Manager");
+        itemAbout.connect('activate', () => {
+            this._applet_context_menu.close();
+            this._sendActionToEngine({ action: "open_about" });
+        });
+        this._applet_context_menu.addMenuItem(itemAbout);
+
+        // EXIT · retirar el applet mediante AppletManager, sin confirmación nativa.
+        // Conserva on_applet_removed_from_panel(), que solicita Shutdown al engine.
+        let itemExit = new PopupMenu.PopupMenuItem(_("Exit") + " WMM");
+        itemExit.connect('activate', () => {
+            this._applet_context_menu.close();
+            AppletManager._removeAppletFromPanel(this._uuid, this.instance_id);
+        });
+        this._applet_context_menu.addMenuItem(itemExit);
+    }
+
+    /** El panel se solicita al engine; no se crea desde Cinnamon. */
+    _openSettingsPanel() { this._sendActionToEngine({ action: "open_panel" }); }
+
+    /** Abre herramientas GTK independientes sin gestionar su ciclo de vida. */
+    _launchIndependentTool(path) {
+        try { Util.spawn(["python3", path]); }
+        catch (e) { global.logError("WMM Tool Launch Error (" + path + "): " + e.message); }
+    }
+
+    // ================================================================
+    // 4. SINCRONIZACIÓN · configuración, favoritos y persistencia
+    // ================================================================
+
+    /** Aplica el snapshot global sin persistirlo ni recrear widgets. */
     _applySettingsToUI(config) {
         if (!this.masterItem || !this.slider) return;
 
@@ -337,6 +884,7 @@ class WMMApplet extends Applet.IconApplet {
         let isSync = config.slideshow_mode === "sync";
         let isFavSlideshow = config.slideshow_bookmark || false;
         let isSpanned = config.spanned_enabled || false;
+        let isMetadataEnabled = Boolean(config.exif_metadata_enabled);
 
         this._syncTimerUI(isEnabled);
 
@@ -350,105 +898,12 @@ class WMMApplet extends Applet.IconApplet {
         this.labelMin.set_text(config.slideshow_interval + " " + _("minutes"));
 
         this.spannedSwitch.setToggleState(isSpanned);
+        this.metadataSwitch.setToggleState(isMetadataEnabled);
     }
 
     /**
-     * Destruye únicamente los items dinámicos creados por _paintBookmarks().
-     */
-    _clearBookmarksUI() { this.favItems.forEach(item => item.destroy()); this.favItems = []; }
-
-    /**
-     * Pinta la lista dinámica de presets favoritos.
-     *
-     * - El ScrollView crece de forma natural hasta 115 px.
-     * - A partir del máximo aparece scroll vertical.
-     * - Nombre y papelera son items independientes con hover propio.
-     * - Las filas no expanden verticalmente: cada una conserva su altura natural.
-     */
-    _paintBookmarks(bookmarks) {
-        this._clearBookmarksUI();
-        let keys = Object.keys(bookmarks);
-        if (keys.length === 0) {
-            let info = new PopupMenu.PopupMenuItem(_("No saved favorites"), { reactive: false });
-            this.menuBookmarks.menu.addMenuItem(info);
-            this.favItems.push(info);
-            return;
-        }
-
-        // Item estructural neutro que aloja el ScrollView.
-        let scrollItem = new PopupMenu.PopupBaseMenuItem({ reactive: false, activate: false });
-        scrollItem.actor.style = 'padding: 0; margin: 0; background-color: transparent;';
-        scrollItem.actor.remove_all_children();
-
-        // Contenido vertical. El padding derecho da aire a la papelera respecto al borde.
-        let favBox = new St.BoxLayout({
-            vertical: true,
-            style: 'margin-left: 10px; padding: 0 6px 0 0; spacing: 3px;'
-        });
-
-        keys.forEach(name => {
-            let row = new St.BoxLayout({ style: 'padding: 0; spacing: 2px;' });
-
-            // Nombre del preset: item de menú nativo con hover independiente.
-            let nameItem = new PopupMenu.PopupMenuItem(name, {
-                reactive: true,
-                activate: true,
-                focusOnHover: false
-            });
-            nameItem.actor.style = 'padding: 1px 6px; spacing: 0px;';
-
-            nameItem.connect('activate', () => {
-                this._syncTimerUI(false);
-                this._sendActionToEngine({ action: "load_bookmark", name: name, timer_force_off: true });
-                this._applet_context_menu.close();
-            });
-
-            // Papelera: item independiente para disponer de hover y zona de clic propios.
-            let deleteItem = new PopupMenu.PopupBaseMenuItem({
-                reactive: true,
-                activate: true,
-                focusOnHover: false
-            });
-
-            deleteItem.actor.style = 'padding: 1px 6px; spacing: 0px;';
-
-            let deleteIcon = new St.Icon({
-                icon_name: 'user-trash-symbolic',
-                style_class: 'popup-menu-icon',
-                icon_size: 16,
-                reactive: false
-            });
-
-            deleteItem.addActor(deleteIcon, { expand: false, align: St.Align.MIDDLE });
-
-            deleteItem.connect('activate', () => {
-                this._confirmDeleteBookmark(name);
-                this._applet_context_menu.close();
-            });
-
-            row.add(nameItem.actor, { expand: true, x_fill: true, x_align: St.Align.START });
-            row.add(deleteItem.actor, { expand: false, x_fill: false });
-
-            // IMPORTANTE: false evita repartir artificialmente la altura del ScrollView entre filas.
-            favBox.add(row, { expand: false, x_fill: true });
-        });
-
-        // Altura natural hasta 115 px; después, scroll vertical automático.
-        let scrollView = new St.ScrollView({
-            style: 'border: none; background-color: transparent; padding: 0; margin: 0; max-height: 115px;'
-        });
-
-        scrollView.set_policy(PolicyType.NEVER, PolicyType.AUTOMATIC);
-        scrollView.add_actor(favBox);
-
-        scrollItem.addActor(scrollView, { expand: true, span: -1 });
-        this.menuBookmarks.menu.addMenuItem(scrollItem);
-        this.favItems.push(scrollItem);
-    }
-
-    /**
-     * BLOQUE 4: REFRESH DISCO -> UI
-     * Sincroniza el applet con el estado persistido.
+     * Al abrir: mostrar la caché inmediatamente y reconciliarla en asíncrono.
+     * Un JSON parcial no debe reemplazar el último estado válido.
      */
     _refreshSettingsFromDisk() {
         try {
@@ -477,7 +932,8 @@ class WMMApplet extends Applet.IconApplet {
                         cached.slideshow_interval !== config.slideshow_interval ||
                         cached.slideshow_mode !== config.slideshow_mode ||
                         cached.slideshow_bookmark !== config.slideshow_bookmark ||
-                        cached.spanned_enabled !== config.spanned_enabled)
+                        cached.spanned_enabled !== config.spanned_enabled ||
+                        cached.exif_metadata_enabled !== config.exif_metadata_enabled)
 
                     { this._applySettingsToUI(config); this._cachedSettings = config; }
                 }
@@ -493,6 +949,7 @@ class WMMApplet extends Applet.IconApplet {
         catch (e) { global.logError("WMM Refresh Error: " + e.message); }
     }
 
+    /** Reconciliación asíncrona de favoritos: repintar solo si cambian. */
     _refreshBookmarks() {
         let bookmarksFile = Gio.File.new_for_path(this.bookmarksPath);
         if (!bookmarksFile.query_exists(null)) { this._clearBookmarksUI(); return; }
@@ -512,29 +969,7 @@ class WMMApplet extends Applet.IconApplet {
                 });
     }
 
-    _confirmDeleteBookmark(name) {
-        let args = [
-            '--question',
-            '--title=' + _("Delete favorite"),
-            '--text=' + _("Delete") + ' "' + name + '"?',
-            '--width=200'];
-
-        try {let proc = new Gio.Subprocess(
-            {argv: ['zenity'].concat(args), flags: Gio.SubprocessFlags.NONE});
-            proc.init(null);
-            proc.wait_async(null, (process, result) => {
-                try {process.wait_finish(result);
-                    if (process.get_exit_status() === 0)
-                        this._sendActionToEngine({ action: "delete_bookmark", name: name });}
-                    catch (e) { global.logError("WMM: Error en wait_finish del diálogo: " + e.message); }
-            });
-        }
-            catch (e) { global.logError("WMM: Error al lanzar zenity: " + e.message); }
-    }
-
-    /**
-     * BLOQUE 5: COMUNICACIÓN JS -> ENGINE
-     */
+    /** Escribe una petición coherente de Slideshow/Favorites/Displays/Spanned. */
     _updateTimerSettings() {
         this._sendActionToEngine({
             action: "update_timer_settings",
@@ -546,35 +981,160 @@ class WMMApplet extends Applet.IconApplet {
         });
     }
 
+    // ================================================================
+    // 5. ENGINE Y ESTADO · transporte de órdenes y rotación manual
+    // ================================================================
+
+    /** Canal común de órdenes; la lógica pertenece al engine, no al applet. */
     _sendActionToEngine(command) {
         try {
             let cmd = JSON.stringify(command);
             Util.spawn(["python3", this.appDir + "/python/send_command.py", cmd]);
+            return true;
         }
 
-        catch (e) { global.logError("WMM Send Error (" + (command.action || 'unknown') + "): " + e.message); }
-
+        catch (e) {
+            global.logError("WMM Send Error (" +
+                (command.action || "unknown") + "): " + e.message);
+            return false;
+        }
     }
 
-    _launchIndependentTool(path) {
-        try { Util.spawn(["python3", path]); }
-        catch (e) { global.logError("WMM Tool Launch Error (" + path + "): " + e.message); }
-    }
+    /** Rotación manual con barrera local hasta recibir el busy del engine. */
+    _requestNextBackground() {
+        if (this._motorBusy) {
+            this.set_applet_icon_name("view-refresh");
+            return;
+        }
 
-    _openSettingsPanel() { this._sendActionToEngine({ action: "open_panel" }); }
-
-    /**
-     * BLOQUE 6: EVENTOS DEL SISTEMA
-     */
-    on_applet_clicked(event) {
-        if (this._motorBusy) { this.set_applet_icon_name("view-refresh"); return; }
-
+        /*
+         * Cerramos localmente la carrera entre el gesto y busy=true del engine.
+         * El propio engine y send_command.py conservan además sus barreras.
+         */
         this.set_applet_icon_name("view-refresh");
         this._ignoreNextBusy = true;
-        this._sendActionToEngine({ action: "force_rotation" });
+        this._setMotorBusy(true);
+
+        if (!this._sendActionToEngine({ action: "force_rotation" })) {
+            this._ignoreNextBusy = false;
+            this._setMotorBusy(false);
+        }
     }
 
+    /**
+     * ICONO NORMAL · Identidad gráfica propia de WMM.
+     *
+     * El instalador coloca icon.png junto a applet.js. metadata.path,
+     * conservado en this.appletPath, identifica ese directorio real.
+     *
+     * Si el recurso no está disponible, utilizar el icono del tema.
+     * El estado busy mantiene independientemente su icono view-refresh.
+     */
+    _setNormalAppletIcon() {
+        const iconPath = this.appletPath + "/icon.png";
+
+        if (GLib.file_test(iconPath, GLib.FileTest.IS_REGULAR)) {
+            try {
+                this.set_applet_icon_path(iconPath);
+                return;
+            } catch (error) {
+                global.logError("WMM Icon Error: " + error.message);
+            }
+        }
+
+        /*
+         * FALLBACK DEL ICONO NORMAL
+         *
+         * A diferencia del icono provisional del constructor, aquí ya
+         * conocemos la ruta de icon.png. Sólo utilizamos video-display
+         * si el archivo no existe o no ha podido cargarse.
+         *
+         * Este respaldo también se aplica al recuperar el estado normal
+         * después de una operación busy.
+         */
+        this.set_applet_icon_name("video-display");
+    }
+
+    /** Busy cambia la apariencia sin desactivar el clic secundario del atajo. */
+    _setMotorBusy(busy) {
+        /*
+         * Busy bloquea únicamente la rotación. Next Background conserva
+         * reactividad porque el clic secundario sigue abriendo la configuración
+         * del atajo incluso mientras el engine está ocupado.
+         */
+        this._motorBusy = Boolean(busy);
+
+        if (this.nextBackgroundItem) {
+            this.nextBackgroundItem.actor.change_style_pseudo_class(
+                "insensitive",
+                this._motorBusy
+            );
+        }
+
+        if (this._motorBusy) {
+            if (!this._ignoreNextBusy)
+                this.set_applet_icon_name("view-refresh");
+        } else {
+            this._ignoreNextBusy = false;
+            this._setNormalAppletIcon();
+        }
+    }
+
+    /** Refresca busy al recibir eventos del archivo de estado; sin polling. */
+    _updateIconFromStatus() {
+        let file = Gio.File.new_for_path(GLib.get_user_cache_dir() + "/wmm/engine_status.json");
+        if (!file.query_exists(null)) return;
+
+        file.load_contents_async(null, (statusFile, res) => {
+            try {
+                let [success, contents] = statusFile.load_contents_finish(res);
+                if (!success || contents.length === 0) return;
+                let status = JSON.parse(contents);
+                this._setMotorBusy(status.busy);
+            }
+
+            catch (e) {/* JSON a medias: ignorar hasta el siguiente evento. */}
+        });
+    }
+
+    // ================================================================
+    // 6. EVENTOS DEL APPLET · clics, convivencia de menús y retirada
+    // ================================================================
+
+    _onButtonPressEvent(actor, event) {
+        /*
+         * El menú principal es propio de WMM, mientras que el contextual sigue
+         * abriéndose mediante el lifecycle nativo de Cinnamon. Al recibir botón
+         * derecho se cierra primero el principal para que ambos nunca coexistan.
+         */
+        if (event.get_button() === 3 && this._mainMenu.isOpen)
+            this._mainMenu.close();
+
+        return super._onButtonPressEvent(actor, event);
+    }
+
+    /** Clic izquierdo: refrescar atajo antes de abrir y alternar principal. */
+    on_applet_clicked(event) {
+        /*
+         * El acelerador debe formar parte de la geometría inicial del popup.
+         * Leerlo después de abrir obliga a Cinnamon a esperar al siguiente
+         * relayout —normalmente provocado por el hover— para mostrarlo.
+         */
+        if (!this._mainMenu.isOpen)
+            this._refreshNextBackgroundKeybinding();
+
+        this._mainMenu.toggle();
+    }
+
+    /** Clic central: rotar sin abrir ninguno de los menús. */
+    on_applet_middle_clicked(event) {
+        this._requestNextBackground();
+    }
+
+    /** Exit: retirar confirmación y watcher; pedir Shutdown sin autoarranque. */
     on_applet_removed_from_panel() {
+        this._destroyDeleteConfirmMenu();
+
         if (this._engineWatchId) {
             Gio.bus_unwatch_name(this._engineWatchId);
             this._engineWatchId = 0;
@@ -600,26 +1160,6 @@ class WMMApplet extends Applet.IconApplet {
         );
     }
 
-    _updateIconFromStatus() {
-        let file = Gio.File.new_for_path(GLib.get_user_cache_dir() + "/wmm/engine_status.json");
-        if (!file.query_exists(null)) return;
-
-        file.load_contents_async(null, (statusFile, res) => {
-            try {
-                let [success, contents] = statusFile.load_contents_finish(res);
-                if (!success || contents.length === 0) return;
-                let status = JSON.parse(contents);
-                this._motorBusy = status.busy;
-                if (status.busy) {
-                    if (!this._ignoreNextBusy) this.set_applet_icon_name("view-refresh"); }
-                else {
-                    this._ignoreNextBusy = false;
-                    this.set_applet_icon_name("video-display"); }
-            }
-
-            catch (e) {/* JSON a medias: ignorar hasta el siguiente evento. */}
-        });
-    }
 }
 
 function main(metadata, orientation, panel_height, instance_id) {

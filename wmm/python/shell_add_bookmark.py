@@ -58,8 +58,10 @@ def main():
     # Crear el gestor de configuración
     ch = ConfigHandler(cache_base_dir=platform.cache_dir, platform=platform)
 
-    log_event(f"sys.argv = {sys.argv}", origin="SHELL_ADD", level="DEBUG", reason="BOOKMARK")
-    log_event(f"CWD = {os.getcwd()}", origin="SHELL_ADD", level="DEBUG", reason="BOOKMARK")
+    log_event(f"sys.argv = {sys.argv}",
+        origin="SHELL_ADD", level="DEBUG", reason="BOOKMARK")
+    log_event(f"CWD = {os.getcwd()}",
+        origin="SHELL_ADD", level="DEBUG", reason="BOOKMARK")
 
     # Obtener dimensiones y orientación
     try:
@@ -67,7 +69,8 @@ def main():
             w, h = img.size
             orient = "h" if w >= h else "v"
     except Exception as e:
-        log_event(f"Error al procesar imagen: {e}", origin="SHELL_ADD", level="ERROR", reason="BOOKMARK")
+        log_event(f"Error al procesar imagen: {e}",
+            origin="SHELL_ADD", level="ERROR", reason="BOOKMARK")
         ch._send_notification(_("Error adding to favorites"),
                               _("Could not process image:") + "\n" + str(e),
                               level="error")
@@ -79,26 +82,39 @@ def main():
     current_list = ch.load_json("bookmarks_single")
     existing_paths = [item[0] for item in current_list]
     if image_path in existing_paths:
-        log_event(f"Imagen ya en favoritos: {os.path.basename(image_path)}", origin="SHELL_ADD", level="INFO", reason="BOOKMARK")
+        log_event(f"Imagen ya en favoritos: {os.path.basename(image_path)}",
+            origin="SHELL_ADD", level="INFO", reason="BOOKMARK")
         ch._send_notification(_("Add to favorites"),
                               _("Image is already in favorites."),
                               level="info")
         return
 
-    # Añadir y guardar
+    # La escritura del maestro debe reconciliar sus pools H/V
+    # antes de comunicar al motor que el favorito se ha añadido.
     current_list.append(entry)
-    log_event(f"Imagen añadida a favoritos: {os.path.basename(image_path)}", origin="SHELL_ADD", level="INFO", reason="BOOKMARK")
-    ch.save_json("bookmarks_single", current_list)
+
+    if not ch.save_bookmarks_single(current_list):
+        log_event(f"No se pudo guardar el favorito: {image_path}",
+            origin="SHELL_ADD", level="ERROR", reason="BOOKMARK")
+        ch._send_notification(_("Error adding to favorites"),
+                              os.path.basename(image_path),
+                              level="error")
+        sys.exit(1)
+
     ch.refresh_history_metadata()
+    log_event(f"Imagen añadida a favoritos: {os.path.basename(image_path)}",
+        origin="SHELL_ADD", level="INFO", reason="BOOKMARK")
 
     import subprocess
     import json
-    cmd = json.dumps({"action": "single_favorite_added", "name": os.path.basename(image_path)})
+    cmd = json.dumps({"action": "single_favorite_added",
+        "name": os.path.basename(image_path)})
     script = os.path.join(os.path.dirname(__file__), "send_command.py")
     try:
-        subprocess.run(["python3", script, cmd], check=True)
+        subprocess.run([sys.executable, script, cmd], check=True)
     except Exception as e:
-        log_event(f"No se pudo notificar al motor: {e}", origin="SHELL_ADD", level="WARN", reason="COMMAND")
+        log_event(f"No se pudo notificar al motor: {e}",
+            origin="SHELL_ADD", level="WARN", reason="COMMAND")
 
 if __name__ == "__main__":
     main()

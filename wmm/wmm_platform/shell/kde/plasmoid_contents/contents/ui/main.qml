@@ -61,10 +61,17 @@ PlasmoidItem {
 
     property string currentIcon: motorBusy ? "view-refresh" : "video-display"
     Plasmoid.icon: currentIcon
+    Plasmoid.onSecondaryActivated: root.sendCommand("force_rotation")
 
-    toolTipMainText: "WMM: " + _("Wallpaper Multi-Monitor Manager")
+    toolTipMainText: "Wallpaper Multi-Monitor Manager"
+
+    toolTipSubText:
+    _("Click action") + ": " + _("Main Menu") + "\n" +
+    _("Middle Click") + ": " + _("Next Background") + "\n" +
+    _("Secondary Click") + ": " + _("Context Menu")
 
     property bool spannedEnabled: false
+    property bool metadataEnabled: false
     property bool syncMode: false
     property bool slideshowEnabled: false
     property int slideshowInterval: 15
@@ -95,6 +102,13 @@ PlasmoidItem {
        rootItem: root
    }
 
+   // Consultar la combinación efectiva cada vez que se abre el menú.
+   // No necesita sincronización permanente ni sondeos.
+   onExpandedChanged: {
+       if (expanded)
+           refreshKeybinding()
+   }
+
    // ==========================================================
    // ESTADO LOCAL SINCRONIZADO
    // ==========================================================
@@ -111,6 +125,10 @@ PlasmoidItem {
    property var cachedSettings: ({ })
    property var cachedBookmarks: ({ })
    property bool motorBusy: true
+
+   // Texto consultado a KGlobalAccel a través del backend existente.
+   // No representa una segunda configuración del atajo.
+   property string currentKeybinding: ""
 
    DBus.SignalWatcher {
         service: "org.maki.wmm"
@@ -293,6 +311,30 @@ PlasmoidItem {
     }
 
     //----------------------------------------------------------
+    // Recupera el texto del atajo registrado en KDE
+    //----------------------------------------------------------
+
+    function refreshKeybinding() {
+        var reply = DBus.SessionBus.asyncCall({
+            service: "org.maki.wmm",
+            path: "/org/maki/wmm",
+            iface: "org.maki.wmm",
+            member: "GetKeybinding"
+        })
+
+        reply.finished.connect(function() {
+            if (reply.isError) {
+                console.error("WMM: GetKeybinding:", reply.error.message)
+                currentKeybinding = ""
+            } else {
+                currentKeybinding = reply.value || ""
+            }
+
+            reply.destroy()
+        })
+    }
+
+    //----------------------------------------------------------
     // Sincroniza los datos necesarios para la interfaz
     //----------------------------------------------------------
 
@@ -326,6 +368,9 @@ PlasmoidItem {
         slideshowBookmark = settings.slideshow_bookmark
         syncMode = (settings.slideshow_mode === "sync")
         spannedEnabled = settings.spanned_enabled
+
+        // La presentación de metadatos depende del ajuste global del Engine.
+        metadataEnabled = Boolean(settings.exif_metadata_enabled)
 
         console.log(
             "WMM UI state:",

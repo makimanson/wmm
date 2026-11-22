@@ -18,11 +18,14 @@ import json
 import importlib
 import types
 
-from debug_logger import log_event
+from debug_logger import log_event, set_file_locking
 
 # Identidad común del core WMM. No confundir con app_domain,
 # que pertenece a la integración/frontend activo.
 WMM_ID = 'wmm@maki'
+
+# Nombre único del icono de aplicación; los consumidores reciben su ruta resuelta.
+WMM_ICON_FILENAME = 'WMM-icon.ico'
 
 def _read_ini(filepath):
     """Lee un archivo .ini y devuelve un diccionario con las claves y valores."""
@@ -47,6 +50,72 @@ def _write_ini(filepath, config):
         for key, value in config.items():
             f.write(f"{key}={value}\n")
 
+# ==========================================================
+# PERFILES DE LANZAMIENTO — RESOLUCIÓN COMÚN
+# ==========================================================
+# ORIGEN:
+#   open_file() de linux.py, win32.py o mac.py proporciona el ejecutable
+#   predeterminado, la ruta del archivo y la capacidad solicitada.
+#
+# FUNCIÓN:
+#   Lee launch_profiles.json desde el data_dir resuelto por PlatformManager,
+#   identifica el editor y construye sus argumentos parametrizados.
+#
+# DESTINO:
+#   Devuelve el comando preparado al open_file() de origen para su ejecución.
+#   Si no existe un perfil compatible, devuelve None y la plataforma
+#   conserva su mecanismo habitual de apertura.
+#
+# LÍMITE:
+#   El núcleo no identifica aplicaciones ni ejecuta procesos.
+#   Ambas responsabilidades pertenecen al sistema operativo.
+# ==========================================================
+
+def _build_launch_command(executable, path, capability, params, data_dir):
+    """
+    Construye el comando mediante los perfiles de lanzamiento comunes.
+
+    El SO identifica el ejecutable; el núcleo únicamente interpreta sus
+    capacidades y argumentos, sin intervenir en el lanzamiento.
+    """
+    if not executable or not data_dir:
+        return None
+
+    # Los perfiles son comunes a todos los SO y se cargan desde el DATA_DIR
+    # que ya ha resuelto PlatformManager.
+    try:
+        with open(os.path.join(data_dir, "launch_profiles.json"), "r", encoding="utf-8") as f:
+            profiles = json.load(f)
+
+    except (OSError, json.JSONDecodeError) as error:
+        log_event(f"No se pudieron cargar perfiles de lanzamiento: {error}",
+            origin="CORE", level="WARN", reason="GENERIC")
+        return None
+
+    if not isinstance(profiles, dict):
+        return None
+
+    executable_name = os.path.basename(executable)
+    values = {"file": path, **params}
+
+    for profile in profiles.values():
+        if executable_name not in profile.get("executables", []):
+            continue
+
+        arguments = profile.get(capability)
+        if not isinstance(arguments, list):
+            return None
+
+        try:
+            return [executable] + [argument.format(**values) for argument in arguments]
+
+        except KeyError as error:
+            log_event(f"Parámetro de lanzamiento no disponible: {error}",
+                origin="CORE", level="WARN", reason="GENERIC")
+            return None
+
+    return None
+
 class PlatformManager:
     def __init__(self):
         """
@@ -55,8 +124,6 @@ class PlatformManager:
         todas las funciones necesarias para que el motor funcione de forma
         agnóstica al sistema operativo.
         """
-        log_event("PlatformManager inicializando",
-                  origin="CORE", level="DEBUG", reason="INIT")
         # ----------------------------------------------------------
         # 0. CONFIGURACIÓN DE PLATAFORMA (settings_core.json)
         # ----------------------------------------------------------
@@ -68,8 +135,15 @@ class PlatformManager:
 
         self.platform = config['platform']
         self.desktop = config['desktop']
-        session_type = os.environ.get('XDG_SESSION_TYPE', '').lower()
-        self.graphics_engine = session_type if session_type in ('x11', 'wayland') else 'x11'
+
+        # Win32 no participa en la selección X11/Wayland de Linux. Mantener
+        # una identidad propia evita que la ausencia de XDG lo convierta
+        # artificialmente en X11.
+        if self.platform == 'win32':
+            self.graphics_engine = 'win32'
+        else:
+            session_type = os.environ.get('XDG_SESSION_TYPE', '').lower()
+            self.graphics_engine = session_type if session_type in ('x11', 'wayland') else 'x11'
 
         self.wmm_id = config.get('wmm_id', '')
         self.app_domain = config.get('app_domain', 'wmm@maki')
@@ -79,6 +153,7 @@ class PlatformManager:
         self.cache_base = config.get('cache_base', '')
 
         self.app_dir = config.get('app_dir', '')
+        self.icon_path = os.path.join(self.app_dir, WMM_ICON_FILENAME)
         self.app_config = config.get('app_config', '')
         self.data_dir = config.get('data_dir', '')
         self.frontend_dir = config.get('frontend_dir', '')
@@ -96,8 +171,7 @@ class PlatformManager:
         # Este módulo contiene funciones COMUNES a todos los escritorios de ese SO.
         try:
             so_module = importlib.import_module(f'.{platform_name}', package='wmm_platform')
-            log_event(f"Módulo SO '{platform_name}' cargado",
-                      origin="CORE", level="DEBUG", reason="MODULE")
+
         except ImportError:
             so_module = importlib.import_module('.generic', package='wmm_platform')
             log_event(f"Módulo SO '{platform_name}' no encontrado, usando 'generic'",
@@ -123,6 +197,51 @@ class PlatformManager:
         if hasattr(so_module, 'set_process_name'):
             self.set_process_name = so_module.set_process_name
 
+        # Terminación forzada de procesos mediante la primitiva nativa del SO.
+        # La identidad del PID debe haber sido validada previamente por el consumidor.
+        if hasattr(so_module, 'terminate_process'):
+            self.terminate_process = so_module.terminate_process
+
+        # Preparar el entorno gettext cuando el SO necesita traducir su
+        # configuración nativa de idioma al convenio esperado por GNU gettext.
+        if hasattr(so_module, 'prepare_gettext_environment'):
+            self.prepare_gettext_environment = so_module.prepare_gettext_environment
+
+        # Resolver herramientas GNU gettext cuando la plataforma necesita una
+        # ubicación propia en lugar de depender del PATH global del sistema.
+        if hasattr(so_module, 'resolve_gettext_tool'):
+            self.resolve_gettext_tool = so_module.resolve_gettext_tool
+
+        # Preferencia visual de las aplicaciones según el sistema operativo.
+        # None significa que WMM no debe interferir y deja la decisión al toolkit.
+        self.get_system_color_scheme = getattr(
+            so_module, 'get_system_color_scheme', lambda: None)
+
+        # Algunas plataformas necesitan completar explícitamente el puente entre
+        # la preferencia visual del sistema y GTK.
+        if hasattr(so_module, 'prepare_gtk_color_scheme'):
+            self.prepare_gtk_color_scheme = so_module.prepare_gtk_color_scheme
+
+        # Presentación de menús contextuales GTK específica del SO.
+        # Windows elimina la decoración de Gtk.Menu; los demás sistemas
+        # conservan su presentación nativa sin intervención del núcleo.
+        if hasattr(so_module, 'prepare_gtk_context_menu'):
+            self.prepare_gtk_context_menu = so_module.prepare_gtk_context_menu
+
+        # Presentación nativa opcional: Linux conserva la presentación de GTK.
+        if hasattr(so_module, 'present_window'):
+            self.present_window = so_module.present_window
+
+        # Recuperación del D&D tras cambios de topología, cuando
+        # la plataforma proporciona una implementación específica.
+        if hasattr(so_module, 'recover_dnd_after_topology_change'):
+            self.recover_dnd_after_topology_change = so_module.recover_dnd_after_topology_change
+
+        # Identidad de formularios autónomos en la barra de tareas Windows.
+        # Sólo se expone cuando el sistema operativo proporciona la capacidad.
+        if hasattr(so_module, 'prepare_form_taskbar_identity'):
+            self.prepare_form_taskbar_identity = so_module.prepare_form_taskbar_identity
+
         # Compilar archivos .po a .mo (solo si el SO lo soporta)
         # En Linux se usa msgfmt; en otros SO puede no estar disponible
         if hasattr(so_module, 'compile_translations'):
@@ -132,8 +251,19 @@ class PlatformManager:
         # En Linux/macOS se usa fcntl.flock; en Windows, msvcrt.locking
         if hasattr(so_module, 'lock_file'):
             self.lock_file = so_module.lock_file
+
+        # Intento de lock exclusivo sin espera, usado cuando el consumidor
+        # necesita distinguir inmediatamente entre "libre" y "ya ocupado".
+        if hasattr(so_module, 'try_lock_file'):
+            self.try_lock_file = so_module.try_lock_file
+
         if hasattr(so_module, 'unlock_file'):
             self.unlock_file = so_module.unlock_file
+
+        # El logger se carga durante el bootstrap del propio PlatformManager,
+        # por lo que recibe los locks sólo después de resolver la capa de SO.
+        if hasattr(self, 'lock_file') and hasattr(self, 'unlock_file'):
+            set_file_locking(self.lock_file, self.unlock_file)
 
         # Instalar acciones de shell (Nemo, Nautilus, Dolphin) a nivel de SO
         if hasattr(so_module, 'ensure_shell_actions'):
@@ -162,9 +292,22 @@ class PlatformManager:
         self.start_receiving_commands = start_receiving_commands
         self.emit_busy_changed = emit_busy_changed
 
-        # Inicialización de los canales soportados por el SO.
+        # Inicialización de los canales de comandos soportados por el SO.
         if hasattr(so_module, "init_channels"):
             self.init_channels = lambda: so_module.init_channels(self.data_dir)
+
+        # Los eventos engine -> panel forman un flujo distinto al de comandos.
+        # Las plataformas que dispongan de transporte nativo pueden exponerlo
+        # sin incorporar ese endpoint al registro general de channels.py.
+        if hasattr(so_module, "send_panel_event"):
+            self.send_panel_event = (
+                lambda event_dict:
+                so_module.send_panel_event(self.data_dir, event_dict))
+
+        if hasattr(so_module, "start_receiving_panel_events"):
+            self.start_receiving_panel_events = (
+                lambda callback:
+                so_module.start_receiving_panel_events(self.data_dir, callback))
 
         # Monitorización de cambios de hardware mediante el orquestador común.
         from python.monitor_events import init_monitor_events
@@ -188,9 +331,25 @@ class PlatformManager:
         if not hasattr(so_module, "init_channels"):
             self.init_channels = lambda: None
 
+        # Transporte opcional engine -> panel. Las plataformas que no lo
+        # implementan conservan sus mecanismos históricos de notificación.
+        if not hasattr(so_module, "send_panel_event"):
+            self.send_panel_event = lambda event_dict: False
+
+        if not hasattr(so_module, "start_receiving_panel_events"):
+            self.start_receiving_panel_events = lambda callback: False
+
         # Área útil disponible para una ventana.
         # Cada escritorio puede implementar su cálculo según su compositor.
         self.get_window_available_area = lambda pid: None
+
+        # Área útil correspondiente a un punto global. Permite que el
+        # compositor conserve la autoridad sobre geometrías multimonitor.
+        self.get_point_available_area = lambda x, y: None
+
+        # Entorno opcional para formularios GTK que necesitan respetar
+        # una posición absoluta. Por defecto se hereda el entorno actual.
+        self.get_positioned_gtk_child_env = lambda: None
 
         # Conservación opcional de la posición al expandir secciones del panel.
         # Por defecto no hace nada; solo los escritorios que necesiten corregir
@@ -207,8 +366,6 @@ class PlatformManager:
         if desktop:
             try:
                 desktop_module = importlib.import_module(f'.{desktop}', package='wmm_platform')
-                log_event(f"Módulo escritorio '{desktop}' cargado",
-                          origin="CORE", level="DEBUG", reason="MODULE")
 
                 # Obtener la geometría de los monitores (Gdk, D-Bus, Win32...)
                 # Si el SO (linux.py) ya proporciona get_monitors, úsalo.
@@ -228,18 +385,29 @@ class PlatformManager:
                 if hasattr(desktop_module, 'system_domain'):
                     self.system_domain = desktop_module.system_domain
 
-                # El escritorio puede instalar sus propias acciones de shell
-                # (Cinnamon instala las de Nemo, GNOME las de Nautilus, etc.)
-                if hasattr(desktop_module, 'ensure_shell_actions'):
-                    self.ensure_shell_actions = desktop_module.ensure_shell_actions
-
                 # --- CREAR ATAJO EN PRIMERA INSTALACIÓN ---
                 if hasattr(desktop_module, 'ensure_keybindings'):
                     self.ensure_keybindings = desktop_module.ensure_keybindings
 
+                # El formulario común delega en el escritorio el formato
+                # admitido, la comunicación y la aplicación del atajo.
+                for name in ("validate_keybinding", "request_keybindings", "apply_keybinding"):
+                    if hasattr(desktop_module, name):
+                        setattr(self, name, getattr(desktop_module, name))
+
                 # Área útil de la ventana según el compositor del escritorio
                 if hasattr(desktop_module, 'get_window_available_area'):
                     self.get_window_available_area = desktop_module.get_window_available_area
+
+                # Algunos escritorios necesitan preparar específicamente el
+                # backend GTK para que un formulario respete un ancla global.
+                if hasattr(desktop_module, 'get_positioned_gtk_child_env'):
+                    self.get_positioned_gtk_child_env = (desktop_module.get_positioned_gtk_child_env)
+
+                # Área útil correspondiente a un punto global.
+                if hasattr(desktop_module, 'get_point_available_area'):
+                    self.get_point_available_area = (
+                        desktop_module.get_point_available_area)
 
                 # Publica el tamaño máximo permitido para la ventana del panel
                 if hasattr(desktop_module, 'set_window_size_limit'):
@@ -270,13 +438,10 @@ class PlatformManager:
         # Estas funciones no dependen del SO ni del escritorio.
         # Son cálculos matemáticos puros (geometría, escalado).
         # ----------------------------------------------------------
-
         from monitor_manager import scale_monitors_to_area, get_total_canvas_geometry
+
         self.scale_monitors_to_area = scale_monitors_to_area
         self.get_total_canvas_geometry = get_total_canvas_geometry
-
-        log_event(f"[DIAG] PlatformManager: _ini_was_generated={getattr(self, '_ini_was_generated', 'NO EXISTE')}",
-                  origin="CORE", level="DEBUG", reason="SETTINGS")
 
     def _resolve_common_paths(self, config):
         """
@@ -287,6 +452,22 @@ class PlatformManager:
         """
         resolved = dict(config)
 
+        # El SO puede publicar rutas concretas cuando su topología no coincide
+        # con las derivaciones comunes de WMM. Las rutas explícitas tienen
+        # prioridad; el núcleo sólo completa aquello que la plataforma omite.
+        platform_paths = {}
+        platform_name = resolved.get('platform')
+
+        if platform_name:
+            try:
+                so_module = importlib.import_module(
+                    f'.{platform_name}', package='wmm_platform')
+            except ImportError:
+                pass
+            else:
+                if hasattr(so_module, 'get_system_paths'):
+                    platform_paths = so_module.get_system_paths()
+
         wmm_id = resolved.get('wmm_id') or WMM_ID
         data_base = resolved.get('data_base') or ''
         config_base = resolved.get('config_base') or ''
@@ -294,21 +475,38 @@ class PlatformManager:
 
         resolved['wmm_id'] = wmm_id
 
+        # APP_DIR representa el árbol real del core instalado. Una plataforma
+        # puede publicarlo expresamente; en su ausencia manda el código vivo.
         if not resolved.get('app_dir'):
-            resolved['app_dir'] = (os.path.join(data_base, wmm_id) if data_base
-                else os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+            resolved['app_dir'] = (
+                platform_paths.get('app_dir')
+                or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            )
 
-        if not resolved.get('app_config') and config_base:
-            resolved['app_config'] = os.path.join(config_base, wmm_id)
+        if not resolved.get('app_config'):
+            if platform_paths.get('app_config'):
+                resolved['app_config'] = platform_paths['app_config']
+            elif config_base:
+                resolved['app_config'] = os.path.join(config_base, wmm_id)
 
-        if not resolved.get('data_dir') and resolved.get('app_config'):
-            resolved['data_dir'] = os.path.join(resolved['app_config'], 'data')
+        if not resolved.get('data_dir'):
+            if platform_paths.get('data_dir'):
+                resolved['data_dir'] = platform_paths['data_dir']
+            elif resolved.get('app_config'):
+                resolved['data_dir'] = os.path.join(
+                    resolved['app_config'], 'data')
 
-        if not resolved.get('cache_dir') and cache_base:
-            resolved['cache_dir'] = os.path.join(cache_base, 'wmm')
+        if not resolved.get('cache_dir'):
+            if platform_paths.get('cache_dir'):
+                resolved['cache_dir'] = platform_paths['cache_dir']
+            elif cache_base:
+                resolved['cache_dir'] = os.path.join(cache_base, 'wmm')
 
-        if not resolved.get('locale_dir') and data_base:
-            resolved['locale_dir'] = os.path.join(data_base, 'locale')
+        if not resolved.get('locale_dir'):
+            if platform_paths.get('locale_dir'):
+                resolved['locale_dir'] = platform_paths['locale_dir']
+            elif data_base:
+                resolved['locale_dir'] = os.path.join(data_base, 'locale')
 
         return resolved
 
@@ -330,6 +528,7 @@ class PlatformManager:
             app_root = os.path.dirname(os.path.dirname(__file__))
 
         raw_platform = sys.platform
+
         try:
             so_module = importlib.import_module(f'.{raw_platform}', package='wmm_platform')
             desktop = so_module.detect_desktop()
@@ -365,6 +564,11 @@ class PlatformManager:
             frontend_dir = desktop_module.get_install_path(paths.get('data_base'), WMM_ID)
             config_path = os.path.join(frontend_dir, 'settings_core.ini')
 
+        elif desktop == 'windows':
+            paths = so_module.get_system_paths()
+            config_path = os.path.join(
+                paths['app_config'], 'settings_core.ini')
+
         else:
             config_path = os.path.join(app_root, 'data', 'settings_core.ini')
 
@@ -376,12 +580,7 @@ class PlatformManager:
         config = _read_ini(config_path)
         if config:
             self._ini_was_generated = False  # El .ini ya existía, no es el primer arranque
-            import inspect
 
-            caller = inspect.stack()[1].function
-
-            log_event(f"[DIAG] _ensure_platform_config llamado desde {caller}",
-                      origin="CORE", level="DEBUG", reason="SETTINGS")
             return config
 
         # ----------------------------------------------------------

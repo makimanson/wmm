@@ -28,6 +28,18 @@ def get_install_path(data_base, app_domain):
     """
     return os.path.join(data_base, "plasma", "plasmoids", "org.maki.wmm")
 
+def get_positioned_gtk_child_env():
+    """Prepara un formulario GTK para respetar posicionamiento absoluto en KDE."""
+    env = os.environ.copy()
+
+    # Bajo Plasma/Wayland, GTK3 no puede posicionar una toplevel mediante
+    # coordenadas globales. XWayland conserva esa capacidad cuando está disponible.
+    if not env.get("DISPLAY"):
+        return None
+
+    env["GDK_BACKEND"] = "x11"
+    return env
+
 def _strip_ansi(text):
     """Elimina códigos de escape ANSI de una cadena."""
     ansi_escape = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
@@ -590,6 +602,353 @@ def set_wallpaper(processed_images, targets, config_handler):
         log_event(f"PlasmaShell no respondió al aplicar los fondos: {e}",
                   origin="KDE", level="ERROR", reason="D-BUS")
         return False
+
+# ==========================================================
+# ATAJO GLOBAL - FORMULARIO COMÚN
+# ==========================================================
+
+_QT_MODIFIER_BITS = {
+    "Control": 0x04000000,
+    "Alt":     0x08000000,
+    "Shift":   0x02000000,
+    "Super":   0x10000000,  # Qt::MetaModifier
+}
+
+_QT_SPECIAL_KEYS = {
+    "Escape":      0x01000000,
+    "Tab":         0x01000001,
+    "ISO_Left_Tab": 0x01000002,
+    "BackSpace":   0x01000003,
+    "Return":      0x01000004,
+    "Insert":      0x01000006,
+    "Delete":      0x01000007,
+    "Pause":       0x01000008,
+    "Print":       0x01000009,
+    "Sys_Req":     0x0100000A,
+    "Clear":       0x0100000B,
+    "Home":        0x01000010,
+    "End":         0x01000011,
+    "Left":        0x01000012,
+    "Up":          0x01000013,
+    "Right":       0x01000014,
+    "Down":        0x01000015,
+    "Page_Up":     0x01000016,
+    "Page_Down":   0x01000017,
+    "Caps_Lock":   0x01000024,
+    "Num_Lock":    0x01000025,
+    "Scroll_Lock": 0x01000026,
+    "Menu":        0x01000055,
+    "Help":        0x01000058,
+}
+
+_QT_SPECIAL_KEYS_REVERSE = {
+    value: name for name, value in _QT_SPECIAL_KEYS.items()
+}
+
+_QT_MODIFIER_MASK = 0xFE000000
+
+
+def _kde_keybinding_action_id():
+    """Identidad de la acción Next Background registrada en KGlobalAccel."""
+    return [
+        "org.maki.wmm.kde.desktop",
+        "next-background",
+        "WMM Manager",
+        _("Next Background"),
+    ]
+
+
+def _kde_key_to_qt(key):
+    """Convierte una tecla del formulario común a Qt::Key."""
+    import gi
+
+    gi.require_version("Gdk", "3.0")
+    from gi.repository import Gdk
+
+    if key in _QT_SPECIAL_KEYS:
+        return _QT_SPECIAL_KEYS[key]
+
+    match = re.fullmatch(r"F([1-9]|[12][0-9]|3[0-5])", key)
+    if match:
+        return 0x01000030 + int(match.group(1)) - 1
+
+    # El formulario común no representa por separado el keypad.
+    if key.startswith("KP_"):
+        raise ValueError(_("This key combination is not supported."))
+
+    keyval = Gdk.keyval_from_name(key)
+    unicode_value = Gdk.keyval_to_unicode(keyval) if keyval else 0
+
+    if not unicode_value:
+        raise ValueError(_("This key combination is not supported."))
+
+    character = chr(unicode_value)
+    upper = character.upper()
+
+    if len(upper) == 1:
+        unicode_value = ord(upper)
+
+    return unicode_value
+
+
+def _kde_key_from_qt(value):
+    """Convierte Qt::Key al nombre utilizado por el formulario común."""
+    import gi
+
+    gi.require_version("Gdk", "3.0")
+    from gi.repository import Gdk
+
+    if value in _QT_SPECIAL_KEYS_REVERSE:
+        return _QT_SPECIAL_KEYS_REVERSE[value]
+
+    if 0x01000030 <= value <= 0x01000052:
+        return f"F{value - 0x01000030 + 1}"
+
+    if 0 < value <= 0x10FFFF:
+        keyval = Gdk.unicode_to_keyval(value)
+        key = Gdk.keyval_name(keyval)
+
+        if key:
+            if len(key) == 1 and key.isascii():
+                key = key.upper()
+            return key
+
+    raise ValueError(_("This key combination is not supported."))
+
+
+def validate_keybinding(shortcut):
+    """Valida y normaliza una combinación para KGlobalAccel."""
+    if shortcut is None:
+        return None
+
+    if not isinstance(shortcut, dict):
+        raise ValueError(_("This key combination is not supported."))
+
+    key = shortcut.get("key")
+    modifiers = shortcut.get("modifiers")
+
+    if not isinstance(key, str) or not key or not isinstance(modifiers, list):
+        raise ValueError(_("This key combination is not supported."))
+
+    allowed = {"Control", "Alt", "Shift", "Super", "Meta"}
+
+    if any(
+            not isinstance(name, str) or name not in allowed
+            for name in modifiers):
+        raise ValueError(_("This key combination is not supported."))
+
+    canonical_modifiers = [
+        name for name in ("Control", "Alt", "Shift")
+        if name in modifiers
+    ]
+
+    # La tecla Super física corresponde a Qt::MetaModifier.
+    if "Super" in modifiers or "Meta" in modifiers:
+        canonical_modifiers.append("Super")
+
+    _kde_key_to_qt(key)
+
+    return {
+        "key": key.upper() if len(key) == 1 and key.isascii() else key,
+        "modifiers": canonical_modifiers,
+    }
+
+
+def _kde_shortcut_to_combined(shortcut):
+    """Construye la combinación entera esperada por Qt/KGlobalAccel."""
+    canonical = validate_keybinding(shortcut)
+
+    if canonical is None:
+        return None
+
+    combined = _kde_key_to_qt(canonical["key"])
+
+    for modifier in canonical["modifiers"]:
+        combined |= _QT_MODIFIER_BITS[modifier]
+
+    return combined
+
+
+def _kde_shortcut_from_combined(combined):
+    """Convierte una combinación Qt al formato común."""
+    combined = int(combined)
+
+    # Keypad y GroupSwitch no tienen representación propia en el formulario.
+    if combined & (0x20000000 | 0x40000000):
+        raise ValueError(_("This key combination is not supported."))
+
+    modifiers = []
+
+    for name in ("Control", "Alt", "Shift", "Super"):
+        if combined & _QT_MODIFIER_BITS[name]:
+            modifiers.append(name)
+
+    key_value = combined & ~_QT_MODIFIER_MASK
+
+    return {
+        "key": _kde_key_from_qt(key_value),
+        "modifiers": modifiers,
+    }
+
+
+def _kde_qsequence(combined):
+    """Serializa una única combinación como QKeySequence por D-Bus."""
+    import dbus
+
+    values = dbus.Array([
+        dbus.Int32(combined),
+        dbus.Int32(0),
+        dbus.Int32(0),
+        dbus.Int32(0),
+    ], signature="i")
+
+    return dbus.Struct((values,), signature="ai")
+
+
+def _kde_keys(shortcut):
+    """Construye QList<QKeySequence> para KGlobalAccel."""
+    import dbus
+
+    combined = _kde_shortcut_to_combined(shortcut)
+
+    if combined is None:
+        return dbus.Array([], signature="(ai)")
+
+    return dbus.Array(
+        [_kde_qsequence(combined)],
+        signature="(ai)",
+    )
+
+
+def request_keybindings(data_dir, request):
+    """Consulta o modifica Next Background mediante KGlobalAccel."""
+    import dbus
+
+    if not isinstance(request, dict):
+        return {"ok": False, "shortcut": None, "error": "invalid_request"}
+
+    try:
+        bus = dbus.SessionBus()
+        accel = bus.get_object(
+            "org.kde.kglobalaccel", "/kglobalaccel")
+        accel_iface = dbus.Interface(
+            accel, "org.kde.KGlobalAccel")
+
+        action_id = _kde_keybinding_action_id()
+
+        def read_shortcut():
+            keys = accel_iface.shortcutKeys(action_id)
+
+            if not keys:
+                return None
+
+            if len(keys) != 1:
+                raise ValueError("KGlobalAccel devolvió más de un atajo")
+
+            sequence = [int(value) for value in keys[0][0] if int(value)]
+
+            if len(sequence) != 1:
+                raise ValueError(
+                    "KGlobalAccel devolvió una secuencia múltiple")
+
+            return _kde_shortcut_from_combined(sequence[0])
+
+        action = request.get("action")
+
+        if action == "get":
+            return {
+                "ok": True,
+                "shortcut": read_shortcut(),
+                "error": 0,
+            }
+
+        if action != "set" or "shortcut" not in request:
+            return {
+                "ok": False,
+                "shortcut": read_shortcut(),
+                "error": "invalid_request",
+            }
+
+        canonical = validate_keybinding(request["shortcut"])
+
+        if canonical is not None:
+            combined = _kde_shortcut_to_combined(canonical)
+
+            if not accel_iface.globalShortcutAvailable(
+                    _kde_qsequence(combined),
+                    "org.maki.wmm.kde.desktop"):
+                return {
+                    "ok": False,
+                    "shortcut": read_shortcut(),
+                    "error": "in_use",
+                }
+
+        accel_iface.setForeignShortcutKeys(
+            action_id,
+            _kde_keys(canonical))
+
+        observed = read_shortcut()
+
+        if observed != canonical:
+            return {
+                "ok": False,
+                "shortcut": observed,
+                "error": "verification_failed",
+            }
+
+        return {
+            "ok": True,
+            "shortcut": observed,
+            "error": 0,
+        }
+
+    except Exception as error:
+        log_event(f"Error gestionando el atajo KDE: {error}",
+            origin="KDE", level="ERROR", reason="SETTINGS")
+
+        return {
+            "ok": False,
+            "shortcut": None,
+            "error": "request_failed",
+        }
+
+
+def apply_keybinding(config_handler, shortcut):
+    """Aplica y confirma Next Background mediante KGlobalAccel."""
+    canonical = validate_keybinding(shortcut)
+
+    previous = request_keybindings(
+        config_handler.data_dir, {"action": "get"})
+
+    if not previous["ok"]:
+        raise RuntimeError(
+            f"No se pudo consultar el atajo KDE: {previous}")
+
+    result = request_keybindings(
+        config_handler.data_dir,
+        {"action": "set", "shortcut": canonical})
+
+    if not result["ok"] or result["shortcut"] != canonical:
+        restored = request_keybindings(
+            config_handler.data_dir,
+            {"action": "set", "shortcut": previous["shortcut"]})
+
+        if (not restored["ok"]
+                or restored["shortcut"] != previous["shortcut"]):
+            raise ValueError(
+                _("Could not restore the previous shortcut settings."))
+
+        if result.get("error") == "in_use":
+            raise ValueError(
+                _("This key combination is already in use."))
+
+        raise ValueError(
+            _("Could not apply the keyboard shortcut."))
+
+    log_event(f"Atajo KDE guardado: {canonical}",
+        origin="KDE", level="INFO", reason="SETTINGS")
+
+    return canonical
 
 def ensure_keybindings(app_dir):
     """

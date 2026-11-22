@@ -4,7 +4,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 WMM - Wallpaper Multi-Monitor Manager
 
-HELP.md -- Help file in English
+HELP_en.md -- English help file
 
 WMM-Title: Help
 WMM-Contents: Contents
@@ -12,517 +12,760 @@ WMM-Contents: Contents
 
 # Desktop environments
 
-WMM currently provides full integration with **Cinnamon**, **GNOME Shell**, **KDE Plasma 6** and **MATE**.
+WMM currently provides full integration with **Cinnamon**, **GNOME Shell**, **KDE Plasma 6**, **MATE**, **XFCE**, and **Windows 11**.
 
-Control Panel and main features are shared across all environments. Some controls may look slightly different or appear in a different place depending on desktop, but they use the same configuration.
+The control panel and main features are shared across all environments. Some controls may differ slightly in appearance or location depending on the desktop, but they share the same configuration.
 
 # Settings
 
-Open WMM menu from its applet, extension or plasmoid and select **Settings** to open Control Panel.
+Open the WMM menu from its panel or system tray icon and select **Settings** to open the control panel.
 
 ## Options
 
-This section contains general WMM options. You can change startup behavior, aspect mode, image effects, background and slideshow settings. Changes are reflected on virtual monitors in **Monitors** section.
+This section brings together WMM's general settings in four groups: **Change wallpaper on startup**, **Spanned Mode**, **Slideshow**, and **Image Metadata**.
+
+Each group can be collapsed or expanded by clicking its heading. The switch on the right enables or disables the corresponding function, regardless of whether its controls are visible. WMM remembers which sections are expanded.
 
 ### Help icon
 
 Opens this help in a separate window.
 
-### Log Viewer icon
+### Debug Log Viewer icon
 
-Opens debug log viewer in a separate window. It shows WMM activity in real time and lets you filter the log.
+Opens the debug log viewer in a separate window. It displays WMM activity and allows you to filter the log.
 
 ### Restart icon
 
-Fully restarts engine and Control Panel. Useful when you need to reload WMM during a session.
+Restarts the engine and control panel to reload WMM during the current session.
 
 ### Collapse / Expand icon
 
-Collapses side column to leave more room for monitor and thumbnail sections. Press it again to restore full view.
+Collapses the panel's sidebar to leave more room for **Monitors** and **Thumbnails**. Click again to restore the full view. WMM remembers the panel's state.
 
-WMM remembers whether side column was collapsed or expanded.
+### Change wallpaper on startup
 
-### Collapse / expand sections
+The switch in the heading determines what happens when WMM starts:
 
-Different Control Panel sections can be **collapsed or expanded** by clicking their header.
+- **Enabled**: the engine selects new images and generates a new composition.
+- **Disabled**: the last saved composition is retained.
 
-* **Expanded**: shows all controls and options in that section.
-* **Collapsed**: hides its contents and leaves only header visible.
+The three controls beneath this heading operate independently of that switch and can also be used when it is disabled.
 
-This helps reduce space used by sections you are not working with and keeps focus on options you need at that moment.
+#### Selection by monitor orientation
 
-Collapsing only affects Control Panel display: **it does not enable, disable or change any WMM option**.
+- **Enabled**: WMM selects images matching the monitor's horizontal or vertical orientation.
+- **Disabled**: images of any orientation may be used.
 
-### Change wallpaper at startup
+This filter affects image selection but does not trigger a wallpaper change on its own.
 
-When **enabled**, engine picks new images at WMM startup and generates a new composition.
+#### Selective rotation
 
-When **disabled**, last saved composition is kept.
+Limits automatic wallpaper rotation to folders you have explicitly marked under **Image Sources**.
 
-### Panoramic Mode
+To set up the selection, right-click an active folder and choose **Add to selective rotation**. **Remove from selective rotation** removes its mark. Marking folders does not enable the mode by itself.
 
-Enables or disables **Panoramic Mode** (*Spanned*). When enabled, one panoramic image is stretched across all monitors at once.
+- **Enabled**: rotation uses active folders that are marked for selection.
+- **Disabled**: the selective filter is no longer applied, but the folder marks are retained for later use.
 
-Only available when more than one monitor is active.
+The switch is available only when at least one folder is both active and marked. If no folder meets both conditions, WMM disables selective rotation.
 
-### Aspect ratio
+Enabling it also enables **Slideshow** if it was off and disables **Favorites only**, because the two selection modes are mutually exclusive. Disabling selective rotation does not automatically restore the previous mode.
 
-Controls how image fits inside each monitor:
+#### Rotation
 
-- **Scaled**: image is reduced or enlarged without distortion. If it does not fill whole monitor, remaining space uses selected background color or effect.
-- **Zoom**: image is scaled to cover whole monitor. If image and monitor use different proportions, excess areas are cropped.
-- **Stretched**: image is fitted exactly to monitor size, even if this may distort it.
+Determines how wallpaper changes are distributed across monitors. The label shows the mode and the type of selection in use:
 
-### Image effect
+- **Synchronous (Sync)**: all monitors change at the same time. With **Favorites only**, complete presets are used.
+- **Asynchronous (Async)**: monitors change independently, taking turns. With **Favorites only**, individual images from the favorites list are used.
 
-Applies a visual effect to image on each monitor:
+For transitions, synchronous mode uses a fade to black and asynchronous mode blends between images, depending on what the desktop environment supports.
 
-- **None**: no effect.
-- **Sepia**: applies an aged tone to image.
-- **Black and White**: converts image to grayscale.
+### Spanned Mode
 
-### Background effect
+The switch enables or disables **Spanned**, which stretches one image across the entire monitor arrangement. It only takes effect when more than one monitor is active.
 
-Fills remaining space when image does not fully cover monitor. Mainly visible in **Scaled** mode.
+This heading also groups the general composition settings, which remain available even when **Spanned** is disabled.
 
-- **Blur**: uses a blurred copy of image itself as background.
-- **Color**: uses solid or gradient color selected under **Background color**.
+#### Aspect ratio
 
-### Background color
+Controls how an image fits the available area:
 
-Defines background used when an image does not fill whole screen or when a monitor has no image assigned.
+- **Scaled**: preserves proportions. Any remaining space is filled with the selected background.
+- **Zoom**: fills the entire area without distorting the image, cropping any excess.
+- **Stretched**: fits the exact dimensions, even if the image becomes distorted.
 
-- **Solid color**: one flat color.
-- **Gradient H**: two-color gradient from left to right.
-- **Gradient V**: two-color gradient from top to bottom.
+#### Image effect
+
+- **None**: applies no effect.
+- **Sepia**: gives the image an aged tone.
+- **Black and White**: converts the image to grayscale.
+
+#### Background effect
+
+Determines how to fill the space left uncovered by the image, mainly when using **Scaled**:
+
+- **Blur**: displays a blurred copy of the image.
+- **Color**: uses the solid color or gradient configured under **Background color**.
+
+#### Background color
+
+Used when an image does not fill the screen or when no image is assigned to a monitor:
+
+- **Solid color**: lets you choose one color.
+- **Horizontal gradient**: blends two colors from left to right.
+- **Vertical gradient**: blends two colors from top to bottom.
 
 ### Slideshow
 
-Enables or disables automatic image rotation. When enabled, engine changes wallpapers according to configured interval and mode.
+Its switch enables or disables the automatic wallpaper rotation timer. Both values in this subsection can be adjusted without starting it.
 
-### Maximum frequency
+#### Maximum frequency
 
-Sets maximum rotation interval, in minutes, available from WMM menu.
+Sets, in minutes, the highest value that can be selected for the rotation interval from the WMM menu.
 
-### Slides every...
+#### Change slides every...
 
-Defines how many minutes pass between automatic wallpaper changes.
+Sets how many minutes pass between automatic wallpaper changes. Its value is coordinated with the configured maximum so the interval cannot exceed it.
 
-### Slideshow mode
+### Image Metadata
 
-Controls how images change and which transition effect is used during slideshow:
+Allows image information to be displayed over the wallpaper generated by WMM. The switch in the heading enables or disables this information without modifying the original files.
 
-- **Sync**:
-    - Applies a fade to black effect (Fade-out > Fade-in).
-    - All monitors change at once.
-    - If **Favorites only** is enabled: rotation uses saved presets.
+#### Visible fields
 
-- **Async**:
-    - Applies an image-to-image blend effect (Crossfade).
-    - Monitors change independently, one after another.
-    - If **Favorites only** is enabled: rotation uses individual images from favorites list.
+Click **Select** to choose which data to display. The dialog groups fields into categories such as image, author, source, dates, and geolocation. Only information available for each image can be displayed.
+
+- **Apply**: confirms the selection and updates the result without closing the dialog.
+- **Save**: confirms the selection and closes the dialog.
+- **Cancel**: closes the dialog without saving changes pending since the last application.
+
+#### Font and size
+
+Lets you choose the typeface and size used to display metadata.
+
+#### Position
+
+Places the information block in one of the four corners: top left, bottom left, top right, or bottom right.
+
+#### Horizontal margin
+
+Adjusts the horizontal distance between the block and the selected edge, from **0 to 100 pixels**.
+
+#### Vertical margin
+
+Adjusts the vertical distance between the block and the selected edge, from **0 to 100 pixels**.
+
+#### Background opacity
+
+Controls the opacity of the background behind the metadata, from **0% (transparent)** to **100% (opaque)**.
+
+Changes to appearance, position, margins, and opacity become visible when the wallpaper is recomposed.
 
 ## Favorites
 
-Manage your favorite wallpaper combinations. You can create, load, modify and delete presets. A *preset* is a saved composition you can restore at any time.
+Manage your favorite wallpaper combinations. You can create, load, edit, and delete presets. A *preset* is a saved composition that you can restore at any time.
 
 ### "Favorites only" switch
 
-When enabled, slideshow uses only your favorites.
+When enabled, the slideshow uses only your favorites.
 
-- In **sync** mode, saved presets are used.
-- In **async** mode, individual images from favorites list are used.
+- In **synchronous** mode, saved presets are used.
+- In **asynchronous** mode, individual images from the favorites list are used.
 
 ### Presets box (left)
 
-- **Load a preset on monitors**: right-click preset name and select *"Load on monitors"*. Preset opens in edit mode so you can review and modify it before applying.
-- **Rename a preset**: make a slow click on preset name. When text becomes editable, type new name and press Enter.
-- **Delete a preset**: right-click preset and select *"Delete preset"*. You can also select it and press trash button.
-- **Remove an image from a preset**: right-click image inside preset and select *"Remove image"*. Monitor keeps its position in preset but is left without an image.
-- **Open a preset image**: double-click image to open it with system default image viewer.
+- **Load a preset onto the monitors**: right-click the preset name and select *"Load onto monitors"*. The preset opens in edit mode so you can review and modify it before applying it.
+- **Rename a preset**: slowly click the preset name. When the text becomes editable, enter the new name and press Enter.
+- **Delete a preset**: right-click the preset and select *"Delete preset"*. You can also select it and click the trash button.
+- **Remove an image from a preset**: right-click the image within the preset and select *"Remove image"*. The monitor keeps its position in the preset but will have no image assigned.
+- **Open an image from a preset**: double-click the image to open it with the system's default image viewer.
 
 ### Favorites box (right)
 
-- **Add an image to favorites**: from thumbnail gallery, right-click an image and select *"Add to favorites"*. You can also do this from file managers supported by WMM.
-- **Select multiple images**: use **Ctrl+click** for non-contiguous selection or **Shift+click** to select a range.
-- **Remove an image from favorites**: right-click image and select *"Remove from favorites"*.
-- **Open an image**: double-click to open it with system default image viewer.
+- **Add an image to favorites**: right-click an image in the thumbnail gallery and select *"Add to favorites"*. You can also do this from file managers compatible with WMM.
+- **Select multiple images**: use **Ctrl+click** for noncontiguous selections or **Shift+click** to select a range.
+- **Remove an image from favorites**: right-click the image and select *"Remove from favorites"*.
+- **Open an image**: double-click it to open it with the system's default image viewer.
 
 ### Delete buttons
 
-Both Presets and Favorites boxes have a trash button at bottom right.
+Both the Presets and Favorites boxes have a trash button in the lower-right corner.
 
-Button deletes currently selected item. If several images are selected in favorites list, all of them are removed from list.
+The button removes the currently selected item. If several images are selected in the favorites list, all of them are removed from that list.
 
-## Image sources
+## Image Sources
 
-From here you can add, remove and manage folders WMM uses as image library.
+Here you can add, remove, and manage the folders WMM uses as its image library.
 
-If a source is recursive, its subfolders are also shown and you can choose which ones remain active.
+If a source is recursive, its subfolders are also displayed and you can choose which ones remain active.
 
-In this section **WMM never deletes original folders or images from disk**. Cleanup operations only affect internal library and cached thumbnails.
+In this section, **WMM never deletes the original folders or images from disk**. Cleanup operations affect only the internal library and cached thumbnails.
 
-### "Add source" button
+### "Add a source" button
 
-Opens a dialog to select a folder from system.
+Opens a dialog for choosing a folder on the system.
 
-- **Include subfolders (Recursive)**: enable it if you want WMM to include subfolders from that source.
-- If disabled, only images stored directly in root folder are used.
-- Pressing **Add** registers new source, syncs its contents and updates gallery.
-- When operation finishes, available images appear in **Thumbnails** section.
+- **Include subfolders (Recursive)**: enable this if you want WMM to include the source's subfolders.
+- If you leave it disabled, only images located directly in the root folder are used.
+- When you click **Add**, WMM registers the new source, synchronizes its content, and updates the gallery.
+- When the operation finishes, the available images appear under **Thumbnails**.
 
-### "Remove source" button
+### Online folder
 
-Removes selected source from WMM library.
+The **Online** entry in the source tree lets you link a system directory to images downloaded through the Online feature.
 
-A confirmation dialog is shown first. If accepted:
+To set its location, select **Online** in the tree and click **Add a source**. A folder picker opens so you can choose the directory to use.
 
-- Source disappears from list.
+If a directory is already linked, you can use the same procedure to change its location.
+
+This operation sets or changes the folder used by Online without deleting the original files from the previous location.
+
+### "Remove a source" button
+
+Removes the selected source from the WMM library.
+
+A confirmation dialog appears first. If you confirm:
+
+- The source disappears from the list.
 - Its images are no longer available to WMM.
-- Data associated with that source is removed from library and cache.
+- Data associated with that source is removed from the library and cache.
 
-Original files remain untouched on disk.
+The original files remain untouched on disk.
 
-### "Resync" button
+### "Resynchronize" button
 
-Checks configured sources and brings library up to date with actual folder contents.
+Checks the configured sources and brings the library up to date with the actual contents of the folders.
 
 Use it when:
 
-- you have added, deleted, moved or renamed images outside WMM;
-- you have modified images with another application;
-- folder structure has changed;
-- **"Sources need resynchronization"** warning appears;
-- you want to globally reconcile state of all sources.
+- you have added, deleted, moved, or renamed images outside WMM;
+- you have edited images with another program;
+- you have changed the folder structure;
+- the **"Sources need resynchronization"** notice appears;
+- you want to reconcile the state of all sources globally.
 
-During synchronization, WMM detects new, modified or deleted images and updates library and required thumbnails.
+During synchronization, WMM detects new, modified, or removed images and updates the library and any necessary thumbnails.
 
-### "Sources need resynchronization" warning
+### "Sources need resynchronization" notice
 
-This warning means current source configuration and content WMM has ready to display do not fully match yet.
+This notice indicates that the current source configuration and the content WMM has prepared for display do not yet fully match.
 
-It is not an error. It may appear, for example, after enabling or disabling folders, changing **Recursive** option or re-enabling a folder whose cache had already been deleted.
+It is not an error. It may appear, for example, after enabling or disabling folders, changing **Recursive**, or reactivating a folder whose cache was previously deleted.
 
-Press **Resync** to update library globally.
+Click **Resynchronize** to update the entire library.
 
-If you only want to recover an active subfolder with no cache, use **Generate thumbnails** from its context menu.
+If you only want to restore an active subfolder with no cache, you can use **Generate thumbnails** from its context menu.
 
-### Folder tree navigation
+### Navigating the folder tree
 
-#### Double-click a folder
+#### Selecting a folder
 
-Opens folder with system default file manager.
+When you select a folder in the tree, the **Thumbnails** section displays only the images belonging to that folder.
 
-#### Right-click a folder
+To display the entire library again, select **ALL**.
 
-Context menu offers actions available for that folder type and state:
+#### Double-clicking a folder
 
-- **Enable / Disable folder**: changes whether its images are part of active library. Visibility changes immediately and does not start a full synchronization by itself.
-- **Enable subfolders / Disable subfolders**: on a recursive source, changes state of all its subfolders at once.
-- **Generate thumbnails**: available for an active subfolder that does not yet have cached content ready. Processes only that subfolder.
-- **Delete cache**: appears for inactive folders. Removes cache associated with that folder from WMM but does not touch original images.
+Opens the folder in the system's default file manager.
 
-If a folder is re-enabled while its cache still exists, WMM can reuse it immediately.
+#### Right-clicking a folder
 
-If it is re-enabled after cache has been deleted, folder remains active but its images do not appear until you use **Resync** or **Generate thumbnails**.
+The context menu provides actions depending on the folder's type and state:
+
+- **Enable / Disable folder**: determines whether its images belong to the active library. The visibility change takes effect immediately and does not start a full synchronization on its own.
+- **Enable subfolders / Disable subfolders**: for a recursive source, changes the state of all its subfolders at once.
+- **Generate thumbnails**: available for an active subfolder whose content has not yet been prepared in the cache. Processes only that subfolder.
+- **Delete cache**: appears for inactive folders. Removes that folder's cache from WMM without touching the original images.
+- **Add to selective rotation / Remove from selective rotation**: available only for active folders. Includes or excludes the folder and all its subfolders from selective rotation. This action does not enable or disable the mode, which is controlled under **Options**. Inactive folders do not participate in rotation even if they retain their mark.
+
+If a folder is reactivated while its cache still exists, WMM can reuse it immediately.
+
+If it is reactivated after its cache was removed, it will be active but its images will not appear until you use **Resynchronize** or **Generate thumbnails**.
 
 ### Enable / Disable recursion
 
-**Recursive** column appears on root sources.
+The **Recursive** column appears for root sources.
 
-- **Enabled**: subfolders are part of source.
-- **Disabled**: WMM uses only root folder.
+- **Enabled**: subfolders are included in the source.
+- **Disabled**: WMM uses only the root folder.
 
-Change is reflected immediately in tree and image visibility.
+The change is immediately reflected in the tree and image visibility.
 
-Enabling **Recursive** lets WMM discover subfolders, but it does not force images or thumbnails no longer present in cache to be rebuilt automatically. In that case use **Resync** for whole library or **Generate thumbnails** for a specific subfolder.
+Enabling **Recursive** lets WMM discover subfolders, but it does not necessarily rebuild images or thumbnails that are no longer cached. In that case, use **Resynchronize** for the entire library or **Generate thumbnails** for a specific subfolder.
 
 ## Monitors
 
-Your monitors are shown here as thumbnails. Section updates when wallpapers, geometry or screen state change.
+Your monitors appear here as thumbnails. The section updates when wallpapers, screen geometry, or monitor status change.
 
 ### Alignment buttons
 
-Header contains three buttons: `[` , `•` and `]`. They change horizontal alignment of monitor block inside window:
+The header contains three buttons: `[` , `•`, and `]`. They change the horizontal alignment of the monitor group inside the window:
 
-- **`[`**: align left.
-- **`•`**: center.
-- **`]`**: align right.
+- **`[`**: left alignment.
+- **`•`**: centered alignment.
+- **`]`**: right alignment.
 
-Useful when monitors have very different geometries and you want to adjust preview visually.
+This is useful when monitors have very different geometries and you want to adjust the preview layout.
 
 ### Normal mode
 
-In normal mode, section shows a thumbnail for each monitor with its assigned image and a switch to enable or disable it.
+In normal mode, the section shows a thumbnail of each monitor with its assigned image and a switch to enable or disable it.
 
 #### Monitor switches
 
-- **Enabled**: monitor shows assigned image. If none is assigned, WMM can pick one based on orientation.
-- **Disabled**: monitor is filled with selected background and does not participate in slideshow rotation.
+- **Enabled**: the monitor shows its assigned image. If none is assigned, WMM may select one based on the monitor's orientation.
+- **Disabled**: the monitor is filled with the selected background color and does not participate in slideshow rotation.
 
-When **Panoramic Mode** is enabled, switches are locked because one image is used for whole composition.
+When **Spanned Mode** is enabled, the switches are locked because a single image is used for the entire composition.
 
 #### Action buttons
 
-- **"Favorite" checkbox**: when checked, pressing **Accept** saves current composition as a preset.
-- **Accept**: applies changes to displays. If **Favorite** checkbox is checked, preset is also saved.
-- **Refresh**: refreshes monitor view from engine.
+- **"Favorite" checkbox**: if checked, clicking **Accept** also saves the current composition as a preset.
+- **Accept**: applies changes to the screens. If **Favorite** is checked, also saves the preset.
+- **Refresh**: refreshes the monitor view from the engine.
 
 ### Edit mode
 
-Press **Edit mode** button with pencil icon to assign images manually to monitors.
+Click the pencil-shaped **Edit mode** button to assign images to monitors manually.
 
 #### Drag & Drop
 
-You can drag any image from thumbnail gallery and drop it onto virtual monitor where you want to assign it.
+You can drag any image from the thumbnail gallery and drop it onto the virtual monitor where you want to assign it.
 
 #### Edit options panel
 
 When edit mode is active, composition-specific options appear:
 
-- **Spanned**: enables or disables Panoramic Mode for this composition.
-- **Aspect ratio**: chooses image fitting mode.
-- **Effects**: applies an image effect to composition.
+- **Span (Spanned)**: enables or disables Spanned Mode for this composition.
+- **Aspect ratio**: selects how images are fitted.
+- **Effects**: applies an image effect to the composition.
 
-Changes can be previewed while editing.
+You can preview changes while editing.
 
-These values are stored with preset and take priority over global settings when that preset is used.
+These values are saved with the preset and take precedence over the global configuration whenever that preset is used.
 
 #### Action buttons in edit mode
 
-- **"Favorite" checkbox**: lets you save edited composition as a preset.
-- **Accept**: applies changes and leaves edit mode. If checkbox is checked, preset is also saved.
-- **Refresh**: clears images assigned to monitors so you can rebuild composition from scratch.
+- **"Favorite" checkbox**: allows the edited composition to be saved as a preset.
+- **Accept**: applies changes and exits edit mode. If the checkbox is selected, also saves the preset.
+- **Refresh**: clears the images assigned to the monitors so you can rebuild the composition from scratch.
 
 ## Thumbnails
 
-This section shows images available in WMM library. Thumbnails are cached so browsing stays fast.
+This section displays the images available in the WMM library. Thumbnails are cached for fast navigation.
 
 ### Refresh button
 
-Reloads thumbnail view and rebuilds any thumbnails required from library already synchronized by WMM.
+Reloads the thumbnail view and rebuilds any thumbnails needed from the library WMM has already synchronized.
 
-This button **does not replace Resync**. If you added, deleted, moved or modified original files outside WMM, use **Resync** first to update library.
+This button **does not replace Resynchronize**. If you have added, deleted, moved, or modified original files outside WMM, use **Resynchronize** to update the library first.
 
 ### H / V buttons
 
-**Horizontal** and **Vertical** buttons let you jump quickly to first item of each orientation in gallery.
+The **Horizontal** and **Vertical** buttons let you jump directly to the first item of each orientation in the gallery.
 
 ### Favorites button
 
-Shows a dedicated view with images saved as favorites, including images that are part of your **Presets**.
+Displays a dedicated view of images saved as favorites, including images belonging to your **Presets**.
+
+### Online button
+
+Opens the Internet wallpaper search tool. It lets you browse images from external services, download them, and add them to the WMM library.
+
+Online has a gallery separate from local thumbnails. Searches do not modify the library or original images.
+
+#### Responsible use
+
+When you access Online, the **Responsible Use of Third-Party Services and Resources** document is presented. It explains the principles governing integrations, provider conditions, and responsibilities relating to their content.
+
+To proceed, check **I have read and understood this document** and click **Accept**.
+
+The **Do not show again** checkbox allows you to skip this screen on later visits once you have read and understood the document.
+
+You can consult it again under **About WMM > Licenses**.
+
+#### Search and filters
+
+The search tool lets you combine three criteria:
+
+- **Search**: enter words or terms related to the images you want to find, **in English**. You can also search without entering any text.
+- **Aspect ratio**: select any ratio, a horizontal or vertical orientation, or a specific ratio such as 16:9, 21:9, 32:9, or 9:16.
+- **Provider**: select **Any** to query all available providers or choose one individually.
+
+WMM currently integrates **Wallhaven** and **Alpha Coders**.
+
+Click **Search** or press Enter to start the query.
+
+The search button becomes available again when you change any of the criteria. Filters are applied according to each provider's capabilities.
+
+#### Results and navigation
+
+Found images appear progressively as thumbnails, showing their resolution and source.
+
+When multiple providers are queried, results are grouped by service. You can click a provider's name or logo to visit its website.
+
+Each thumbnail includes a link to its original page, which opens in the default browser.
+
+The **Load more** button retrieves the next page of results without discarding earlier pages.
+
+If you change the search criteria, you must click **Search** again before loading additional results.
+
+#### Online downloads folder
+
+Downloaded images are saved in the **Online** folder, whose location is configured under **Image Sources**.
+
+To set or change it, select the **Online** entry in the source tree and use **Add a source**.
+
+If no valid Online folder is configured, WMM informs you and does not start the download.
+
+Unlinking this folder from WMM does not delete its original files from disk.
+
+#### Selection and download
+
+Thumbnails whose original images can be downloaded display a selection button.
+
+You can select up to **5 images per batch**. The **Download** button shows how many images you have selected and lets you start downloading them.
+
+During the operation, progress is shown for each file. WMM respects provider limits and adds a preventive pause between consecutive downloads.
+
+Successfully downloaded images are marked as **Downloaded** and can no longer be selected for another download, preventing redundant downloads.
+
+When finished, WMM automatically requests source synchronization to add the new images to the library and generate their thumbnails.
+
+Added images then become available for WMM's usual features.
+
+#### Dragging images to monitors
+
+In **Edit mode**, you can drag an Online thumbnail directly onto a virtual monitor.
+
+WMM prepares the original image for preview in the composition without requiring you to download it first using the **Download** button.
+
+When you click **Accept** in the editor, the image is permanently added to the Online folder and synchronized with the library.
+
+#### API Keys
+
+The **API Keys** button opens the form for managing personal credentials for the available providers.
+
+At the top is an expandable **TIP** section with information about these keys.
+
+Each provider has an information field and two alternative actions:
+
+- **Browse**: lets you select a file containing your personal API key.
+- **Unlink**: removes the association with that file without modifying or deleting it.
+
+WMM checks the validity of the content before linking it. Keys are not stored directly in the configuration: only the path to the corresponding file is retained.
+
+The use of personal keys depends on the characteristics and terms of each provider.
 
 ### Layout and order
 
-Thumbnails are displayed in a grid that adapts to available width.
+Thumbnails are displayed in a grid that adapts to the available width.
 
-Order is:
+Images are grouped by orientation first:
 
-- **Horizontal** images first, with most recently added to library shown first.
-- **Vertical** images afterwards, also with most recently added first.
+- **Horizontal (H)**: shown first.
+- **Vertical (V)**: shown next.
 
-### Working with thumbnails
+Within each group, images are ordered by the date they were added to the WMM library, with the most recently added first.
 
-You can interact with any thumbnail in several ways:
+### Interacting with thumbnails
 
-- **Double-click**: opens original image with system default viewer.
+You can interact with each thumbnail in several ways:
+
+- **Double-click**: opens the original image in the system's default viewer.
 - **Right-click**:
-  - *"Add to favorites"*: adds image to favorites list.
-  - *"Remove from favorites"*: removes it from list when already marked as favorite.
-- **Drag & Drop**: in edit mode, drag a thumbnail onto a virtual monitor to assign that image.
+  - *"Add to favorites"*: adds the image to the favorites list.
+  - *"Remove from favorites"*: removes it from that list if it is already a favorite.
+- **Drag (Drag & Drop)**: in edit mode, drag a thumbnail onto a virtual monitor to assign that image.
 
-### Favorite frame
+### Favorite border
 
-Images included in favorites list are highlighted with a green frame.
+Images in the favorites list are highlighted with a border whose color adapts to the active visual theme.
 
-# Favorites
+# WMM icon (panel or system tray)
 
-WMM **Favorites** menu gives quick access to saved presets and lets you create new ones from current composition.
+The WMM icon provides access to its controls and tools without opening the configuration panel.
 
-### "Favorites only" switch
+- **Left-click**: opens the main menu.
+- **Middle-click**: requests the next wallpaper.
+- **Right-click**: opens the context menu.
 
-When enabled, slideshow uses only content saved as favorite:
+## Main menu
 
-- **Sync mode**: selects a preset and applies full composition.
-- **Async mode**: uses individual images from favorites list.
+Provides access to rotation controls, favorites, slideshow, Spanned Mode, and image metadata, as well as the command for changing the wallpaper immediately.
 
-If you enable **Favorites only** while slideshow is off, WMM enables it automatically so rotation can work.
+### Favorites
 
-### Add a preset
+The WMM **Favorites** menu lets you quickly access saved presets and create new ones from the current composition.
 
-Press **"Add Preset Favorite"** to save current composition.
+#### "Favorites only" switch
 
-A dialog opens where you can enter preset name. WMM suggests an automatic name, for example *"Bookmark 01"*, which you can replace with any name you want.
+When enabled, the slideshow uses only saved favorite content:
 
-- **Blank name**: WMM warns you and does not save preset.
-- **Duplicate name**: choose a different name.
-- **Saving preset**: current monitor configuration is stored, including images and options associated with composition.
+- **Synchronous mode**: selects a preset and applies the entire composition.
+- **Asynchronous mode**: uses individual images from the favorites list.
 
-### Preset list
+If you enable **Favorites only** while the slideshow is off, WMM enables it automatically so rotation can work.
 
-Saved presets appear below controls.
+#### Add a preset
 
-- **Load a preset**: click its name to apply it. WMM stops timer if active and loads saved composition.
-- **Delete a preset**: click trash icon and confirm deletion.
+Click **"Add Preset to Favorites"** to save the current composition.
 
-# Slideshow
+A dialog opens where you can enter the preset's name. WMM suggests an automatic name, such as *"Bookmark 01"*, which you can replace.
 
-This menu lets you control automatic wallpaper changes without opening Control Panel.
+- **Blank name**: WMM warns you and does not save the preset.
+- **Duplicate name**: you must choose a different name.
+- **Saving the preset**: saves the current monitor configuration, including images and the options associated with the composition.
 
-### "Enabled / Disabled" switch
+#### Preset list
 
-Main switch turns rotation timer on or off.
+The saved preset list appears beneath the controls.
 
-- **Enabled**: countdown to next change starts.
-- **Disabled**: current composition stays in place until slideshow is enabled again or you force a manual rotation.
+- **Load a preset**: click its name to apply it. WMM stops the timer if it was running and loads the saved composition.
+- **Delete a preset**: click the trash icon and confirm the deletion.
 
-State stays synchronized with Control Panel.
+### Slideshow
 
-### Interval
+This menu lets you control automatic wallpaper changes without opening the control panel.
 
-Sets how many minutes pass between changes.
+#### "Enabled / Disabled" switch
 
-Depending on desktop environment, control may appear as slider or adjustment buttons. Minimum is 1 minute and maximum comes from **Maximum frequency** in Control Panel.
+The main switch turns the rotation timer on or off.
 
-Interval changes are applied to WMM timer.
+- **Enabled**: starts the countdown to the next change.
+- **Disabled**: keeps the current composition until you enable the slideshow again or force a manual rotation.
 
-# Monitors (Rotation Mode)
+The state is automatically synchronized with the control panel.
 
-Controls how wallpaper changes are distributed across displays.
+#### Interval
 
-- **ASYNC (One)**: monitors change one at a time. Each cycle gives only one monitor a new image.
-- **SYNC (All)**: all monitors change at once.
+Sets how many minutes should pass between changes.
 
-Mode change is immediate and does not require restarting slideshow.
+Depending on the desktop environment, the control may appear as a slider or adjustment buttons. The minimum value is 1 minute and the maximum is set by **Maximum frequency** in the control panel.
 
-# Panoramic Mode (Spanned)
+Interval changes are applied to the WMM timer.
+
+### Monitors (Rotation Mode)
+
+Controls how wallpaper changes are distributed across screens.
+
+- **ASYNC (One)**: monitors take turns changing. Only one receives a new image per cycle.
+- **SYNC (All)**: all monitors change at the same time.
+
+The mode changes immediately without restarting the slideshow.
+
+### Spanned Mode
 
 Enables or disables panoramic wallpaper.
 
-When active, WMM uses one image to build a composition covering all monitors while respecting their position and geometry.
+When enabled, WMM uses a single image to build a composition that covers the monitor arrangement, respecting each screen's position and geometry.
 
-This option only has an effect when more than one monitor is active.
+This option only takes effect when more than one monitor is active.
 
-While **Spanned** is enabled, individual monitor switches are locked because composition is shared across all displays.
+While **Spanned** is enabled, the individual monitor switches are locked because the composition is shared across all screens.
 
-# Tools
+### Image Metadata
 
-**Tools** menu groups common WMM operational shortcuts:
+Lets you show or hide image information directly from the WMM main menu without opening the control panel.
 
-- **Settings**: opens Control Panel.
-- **Sync Library**: checks all sources and updates library.
-- **Install Manager**: lets you update, reinstall or uninstall WMM.
-- **Debug Log Viewer**: opens activity and diagnostic viewer.
+- **Enabled**: displays metadata using the configured fields, font, position, and other settings.
+- **Disabled**: hides metadata without losing its configuration.
+
+Changes are applied to the wallpaper and synchronized with **Image Metadata** in the control panel.
+
+### Next wallpaper
+
+Requests an immediate wallpaper change using WMM's current rotation mode and configuration.
+
+- **Left-click**: requests the next wallpaper without waiting for the timer.
+- **Right-click**: opens the keyboard shortcut configuration form.
+
+If a keyboard shortcut has been assigned, the combination appears to the right of "Next wallpaper".
+
+#### Keyboard shortcuts
+
+WMM lets you assign a global keyboard shortcut to request the next wallpaper without opening its main menu.
+
+To configure it, right-click "Next wallpaper". A form opens showing the currently registered combination and allowing you to change it.
+
+- **Assign or change**: press the desired combination in the capture field. You do not have to type it manually.
+- **Clear**: clears the capture field to remove the current shortcut or enter a new one.
+- **Accept**: validates and registers the chosen combination. If the field is empty, the registered shortcut is removed.
+- **Cancel**: discards the changes and keeps the previous combination.
+
+The form warns you if a combination is unsupported, incomplete, or detected as already in use. In these cases, choose another combination.
+
+During configuration, the previous shortcut is temporarily suspended so it can be changed. If you cancel, WMM automatically restores it.
+
+Confirmed changes are retained between sessions, and the registered combination is displayed beside "Next wallpaper" in the main menu.
+
+## Context menu
+
+The context menu brings together WMM's configuration, maintenance, and information tools:
+
+- **Settings**: opens the control panel.
+- **Synchronize library**: checks all sources and updates the library.
+- **Installation Manager**: available on Linux and Windows Open Code. Provides WMM maintenance operations. The compiled Windows version uses Inno Setup.
+- **Debug Log Viewer**: opens the activity and diagnostics viewer.
 - **Help**: opens this manual.
+- **Start WMM with Windows** (Windows only): enables or disables automatic startup when you sign in.
+- **About WMM Manager**: displays information about the application.
+- **Exit WMM**: closes WMM.
 
-## Sync Library
+### Synchronize library
 
-Checks all configured sources and updates WMM library so it matches current disk contents.
+Checks all configured sources and updates the WMM library to match the current contents of the disk.
 
-Synchronization detects new, modified and deleted images, updates required references and rebuilds thumbnails when needed.
+Synchronization detects new, modified, and removed images, updates the required references, and rebuilds the appropriate thumbnails.
 
-Especially useful after making changes to folders outside WMM or when **"Sources need resynchronization"** warning appears.
+It is especially useful after changing folders outside WMM or when the **"Resynchronize sources"** notice appears.
 
 Synchronization does not modify or delete original images.
 
-## Install Manager
+### Installation Manager
 
-**Install Manager** lets you perform WMM maintenance tasks from a graphical interface.
+WMM provides different maintenance mechanisms depending on the operating system and type of installation.
 
-Window shows installed version and detected desktop environment.
+#### Linux
 
-### Upgrade
+The Installation Manager lets you update, reinstall, or uninstall WMM through a graphical interface.
 
-If a newer version is available, lets you download it, validate it and start upgrade.
+The window shows the installed version and detected desktop environment.
 
-### Reinstall
+- **Update**: checks whether a newer version has been published on GitHub and lets you download and install it.
+- **Reinstall**: reinstalls the current version using a clean copy of the repair package prepared during installation.
+- **Uninstall**: removes WMM, its desktop integrations, configuration, and associated data.
 
-Reinstalls current version to repair or recover a damaged installation while keeping relevant user data.
+Operations are performed using WMM's installation and uninstallation scripts.
 
-### Uninstall
+The manager includes a terminal where you can view progress and operation messages. If administrative privileges are required, enter your password directly in that terminal.
 
-Starts WMM uninstaller and removes application and desktop integrations.
+During a maintenance operation, the other controls remain locked until it finishes.
 
-Before operations that require it, integrated terminal may ask for administrator password. Type password directly in that terminal.
+#### Windows Open Code
 
-During maintenance operation, other controls stay disabled until process finishes.
+The Open Code distribution has its own maintenance manager, built in PowerShell and available from the WMM context menu.
 
-## Debug Log Viewer
+The window displays the installed version, local package version, and latest version available on GitHub when it can be checked.
 
-Log viewer shows WMM activity in real time and is useful for checking what engine, panel or desktop integrations are doing.
+Available operations depend on the versions detected and the packages available:
 
-### Filters
+- **Install**: installs WMM from a valid local distribution when it is not yet installed.
+- **Update**: installs a newer version from either the local package or GitHub.
+- **Reinstall**: restores the installed version using the corresponding local package or WMM's repair copy.
+- **Downgrade**: lets you install an older version when its local distribution is available.
+- **Uninstall**: removes WMM, its Windows integrations, configuration, and cache.
 
-You can filter entries by **Origin**, **Level** and **Reason**, plus free-text search.
+The manager requests confirmation before each operation and identifies the version and origin of the selected package.
 
-### Auto-scroll
+If only the runtime is missing from an otherwise valid local distribution, WMM can offer to download it from GitHub after obtaining your permission.
 
-Keeps view following new log entries automatically.
+Operations display their progress in a separate window. Original wallpaper files are not removed during uninstallation.
 
-### Reverse order
+#### Windows — Inno Setup
 
-Lets you show newest entries first or keep normal chronological order.
+The compiled Windows distribution uses the Inno Setup installer and does not include the Open Code Installation Manager.
 
-### Clear log
+- **Install**: run the WMM installer and follow the wizard's instructions.
+- **Update or reinstall**: run the installer for the version you want to install. Inno Setup manages replacement of application files.
+- **Uninstall**: use the WMM uninstall option in Windows or the corresponding Start menu shortcut.
 
-Clear button empties log after asking for confirmation.
+The Inno Setup uninstaller provides two independent checkboxes for choosing whether to remove:
 
-Viewer remembers **Auto-scroll**, **Reverse order** and window size.
+- **Thumbnail cache**: temporary files generated for displaying images.
+- **WMM configuration data**: persistent information such as preferences, sources, favorites, profiles, and history.
 
-## Help
+These options appear before uninstallation begins and let you choose which additional data to remove. Some auxiliary configuration files are removed as part of routine cleanup.
 
-Opens WMM help window.
+Uninstallation never deletes the user's original image files.
 
-Navigation index appears on left and formatted Markdown content on right so you can jump directly to section you need.
+### Debug Log Viewer
 
-# About WMM Manager
+The log viewer displays WMM activity in real time and helps you see what the engine, control panel, or desktop integrations are doing.
 
-Shows basic WMM information, including installed version, application name and license.
-On some desktop environments it also provides useful links.
+#### Filters
+
+You can filter entries by **Source**, **Level**, and **Reason**, as well as search for text.
+
+#### Auto-scroll
+
+Automatically follows new log entries.
+
+#### Reverse order
+
+Lets you show the most recent entries first or keep the normal chronological order.
+
+#### Clear log
+
+The clear button empties the log after asking for confirmation.
+
+The viewer remembers your **Auto-scroll** and **Reverse order** preferences, as well as its window size.
+
+### Help
+
+Opens this WMM help window.
+
+The navigation index appears on the left, and the formatted Markdown content on the right, so you can jump directly to the section you need.
+
+### About WMM Manager
+
+Displays basic information about WMM, including the installed version, application name, and license.
+Some desktop environments also provide useful links.
 
 # File managers
 
-WMM integrates with **Nemo**, **Nautilus**, **Dolphin** and **Caja** when those file managers are available on system.
+WMM integrates with **Nemo**, **Nautilus**, **Dolphin**, **Caja**, **Thunar**, and **Explorer** when those file managers are available on the system.
 
-Right-clicking an image can show WMM actions for:
+When you right-click an image, you may find WMM actions to:
 
 - **Add to favorites**.
 - **Send to a monitor**.
-- **Distribute image across all displays**.
+- **Span the image across all screens**.
 
-Depending on file manager, these actions may be grouped under **WMM Manager** or shown individually.
+Depending on the file manager, these actions may be grouped under **WMM Manager** or shown separately.
 
-On MATE, Caja integration may also provide an action to distribute current image from desktop context menu.
+In MATE, the Caja integration may also provide an action to span the current image from the desktop's context menu.
 
 # Keyboard shortcuts
 
-WMM registers **Next Background** action with shortcut systems provided by **Cinnamon**, **GNOME Shell**, **KDE Plasma 6** and **MATE**.
+WMM registers the **Next wallpaper** action through the shortcut mechanisms of **Cinnamon**, **GNOME Shell**, **KDE Plasma 6**, **MATE**, and **XFCE**.
 
-You choose key combination from shortcut settings provided by your desktop.
+You can configure the key combination through your desktop environment's keyboard shortcut settings.
 
-## On Cinnamon
+Since WMM 2.0, you can also assign, change, or remove the shortcut directly from the main menu of the WMM icon. Right-click **Next wallpaper** to open the configuration form.
+
+The following instructions explain how to manage the shortcut from each Linux desktop environment.
+
+## In Cinnamon
 
 1. Open **System Settings → Keyboard → Keyboard shortcuts**.
-2. Open **Custom shortcuts**.
-3. Find **"WMM - Next Background"**.
-4. Assign any combination you prefer, for example `Ctrl+Alt+N`.
+2. Go to **Custom Shortcuts**.
+3. Find **"WMM - Next wallpaper"**.
+4. Assign your preferred combination, for example `Ctrl+Alt+N`.
 
-## On GNOME Shell
+## In GNOME Shell
 
-1. Open **Keyboard** settings and custom shortcuts.
-2. Find WMM action for **Next Background**.
-3. Assign key combination you prefer.
+1. Open **Keyboard** settings and the custom shortcuts section.
+2. Find the WMM action for **Next wallpaper**.
+3. Assign your preferred key combination.
 
-## On KDE Plasma 6
+## In KDE Plasma 6
 
 1. Open **System Settings → Shortcuts**.
-2. Find **WMM Manager** and **Next Background**.
-3. Assign key combination you want to use.
+2. Find **WMM Manager** and **Next wallpaper**.
+3. Assign the key combination you want to use.
 
-## On MATE
+## In MATE
 
-1. Open MATE **Keyboard Shortcuts** settings.
-2. Find **"WMM - Next Background"**.
-3. Assign key combination you prefer.
+1. Open MATE's **Keyboard Shortcuts** settings.
+2. Find **"WMM - Next wallpaper"**.
+3. Assign your preferred combination.
 
-Shortcut requests a manual rotation using current WMM mode and configuration.
+## In XFCE
+
+1. Open **Settings → Keyboard → Application Shortcuts**.
+2. Find the **wmm-next.sh** command registered by WMM.
+3. Select the entry and edit its shortcut.
+4. Assign your preferred key combination.
+
+The shortcut requests a manual rotation using WMM's current mode and configuration.

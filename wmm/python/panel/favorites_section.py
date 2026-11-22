@@ -18,6 +18,7 @@ import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, Pango, Gdk, GLib
 from debug_logger import log_event
+from config_handler import ConfigHandler
 from i18n import _
 
 class FavoritesSection:
@@ -81,15 +82,27 @@ class FavoritesSection:
 
         self.favorites_toggle = Gtk.EventBox()
         self.favorites_toggle.set_events(Gdk.EventMask.BUTTON_PRESS_MASK)
+        title_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+
+        # Icono independiente del texto para conservar su geometría entre sistemas.
+        self.favorites_arrow = Gtk.Image.new_from_icon_name(
+            "media-playback-start-symbolic", Gtk.IconSize.BUTTON)
+        self.favorites_arrow.set_pixel_size(12)
+        self.favorites_arrow.set_valign(Gtk.Align.CENTER)
+        self.favorites_arrow.get_style_context().add_class("wmm-playback-down")
+        title_box.pack_start(self.favorites_arrow, False, False, 0)
+
         self.favorites_label = Gtk.Label()
         self.favorites_label.set_markup(
-            "<span weight='bold' size='large'>▼ " + _("Favorites") + "</span>")
+            "<span weight='bold' size='medium'>" + _("Favorites") + "</span>")
         self.favorites_label.set_halign(Gtk.Align.START)
-        self.favorites_toggle.add(self.favorites_label)
+        title_box.pack_start(self.favorites_label, False, False, 0)
+        self.favorites_toggle.add(title_box)
         self.favorites_toggle.connect("button-press-event", self._on_favorites_toggle)
         header_box.pack_start(self.favorites_toggle, True, True, 0)
 
         self.fav_rotation_switch = Gtk.Switch(active=False)
+        self.fav_rotation_switch.set_valign(Gtk.Align.CENTER)
         self.fav_rotation_switch.set_tooltip_text(_("Slideshow only among favorite images"))
         self.fav_rotation_switch.connect("notify::active", self._on_fav_rotation_changed)
         header_box.pack_end(self.fav_rotation_switch, False, False, 0)
@@ -132,6 +145,7 @@ class FavoritesSection:
 
         ctrl_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
         del_btn = Gtk.Button.new_from_icon_name("user-trash", Gtk.IconSize.BUTTON)
+        del_btn.get_style_context().add_class("wmm-trash-symbolic")
         del_btn.set_tooltip_text(_("Delete selected preset/image"))
         del_btn.connect("clicked", self._on_delete_preset_clicked)
         ctrl_box.pack_end(del_btn, False, False, 0)
@@ -170,6 +184,7 @@ class FavoritesSection:
 
         btn_box_right = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         del_btn_right = Gtk.Button.new_from_icon_name("user-trash", Gtk.IconSize.BUTTON)
+        del_btn_right.get_style_context().add_class("wmm-trash-symbolic")
         del_btn_right.set_tooltip_text(_("Delete selected image from favorites"))
         del_btn_right.connect("clicked", self._on_delete_single_clicked)
         btn_box_right.pack_end(del_btn_right, False, False, 0)
@@ -200,9 +215,13 @@ class FavoritesSection:
     def set_expanded(self, expanded):
         """Aplica el estado de despliegue de Favoritos sin persistirlo."""
         self.favorites_container.set_visible(expanded)
-        arrow = "▼ " if expanded else "▶ "
-        self.favorites_label.set_markup(
-            "<span weight='bold' size='large'>" + arrow + _("Favorites") + "</span>")
+
+        # La expansión modifica el icono sin reconstruir la etiqueta.
+        arrow_style = self.favorites_arrow.get_style_context()
+        if expanded:
+            arrow_style.add_class("wmm-playback-down")
+        else:
+            arrow_style.remove_class("wmm-playback-down")
 
         parent = self.widget.get_parent()
         if parent:
@@ -313,7 +332,8 @@ class FavoritesSection:
         name = model.get_value(iter, 0)
         is_preset = model.get_value(iter, 2)
 
-        menu = Gtk.Menu()
+        menu = self._parent_window.create_context_menu()
+
         if is_preset:
             item = Gtk.MenuItem(label=_("Delete preset"))
             item.connect("activate", self._delete_preset, name)
@@ -381,7 +401,7 @@ class FavoritesSection:
                     self.handler.open_file(img_path)
                 else:
                     log_event(f"Imagen no existe en disco: {img_path}",
-                        origin="PANEL", level="WARN", reason="BOOKMARK")
+                        origin="FAV_SECT", level="WARN", reason="BOOKMARK")
 
     def _load_preset_to_monitors(self, widget, preset_name):
         """Carga un preset en los monitores virtuales para edición."""
@@ -419,7 +439,7 @@ class FavoritesSection:
             self.handler.open_file(img_path)
         else:
             log_event(f"Imagen no encontrada: {img_path}",
-                origin="PANEL", level="WARN", reason="BOOKMARK")
+                origin="FAV_SECT", level="WARN", reason="BOOKMARK")
 
     def _on_single_tree_click(self, treeview, event):
         if event.button != 3:
@@ -442,42 +462,70 @@ class FavoritesSection:
             img_path = model.get_value(tree_iter, 1)
             img_paths.append(img_path)
 
-        menu = Gtk.Menu()
+        menu = self._parent_window.create_context_menu()
+
         if len(img_paths) == 1:
             label = _("Delete")
         else:
             label = _("Delete") + " " + str(len(img_paths)) + " " + _("images")
         item = Gtk.MenuItem(label=label)
-        item.connect('activate', lambda w: ([self._delete_bookmark_single(p) for p in img_paths],
-            self._notify_single_favorites_changed()))
+        item.connect('activate', lambda w: self._delete_bookmarks_single(img_paths))
         menu.append(item)
         menu.show_all()
         menu.popup_at_pointer(event)
 
-    def _delete_bookmark_single(self, img_path):
+    def _delete_bookmarks_single(self, img_paths):
+        """Elimina una selección de favoritos en una sola operación."""
         flat_list = self.backend.load_json("bookmarks_single")
-        new_list = [entry for entry in flat_list if entry[0] != img_path]
-        if len(new_list) != len(flat_list):
-            self.backend.save_json("bookmarks_single", new_list)
-            self.handler.refresh_history_metadata()
+        removed_paths = set(img_paths)
+        new_list = [entry for entry in flat_list if entry[0] not in removed_paths]
+
+        if len(new_list) == len(flat_list):
+            return
+
+        # El maestro y sus pools H/V comparten una única vía de escritura.
+        if not self.handler.save_bookmarks_single(new_list):
+            return
+
+        self.handler.refresh_history_metadata()
+        self._notify_single_favorites_changed()
 
     def _on_delete_single_clicked(self, button):
         selection = self.bookmarks_single_tree.get_selection()
         model, paths = selection.get_selected_rows()
-        for path in reversed(paths):
+
+        img_paths = []
+        for path in paths:
             tree_iter = model.get_iter(path)
-            img_path = model.get_value(tree_iter, 1)
-            self._delete_bookmark_single(img_path)
-        self._notify_single_favorites_changed()
+            img_paths.append(model.get_value(tree_iter, 1))
+
+        self._delete_bookmarks_single(img_paths)
 
     # ==========================================================
     # SWITCH DE ROTACIÓN DE FAVORITOS
     # ==========================================================
     def _on_fav_rotation_changed(self, switch, param):
+        """Solicita Favorites Only y garantiza Slideshow al activarlo."""
         if self._loading:
             return
-        self.backend.save_setting("slideshow_bookmark", switch.get_active())
-        cb = self._callbacks.get('on_update_mode_info_label')
+
+        enabled = switch.get_active()
+        command = {
+            "action": ConfigHandler.CMD_UPDATE_TIMER,
+            "slideshow_bookmark": enabled,
+        }
+
+        # Favorites Only requiere Slideshow. El motor persiste ambos
+        # estados en una operación y sincroniza las interfaces.
+        if enabled and not self.backend.load_settings().get(
+                "slideshow_enabled", True):
+            command["enabled"] = True
+
+        cb = self._callbacks.get("notify_engine")
+        if cb:
+            cb(command)
+
+        cb = self._callbacks.get("on_update_mode_info_label")
         if cb:
             cb()
 

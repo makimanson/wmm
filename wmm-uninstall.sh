@@ -97,6 +97,7 @@ GNOME_LAUNCHER="$APPLICATIONS_DIR/org.maki.wmm.gnome.desktop"
 
 KDE_LEGACY_ROOT="$DATA_HOME/plasma/org.maki.wmm"
 KDE_PLASMOID="$DATA_HOME/plasma/plasmoids/org.maki.wmm"
+KDE_ABOUT_ICON="$DATA_HOME/icons/hicolor/128x128/apps/org.maki.wmm.png"
 KDE_LAUNCHER="$APPLICATIONS_DIR/org.maki.wmm.kde.desktop"
 KDE_AUTOSTART="$AUTOSTART_DIR/org.maki.wmm.kde.desktop"
 KDE_LEGACY_LAUNCHER="$APPLICATIONS_DIR/org.maki.wmm.desktop"
@@ -1164,6 +1165,10 @@ cleanup_desktop_installation_resources() {
 
             remove_tree "$KDE_LEGACY_ROOT"
             remove_tree "$KDE_PLASMOID"
+
+            # Sólo retirar el icono propio de WMM; hicolor es compartido.
+            remove_file "$KDE_ABOUT_ICON"
+
             remove_file "$KDE_LAUNCHER"
             remove_file "$KDE_AUTOSTART"
             remove_file "$KDE_LEGACY_LAUNCHER"

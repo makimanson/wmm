@@ -1,0 +1,1189 @@
+
+/*
+ * SPDX-FileCopyrightText: 2026 makimanson
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ *
+ * WMM - Wallpaper Multi-Monitor Manager
+ * wmm-win32.css - Integración visual GTK3 / Windows.
+ */
+
+/* ==========================================================
+ * INTEGRACIÓN VISUAL WINDOWS
+ * ==========================================================
+ *
+ * El tema GTK "win32" proporciona la base visual.
+ * La paleta procede de Windows.UI.ViewManagement.UISettings
+ * y se incorpora mediante @define-color desde win32.py.
+ *
+ * No se fijan aquí los colores del sistema.
+ *
+ * WMM-DARK-BEGIN / WMM-DARK-END delimitan las reglas
+ * exclusivas del modo oscuro. win32.py selecciona ese
+ * bloque según la preferencia visual de Windows.
+ *
+ * Este CSS no modifica la presentación de Linux.
+ * ========================================================== */
+
+/* ==========================================================
+ * SUPERFICIES Y TEXTO
+ * ========================================================== */
+
+/* --- Window surfaces --- */
+/* GtkDialog y GtkMessageDialog poseen nodos CSS propios.
+ * No están cubiertos por el selector window.
+ */
+window,
+dialog,
+messagedialog,
+popover,
+menu {
+    background-color: @wmm_win32_surface;
+    color: @wmm_win32_foreground;
+}
+
+/* --- Input fields --- */
+entry,
+textview text,
+treeview.view {
+    background-color: @wmm_win32_field;
+    color: @wmm_win32_foreground;
+}
+
+/* --- Visores de texto: superficie principal --- */
+/* El tema GTK win32 aplica un padding izquierdo que provoca
+ * una franja vertical oscura. Anularlo en ambos visores. */
+textview.wmm-log-view,
+textview.wmm-log-view:focus,
+textview.wmm-docs-view,
+textview.wmm-docs-view:focus {
+    background-image: none;
+    background-color: @wmm_win32_field;
+    padding-left: 0;
+}
+
+/* --- Monitors: bordes y resaltado --- */
+/* El tema win32 no proporciona los colores simbólicos
+ * utilizados por los marcos en el CSS común de WMM.
+ * Reutilizar la paleta nativa sin modificar los eventos. */
+.monitor-frame {
+    border: 2px solid @wmm_win32_foreground;
+}
+
+/* El hover del puntero y el destino D&D comparten
+ * apariencia, pero conservan sus estados independientes. */
+.monitor-frame.monitor-hover,
+.monitor-frame.dnd-target {
+    border-color: @wmm_win32_accent;
+}
+
+/* --- TreeView selection --- */
+/* Selección neutra, también con foco:
+ * evita el Highlight azul clásico del tema win32.
+ */
+treeview.view:selected {
+    background-color: @wmm_win32_selected;
+    color: @wmm_win32_foreground;
+}
+
+/* --- TreeView: celdas deshabilitadas --- */
+/* Recuperar la atenuación de las carpetas inactivas.
+ * GtkCellRenderer utiliza la clase .cell y el estado
+ * :disabled cuando sensitive=False.
+ */
+treeview.view.cell:disabled {
+    color: @wmm_win32_text_disabled;
+}
+
+/* --- Translation Manager: marco de cabecera --- */
+/* Sustituir la imagen nativa del GtkFrame por un borde
+ * que conserve el contraste en ambos temas de Windows. */
+frame.wmm-pot-header-frame > border {
+    background-image: none;
+    border: 1px solid alpha(@wmm_win32_foreground, 0.40);
+}
+
+/* --- Separators --- */
+separator {
+    background-color: @wmm_win32_border;
+}
+
+/* --- Separadores de menús contextuales --- */
+/* El tema win32 añade padding a todos los elementos de menu.
+ * Lo anulamos sólo en los separadores para conservar una línea
+ * fina sin modificar el espaciado de las opciones.
+ */
+menu > separator {
+    min-height: 1px;
+    padding: 0;
+    margin: 3px 6px;
+    border: none;
+    background-image: none;
+    background-color: @wmm_win32_border;
+}
+
+/* --- Panel and dialog typography --- */
+/* Los tooltips, menús emergentes y los selectores de archivos
+ * y carpetas comparten el incremento tipográfico del Panel.
+ */
+.wmm-control-panel,
+dialog.wmm-sources-folder-chooser,
+dialog.wmm-api-key-file-chooser,
+dialog.wmm-api-keys-dialog,
+tooltip,
+menu {
+    font-size: calc(1em + 1.9pt);
+}
+
+/* Los Viewports conservan la escala de su contenedor.
+ * Evita los 9 pt nativos y un segundo incremento tipográfico. */
+dialog.wmm-api-keys-dialog viewport,
+viewport.wmm-online-terms-viewport {
+    font-size: inherit;
+}
+
+/* ==========================================================
+ * BOTONES DE ACCIÓN
+ * ========================================================== */
+
+/* --- Normal --- */
+/* No alterar los botones internos de ComboBox o SpinButton. */
+button.text-button,
+button.image-button {
+    background-image: none;
+    background-color: @wmm_win32_control;
+    color: @wmm_win32_foreground;
+    border: 1px solid @wmm_win32_border;
+    border-radius: 4px;
+}
+
+/* --- Hover --- */
+button.text-button:hover,
+button.image-button:hover {
+    background-color: @wmm_win32_button_hover;
+}
+
+/* --- Pressed --- */
+button.text-button:active,
+button.image-button:active {
+    background-color: @wmm_win32_button_pressed;
+}
+
+/* --- Checked --- */
+button.text-button:checked,
+button.image-button:checked {
+    background-color: @wmm_win32_button_checked;
+    border-color: @wmm_win32_accent;
+}
+
+/* --- Disabled --- */
+button.text-button:disabled,
+button.image-button:disabled {
+    color: @wmm_win32_text_disabled;
+}
+
+/* ==========================================================
+ * ONLINE - ICONOS SUPERPUESTOS A MINIATURAS
+ * ==========================================================
+ * El tema win32 impone superficies y colores propios a los
+ * botones. Recuperamos el tratamiento del CSS común sin
+ * modificar los controles ni sus estados en Python.
+ * ========================================================== */
+
+/* --- Estado normal: fondo transparente --- */
+button.wmm-online-select,
+button.wmm-online-source-link {
+    background-image: none;
+    background-color: transparent;
+    border: none;
+    border-image: none;
+    box-shadow: none;
+    padding: 1px;
+    color: #ffffff;
+    -gtk-icon-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* --- Selección: icono verde y botón transparente --- */
+/* Evitar que GTK win32 aplique el fondo nativo al estado checked. */
+button.wmm-online-select:checked {
+    background-image: none;
+    background-color: transparent;
+    border: none;
+    border-image: none;
+    box-shadow: none;
+    color: #3fd276;
+}
+
+button.wmm-online-select:checked image {
+    color: #3fd276;
+}
+
+/* --- Descargado: verde incluso cuando está deshabilitado --- */
+button.wmm-online-select.wmm-online-downloaded,
+button.wmm-online-select.wmm-online-downloaded:disabled {
+    background-image: none;
+    background-color: transparent;
+    border: none;
+    border-image: none;
+    box-shadow: none;
+    color: #3fd276;
+    opacity: 1;
+}
+
+/* El icono simbólico también recibe el estado disabled.
+ * Evitamos que GTK lo atenúe y pierda su color de descarga. */
+button.wmm-online-select.wmm-online-downloaded image,
+button.wmm-online-select.wmm-online-downloaded:disabled image {
+    color: #3fd276;
+    opacity: 1;
+    -gtk-icon-effect: none;
+}
+
+/* --- Papeleras: variante simbólica exclusiva de Win32 --- */
+/* Mantener user-trash en Python para respetar los temas Linux.
+ * En Windows solicitar su variante simbólica de Adwaita. */
+button.wmm-trash-symbolic image {
+    -gtk-icon-style: symbolic;
+}
+
+/* --- Disabled: iconos --- */
+/* Los iconos no simbólicos pueden conservar su aspecto
+ * original aunque el botón esté deshabilitado.
+ * Atenuamos la imagen sin modificar el fondo del botón.
+ */
+button.image-button:disabled image {
+    opacity: 0.45;
+}
+
+/* --- Toggle de edición de monitores --- */
+/* Gtk.Image se añade manualmente al botón, por lo que no recibe
+ * necesariamente la clase image-button. Evitar la imagen nativa
+ * azul del tema win32 sin modificar el icono simbólico.
+ */
+button.wmm-edit-mode-toggle {
+    background-image: none;
+    background-color: @wmm_win32_control;
+    color: @wmm_win32_foreground;
+    border: 1px solid @wmm_win32_border;
+    border-radius: 4px;
+}
+
+/* --- Hover --- */
+button.wmm-edit-mode-toggle:hover {
+    background-color: @wmm_win32_button_hover;
+}
+
+/* --- Pressed --- */
+button.wmm-edit-mode-toggle:active {
+    background-color: @wmm_win32_button_pressed;
+}
+
+/* --- Editing enabled --- */
+button.wmm-edit-mode-toggle:checked {
+    background-color: @wmm_win32_button_checked;
+    border-color: @wmm_win32_accent;
+}
+
+/* --- Disabled --- */
+button.wmm-edit-mode-toggle:disabled {
+    color: @wmm_win32_text_disabled;
+}
+
+/* ==========================================================
+ * SWITCHES
+ * ========================================================== */
+
+/* --- Switch: aspecto y dimensiones comunes W11 --- */
+/* Geometría compartida por todos los Gtk.Switch de WMM
+ * en Windows, sin distinguir entre modo claro y oscuro.
+ */
+switch {
+    background-image: none;
+    background-color: @wmm_win32_selected;
+    border: 1px solid @wmm_win32_border;
+    border-radius: 999px;
+    font-size: 1px;
+    min-width: 44px;
+    min-height: 17px;
+}
+
+/* --- Switch enabled --- */
+switch:checked {
+    background-color: @wmm_win32_accent;
+    border-color: @wmm_win32_accent;
+}
+
+/* --- Switch thumb --- */
+/* Dibujar un círculo sin modificar la superficie
+ * que GTK reserva para desplazar el deslizador.
+ */
+switch slider {
+    background-color: transparent;
+    background-image: radial-gradient(
+        circle 7px at center,
+        @wmm_win32_thumb 95%,
+        transparent 100%
+    );
+    border-radius: 999px;
+    min-width: 16px;
+    min-height: 16px;
+}
+
+/* ==========================================================
+ * SLIDERS
+ * ========================================================== */
+
+/* --- Value labels --- */
+/* El tema GTK win32 puede conservar el texto claro de los
+ * valores del CSS común incluso en modo claro de Windows.
+ * Utilizar el foreground WinRT para ambos esquemas. */
+.wmm-control-panel scale value {
+    color: @wmm_win32_foreground;
+}
+
+/* --- Track --- */
+scale trough {
+    background-image: none;
+    background-color: @wmm_win32_selected;
+    border-radius: 999px;
+}
+
+/* --- Active track --- */
+/* GTK win32 dibuja una imagen nativa sobre el color dinámico.
+ * Anularla permite compartir el acento de los switches. */
+scale highlight {
+    background-image: none;
+    background-color: @wmm_win32_accent;
+}
+
+/* --- Slider thumb --- */
+scale slider {
+    background-image: none;
+    background-color: @wmm_win32_control;
+    border: 1px solid @wmm_win32_border;
+    border-radius: 999px;
+}
+
+/* --- Scrollbar: corrección del indicador derecho deshabilitado --- */
+/* GTK win32 utiliza por error el estado 17 (ABS_UPHOVER).
+ * El estado 16 corresponde a ABS_RIGHTDISABLED.
+ */
+scrollbar.horizontal:hover button.down:disabled {
+    background-image: -gtk-win32-theme-part(scrollbar, 1, 16);
+}
+
+/* --- Menús emergentes: sin marco --- */
+/* GtkMenu y la ventana popup usan nodos distintos.
+ * Neutralizar el contorno CSS en ambos, conservando la
+ * sombra externa de decoration validada en ComboBox.
+ */
+menu,
+window.popup,
+window.popup decoration {
+    border: none;
+    border-image: none;
+    outline: none;
+}
+
+/* Sin sombra interior: la exterior reside en decoration.
+ * También cubre los menús contextuales, no sólo ComboBox.
+ */
+menu {
+    box-shadow: none;
+}
+
+/* Evitar una segunda sombra dentro del desplegable:
+ * la exterior se dibuja mediante window.popup decoration.
+ */
+combobox menu {
+    box-shadow: none;
+}
+
+/* --- Ventanas emergentes: sombra exterior --- */
+/* El contexto y los ComboBox comparten decoración.
+ * Sustituimos cualquier contorno de sombra nativo.
+ */
+window.popup decoration {
+    box-shadow: 0 3px 8px alpha(black, 0.22);
+}
+
+/* ----------------------------------------------------------
+ * THUMBNAILS - CABECERA COMÚN
+ * ----------------------------------------------------------
+ * Diferenciar la navegación del contenido en ambos temas.
+ * La paleta Win32 adapta el fondo al modo claro u oscuro.
+ * Conservar el separador inferior y los 2 px adicionales.
+ * ---------------------------------------------------------- */
+box.wmm-thumbnails-header {
+    background-image: none;
+    background-color: @wmm_win32_control;
+    padding: 6px 8px;
+}
+
+/* ==========================================================
+ * SPINBUTTON - CORRECCIÓN DE MÉTRICAS GTK WIN32
+ * ==========================================================
+ * El tema win32 exige un mínimo interno de 15 píxeles
+ * mientras GTK puede medir sus pulsadores con tamaño 0,
+ * provocando Gtk-WARNING: for_size smaller than min-size.
+ *
+ * Reproducción confirmada fuera de WMM con GtkSpinButton.
+ * Adwaita no presenta el problema.
+ *
+ * La eliminación de los mínimos CSS evita las advertencias
+ * sin alterar el funcionamiento de los pulsadores.
+ * Regla común a los modos claro y oscuro de Windows.
+ * ========================================================== */
+spinbutton button {
+    min-width: 0px;
+    min-height: 0px;
+}
+
+/* ==========================================================
+ * SPINBUTTON - GEOMETRÍA Y PRESENTACIÓN COMÚN WIN32
+ * ==========================================================
+ * Geometría validada en ambos pulsadores: iconos 12x12 px
+ * y fondos 15x12 px, alineados hacia el centro del control.
+ *
+ * La paleta Win32 adapta automáticamente los colores al tema.
+ * Los estados exclusivos del modo oscuro se definen más abajo.
+ *
+ * La corrección de min-width/min-height = 0 permanece en su
+ * bloque independiente: evita los warnings de medición GTK.
+ * ========================================================== */
+
+/* --- Superficie y marco --- */
+spinbutton.horizontal {
+    background-image: none;
+    background-color: @wmm_win32_field;
+    box-shadow: inset 0 0 0 1px @wmm_win32_border;
+}
+
+/* --- Pulsadores --- */
+spinbutton.horizontal button.up,
+spinbutton.horizontal button.down {
+    background-color: transparent;
+    background-repeat: no-repeat;
+    color: @wmm_win32_foreground;
+    -gtk-icon-transform: scale(0);
+}
+
+/* --- Incrementar --- */
+spinbutton.horizontal button.up,
+spinbutton.horizontal button.up:disabled {
+    background-image:
+        -gtk-icontheme("pan-up-symbolic"),
+        linear-gradient(to bottom,
+            @wmm_win32_selected, @wmm_win32_selected);
+    background-size: 12px 12px, 15px 12px;
+    background-position: bottom center, bottom center;
+}
+
+/* --- Decrementar --- */
+spinbutton.horizontal button.down,
+spinbutton.horizontal button.down:disabled {
+    background-image:
+        -gtk-icontheme("pan-down-symbolic"),
+        linear-gradient(to bottom,
+            @wmm_win32_selected, @wmm_win32_selected);
+    background-size: 12px 12px, 15px 12px;
+    background-position: top center, top center;
+}
+
+/* --- Hover: base para el tema claro --- */
+/* button_hover apenas contrasta con selected en modo claro.
+ * Reutilizamos button_checked para destacar el hover sin
+ * alterar la paleta ni los estados exclusivos del modo oscuro.
+ */
+spinbutton.horizontal button.up:hover {
+    background-image:
+        -gtk-icontheme("pan-up-symbolic"),
+        linear-gradient(to bottom,
+            @wmm_win32_button_checked, @wmm_win32_button_checked);
+}
+
+spinbutton.horizontal button.down:hover {
+    background-image:
+        -gtk-icontheme("pan-down-symbolic"),
+        linear-gradient(to bottom,
+            @wmm_win32_button_checked, @wmm_win32_button_checked);
+}
+
+/* --- Pulsación: base para el tema claro --- */
+spinbutton.horizontal button.up:active {
+    background-image:
+        -gtk-icontheme("pan-up-symbolic"),
+        linear-gradient(to bottom,
+            @wmm_win32_button_pressed, @wmm_win32_button_pressed);
+}
+
+spinbutton.horizontal button.down:active {
+    background-image:
+        -gtk-icontheme("pan-down-symbolic"),
+        linear-gradient(to bottom,
+            @wmm_win32_button_pressed, @wmm_win32_button_pressed);
+}
+
+/* ----------------------------------------------------------
+ * FILECHOOSER - CABECERAS DE COLUMNAS
+ * ----------------------------------------------------------
+ * El tema win32 conserva una imagen blanca en las cabeceras
+ * del selector de archivos, con poco contraste en modo claro.
+ * Utilizamos el fondo del pie del selector en ambos temas.
+ * La geometría y los estados interactivos permanecen intactos.
+ * ---------------------------------------------------------- */
+filechooser treeview.view header button {
+    background-image: none;
+    background-color: @wmm_win32_control;
+    color: @wmm_win32_foreground;
+    box-shadow:
+        inset -1px 0 0 alpha(@wmm_win32_foreground, 0.30),
+        inset 0 -1px 0 alpha(@wmm_win32_foreground, 0.30);
+}
+
+/* ==========================================================
+ * MODO OSCURO - ADAPTACIONES DEL TEMA WIN32
+ * ==========================================================
+ *
+ * El tema win32 conserva determinados fondos claros y
+ * estados azules. Estas reglas corrigen esos controles
+ * exclusivamente cuando Windows utiliza el modo oscuro.
+ *
+ * Las marcas siguientes son consumidas por win32.py.
+ * No deben eliminarse durante la limpieza del archivo.
+ * ========================================================== */
+
+/* WMM-DARK-BEGIN */
+
+/* ----------------------------------------------------------
+ * POT - CABECERA DE COLUMNAS
+ * ----------------------------------------------------------
+ * Igualar la superficie al pie del formulario en DARK.
+ * El contorno alpha se conserva en su regla común.
+ * ---------------------------------------------------------- */
+frame.wmm-pot-header-frame,
+frame.wmm-pot-header-frame > border {
+    background-image: none;
+    background-color: @wmm_win32_control;
+}
+
+/* ----------------------------------------------------------
+ * NOTEBOOK - PESTAÑAS
+ * ----------------------------------------------------------
+ * El tema GTK win32 conserva el fondo nativo claro
+ * de las pestañas. Reutilizar la paleta WMM en DARK.
+ * ---------------------------------------------------------- */
+notebook > header > tabs > tab {
+    background-image: none;
+    background-color: @wmm_win32_control;
+    color: @wmm_win32_foreground;
+}
+
+/* Pestaña activa: diferenciarla sin utilizar el azul nativo. */
+notebook > header > tabs > tab:checked {
+    background-color: @wmm_win32_selected;
+}
+
+/* --- Cuerpo de las páginas POT y Search --- */
+/* El tema win32 conserva el fondo claro del GtkNotebook.
+ * Utilizar la superficie principal sin alterar sus páginas. */
+notebook > stack {
+    background-image: none;
+    background-color: @wmm_win32_surface;
+}
+
+/* --- Subsection lists --- */
+/* El tema win32 conserva el fondo claro de los GtkListBox.
+ * Reutilizar el color de campo en las listas del Notebook. */
+notebook > stack list {
+    background-image: none;
+    background-color: @wmm_win32_field;
+    color: @wmm_win32_foreground;
+}
+
+/* --- Listas del Notebook y resultados de Search --- */
+/* Las listas internas y el Popover de búsqueda comparten
+ * superficie, aunque pertenecen a jerarquías GTK distintas. */
+notebook > stack list,
+popover scrolledwindow list {
+    background-image: none;
+    background-color: @wmm_win32_field;
+    color: @wmm_win32_foreground;
+}
+
+/* ----------------------------------------------------------
+ * TRANSLATION MANAGER - PIE DE ESTADO
+ * ----------------------------------------------------------
+ * El tema win32 no adapta el fondo del Statusbar al modo
+ * oscuro. Diferenciar el pie mediante la superficie de
+ * controles, conservando su marco previamente eliminado.
+ * ---------------------------------------------------------- */
+statusbar.wmm-pot-statusbar,
+statusbar.wmm-pot-statusbar > frame {
+    background-image: none;
+    background-color: @wmm_win32_control;
+    color: @wmm_win32_foreground;
+}
+
+/* ----------------------------------------------------------
+ * SOURCES y ONLINE - PIE DE ACCIONES
+ * ----------------------------------------------------------
+ * Diferenciar el pie del árbol de fuentes, conservando
+ * el fondo original del cuerpo y su contraste de selección.
+ * ---------------------------------------------------------- */
+box.wmm-sources-footer,
+box.wmm-online-footer,
+box.wmm-pot-footer {
+    background-image: none;
+    background-color: @wmm_win32_control;
+    border-top: 1px @wmm_win32_border;
+    padding: 6px 8px;
+}
+
+/* ----------------------------------------------------------
+ * FILECHOOSER - SELECTOR DE CARPETAS
+ * ----------------------------------------------------------
+ * El tema win32 conserva superficies claras en la barra
+ * lateral y la navegación superior de GtkFileChooserDialog.
+ * Utilizar la paleta WMM exclusivamente en modo oscuro,
+ * sin modificar la geometría ni la selección de carpetas.
+ * ---------------------------------------------------------- */
+
+/* --- Columna izquierda: PlacesSidebar --- */
+filechooser placessidebar,
+filechooser placessidebar list {
+    background-image: none;
+    background-color: @wmm_win32_surface;
+    color: @wmm_win32_foreground;
+}
+
+/* --- PlacesSidebar: selección igual a la lista central --- */
+/* Neutralizar el resaltado nativo de Win32 y reutilizar
+ * el mismo fondo y texto que treeview.view:selected. */
+dialog.wmm-sources-folder-chooser filechooser placessidebar row:selected,
+dialog.wmm-sources-folder-chooser filechooser placessidebar row:selected:hover,
+dialog.wmm-api-key-file-chooser filechooser placessidebar row:selected,
+dialog.wmm-api-key-file-chooser filechooser placessidebar row:selected:hover {
+    background-image: none;
+    border-image: none;
+    background-color: @wmm_win32_selected;
+    color: @wmm_win32_foreground;
+}
+
+/* --- Otras ubicaciones: superficie de GtkPlacesView --- */
+/* El tema win32 asigna un fondo claro al GtkListBox.
+ * Mantener el mismo fondo que el cuerpo del selector. */
+dialog.wmm-sources-folder-chooser filechooser placesview,
+dialog.wmm-sources-folder-chooser filechooser placesview list {
+    background-image: none;
+    background-color: @wmm_win32_field;
+    color: @wmm_win32_foreground;
+}
+
+/* --- Otras ubicaciones: marco del contenido --- */
+/* El tema win32 dibuja una imagen nativa en GtkFrame.
+ * Sustituirla por el fondo del cuerpo para eliminar el marco claro. */
+dialog.wmm-sources-folder-chooser filechooser placesview frame > border {
+    background-image: none;
+    background-color: @wmm_win32_field;
+}
+
+/* --- Otras ubicaciones: icono Ordenador --- */
+/* GTK solicita drive-harddisk en formato normal.
+ * Preferir su variante simbólica para el fondo oscuro.
+ * El primer elemento corresponde a Ordenador en esta vista. */
+dialog.wmm-sources-folder-chooser filechooser placesview list > row:first-child image {
+    -gtk-icon-style: symbolic;
+    color: @wmm_win32_foreground;
+}
+
+/* --- Cabecera y navegación superior --- */
+/* GtkFileChooserWidget utiliza un GtkBox llamado pathbarbox,
+ * con clase view, como fondo de la barra de navegación.
+ * Neutralizar su superficie clara del tema win32. */
+filechooser #pathbarbox,
+window.filechooser headerbar,
+filechooser .path-bar {
+    background-image: none;
+    background-color: @wmm_win32_surface;
+    color: @wmm_win32_foreground;
+}
+
+/* --- Botones de navegación --- */
+filechooser .path-bar button {
+    background-image: none;
+    background-color: @wmm_win32_control;
+    color: @wmm_win32_foreground;
+}
+
+/* --- Crear carpeta: GtkMenuButton --- */
+/* GTK utiliza la clase popup para este botón.
+ * Neutralizar la superficie nativa win32 y aplicar
+ * los mismos estados visuales que al resto de controles. */
+filechooser #pathbarbox button.popup {
+    background-image: none;
+    background-color: @wmm_win32_control;
+    color: @wmm_win32_foreground;
+    border-image: none;
+    border: 1px solid @wmm_win32_border;
+    border-radius: 4px;
+    box-shadow: none;
+}
+
+/* --- Icono --- */
+filechooser #pathbarbox button.popup image {
+    color: @wmm_win32_foreground;
+}
+
+/* --- Hover --- */
+filechooser #pathbarbox button.popup:hover {
+    background-color: @wmm_win32_hover_dark;
+    border-color: @wmm_win32_border_hover_dark;
+}
+
+/* --- Pulsación y estado activo --- */
+filechooser #pathbarbox button.popup:active,
+filechooser #pathbarbox button.popup:checked {
+    background-color: @wmm_win32_pressed_dark;
+}
+
+/* --- Opciones y pie del selector de carpetas --- */
+/* GtkFileChooserWidget coloca el widget adicional de Sources
+ * en un GtkActionBar, separado del área de botones del diálogo.
+ * Ambas zonas comparten el fondo de las cabeceras de columnas. */
+dialog.wmm-sources-folder-chooser filechooser actionbar,
+dialog.wmm-sources-folder-chooser .dialog-action-box {
+    background-image: none;
+    background-color: @wmm_win32_control;
+}
+
+/* Delimitar el pie completo respecto al cuerpo del selector,
+ * sin introducir una separación entre sus dos contenedores. */
+dialog.wmm-sources-folder-chooser filechooser actionbar {
+    border-top: 1px solid @wmm_win32_border;
+}
+
+/* ----------------------------------------------------------
+ * ENTRY - CAMPOS DE TEXTO
+ * ----------------------------------------------------------
+ * El tema win32 superpone imágenes nativas claras sobre
+ * los campos de entrada, también cuando reciben el foco.
+ * Retiramos esas imágenes para utilizar la paleta W11.
+ * ---------------------------------------------------------- */
+
+entry {
+    background-image: none;
+}
+
+/* Borde reutilizable para campos de texto monolínea y multilínea.
+ * En TextView se aplica al ScrolledWindow que lo contiene.
+ * El modo claro conserva la apariencia nativa de Win32. */
+entry.wmm-entry-border,
+scrolledwindow.wmm-entry-border {
+    border-image: none;
+    border: 1px solid alpha(@wmm_win32_foreground, 0.40);
+}
+
+/* ----------------------------------------------------------
+ * COMBOBOX
+ * ---------------------------------------------------------- */
+
+/* --- Ventanas emergentes: sombra en modo oscuro --- */
+/* Halo blanco atenuado, también para menús contextuales. */
+window.popup decoration {
+    box-shadow: 0 3px 8px alpha(white, 0.09);
+}
+
+/* ----------------------------------------------------------
+ * ESTADOS COMPARTIDOS - MODO OSCURO
+ * ----------------------------------------------------------
+ * El mismo contraste se aplica a varios controles GTK.
+ * Se agrupan los estados idénticos sin tocar excepciones:
+ * selección de Thumbnails, botones deshabilitados y SpinButton.
+ */
+
+/* --- Hover: superficie --- */
+combobox button.combo:hover,
+combobox entry.combo:hover,
+button.text-button:hover,
+button.image-button:hover,
+button.font:hover,
+button.radio.wmm-thumbnail-nav:hover,
+treeview.view header button:hover,
+scrollbar button:hover {
+    background-color: @wmm_win32_hover_dark;
+}
+
+/* --- Hover: borde de controles --- */
+combobox button.combo:hover,
+combobox entry.combo:hover,
+button.text-button:hover,
+button.image-button:hover,
+button.font:hover {
+    border-color: @wmm_win32_border_hover_dark;
+}
+
+/* --- Pressed: superficie --- */
+combobox button.combo:active,
+combobox button.combo:checked,
+button.text-button:active,
+button.image-button:active,
+button.font:active,
+button.radio.wmm-thumbnail-nav:active,
+treeview.view header button:active {
+    background-color: @wmm_win32_pressed_dark;
+}
+
+/* --- Botones de acción: sin sombra en hover y pressed --- */
+button.text-button:hover,
+button.image-button:hover,
+button.text-button:active,
+button.image-button:active {
+    box-shadow: none;
+}
+
+/* --- ComboBox: closed --- */
+combobox button.combo,
+combobox entry.combo {
+    background-image: none;
+    background-color: @wmm_win32_control;
+    color: @wmm_win32_foreground;
+    border-color: @wmm_win32_border;
+}
+
+/* --- ComboBox: text --- */
+combobox button.combo cellview,
+combobox button.combo label {
+    color: @wmm_win32_foreground;
+}
+
+/* --- ComboBox: arrow --- */
+/* El dibujo builtin del tema win32 puede perder contraste
+ * al sustituir sus superficies. Usamos un icono simbólico. */
+combobox button.combo arrow {
+    -gtk-icon-source: -gtk-icontheme("pan-down-symbolic");
+    -gtk-icon-shadow: none;
+    color: @wmm_win32_foreground;
+}
+
+/* --- ComboBox: popup surfaces --- */
+/* TreeView usa normalmente el fondo de campo, pero el
+ * desplegable necesita la superficie de ventana.
+ */
+combobox window.popup treeview.view {
+    background-color: @wmm_win32_surface;
+}
+
+/* --- Menuitem: texto --- */
+/* Neutralizar el color nativo win32; etiquetas y celdas
+ * heredan el color del elemento de menú.
+ */
+menu menuitem {
+    color: @wmm_win32_foreground;
+}
+
+/* --- ComboBox y menús: popup hover --- */
+menu menuitem:hover {
+    background-image: none;
+    background-color: @wmm_win32_selected;
+}
+
+/* --- Thumbnails: superficie completa --- */
+/* GtkStack pinta el fondo que puede quedar expuesto cuando
+ * el contenido de H/V no ocupa toda el área disponible.
+ */
+stack.wmm-thumbnail-stack {
+    background-color: @wmm_win32_field;
+}
+
+/* ----------------------------------------------------------
+ * SCROLLEDWINDOW - SUPERFICIES DE CONTENIDO
+ * ----------------------------------------------------------
+ * Thumbnails usa Stack > ScrolledWindow > Viewport > FlowBox.
+ * Con pocos resultados el FlowBox no llena el alto visible:
+ * el ScrolledWindow también debe pintar el fondo restante.
+ * El diálogo EXIF conserva sus reglas de Viewport.
+ * ---------------------------------------------------------- */
+stack scrolledwindow,
+scrolledwindow viewport,
+scrolledwindow flowbox {
+    background-color: @wmm_win32_field;
+    color: @wmm_win32_foreground;
+}
+
+/* --- Thumbnails: composición del fondo H/V y Favorites --- */
+/* GtkViewport determina la opacidad de su caché a partir
+ * del fondo de FlowBox. Dejamos transparente el hijo para
+ * que Viewport pinte la superficie completa.
+ *
+ * El selector excluye Online, cuyo ScrolledWindow está
+ * dentro de un Gtk.Box y no directamente bajo GtkStack.
+ */
+stack.wmm-thumbnail-stack > scrolledwindow flowbox {
+    background-color: transparent;
+}
+
+/* ----------------------------------------------------------
+ * FONTBUTTON - SELECTOR DE FUENTE Y TAMAÑO
+ * ----------------------------------------------------------
+ * El tema win32 dibuja el botón mediante imágenes nativas
+ * claras. Adaptamos su superficie y estados al modo oscuro
+ * sin modificar la fuente seleccionada ni su geometría.
+ * ---------------------------------------------------------- */
+
+/* --- Botones especiales: superficie común --- */
+/* FontButton y navegación de Thumbnails necesitan
+ * la misma neutralización de las imágenes win32.
+ */
+button.font,
+button.radio.wmm-thumbnail-nav {
+    background-image: none;
+    background-color: @wmm_win32_control;
+    color: @wmm_win32_foreground;
+    border: 1px solid @wmm_win32_border;
+    border-radius: 4px;
+    box-shadow: none;
+}
+
+/* --- FontButton: etiqueta --- */
+button.font label {
+    color: @wmm_win32_foreground;
+}
+
+/* --- FontButton: disabled --- */
+/* La superficie procede de button.font; solo cambia el texto. */
+button.font:disabled {
+    color: @wmm_win32_text_disabled;
+}
+
+button.font:disabled label {
+    color: @wmm_win32_text_disabled;
+}
+
+/* ----------------------------------------------------------
+ * THUMBNAILS - NAVEGACIÓN
+ * ----------------------------------------------------------
+ *
+ * Horizontal, Vertical, Favorites y Online son RadioButton
+ * con set_mode(False). GTK los representa como button.radio.
+ *
+ * La clase wmm-thumbnail-nav limita estas reglas a los
+ * cuatro controles de navegación de Thumbnails.
+ * ---------------------------------------------------------- */
+
+/* --- Navigation: selected --- */
+button.radio.wmm-thumbnail-nav:checked {
+    background-color: @wmm_win32_button_checked;
+    border-color: @wmm_win32_accent;
+}
+
+/* --- Navigation: selected hover --- */
+button.radio.wmm-thumbnail-nav:checked:hover {
+    background-color: @wmm_win32_nav_checked_hover_dark;
+}
+
+/* --- Navigation: labels --- */
+button.radio.wmm-thumbnail-nav label {
+    color: @wmm_win32_foreground;
+}
+
+/* ----------------------------------------------------------
+ * TREEVIEW - CABECERAS DE COLUMNAS
+ * ----------------------------------------------------------
+ * El tema win32 dibuja imágenes nativas claras en los
+ * encabezados. Sustituimos esas superficies por la paleta
+ * W11, conservando la geometría y las columnas originales.
+ * ---------------------------------------------------------- */
+
+/* --- Header: normal --- */
+/* Sources utiliza cabeceras de TreeView; Favorites utiliza
+ * botones de texto independientes para sus dos paneles.
+ * Compartir fondo y contorno sin alterar la geometría. */
+treeview.view header button,
+.favorites-panel button.text-button {
+    background-image: none;
+    background-color: @wmm_win32_control;
+    color: @wmm_win32_foreground;
+    box-shadow: inset 0 0 0 1px alpha(@wmm_win32_foreground, 0.10);
+}
+
+/* ----------------------------------------------------------
+ * SCROLLBARS - ESTILO WINDOWS 11
+ * ----------------------------------------------------------
+ * El carril y los contenedores comparten el color de selección.
+ * El deslizador y los indicadores conservan un contraste claro.
+ * Se mantienen las dimensiones y la geometría del tema.
+ * ---------------------------------------------------------- */
+
+/* --- Scrollbar: contenedores y carril --- */
+scrollbar,
+scrollbar contents,
+scrollbar trough,
+scrollbar button {
+    background-image: none;
+    background-color: @wmm_win32_selected;
+    border: none;
+    border-image: none;
+    box-shadow: none;
+    outline: none;
+}
+
+/* --- Scrollbar: deslizador --- */
+/* Contraste claro, extremos redondeados y grosor reducido. */
+scrollbar trough slider {
+    background-image: none;
+    background-color: mix(
+        @wmm_win32_selected, @wmm_win32_foreground, 0.60);
+    border: none;
+    border-image: none;
+    border-radius: 999px;
+    box-shadow: none;
+}
+
+/* --- Scrollbar: deslizador vertical --- */
+/* Reducir el grosor sin modificar su recorrido. */
+scrollbar.vertical trough slider {
+    min-width: 6px;
+    margin-left: 4px;
+    margin-right: 4px;
+}
+
+/* --- Scrollbar: deslizador horizontal --- */
+scrollbar.horizontal trough slider {
+    min-height: 6px;
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+
+/* --- Scrollbar: indicadores y dirección --- */
+/* Los botones son independientes del carril en GTK3.
+ * Utilizamos un único icono simbólico, orientado según
+ * el sentido del desplazamiento.
+ */
+scrollbar button {
+    color: @wmm_win32_foreground;
+    -gtk-icon-shadow: none;
+    -gtk-icon-source: -gtk-icontheme("media-playback-start-symbolic");
+    -gtk-icon-transform: scale(0.55);
+}
+
+/* --- Scrollbar: izquierda --- */
+scrollbar.horizontal button.up {
+    -gtk-icon-transform: rotate(180deg) scale(0.55);
+}
+
+/* --- Scrollbar: arriba --- */
+scrollbar.vertical button.up {
+    -gtk-icon-transform: rotate(-90deg) scale(0.55);
+}
+
+/* --- Scrollbar: abajo --- */
+scrollbar.vertical button.down {
+    -gtk-icon-transform: rotate(90deg) scale(0.55);
+}
+
+/* --- Scrollbar: preservar indicadores simbólicos en modo oscuro --- */
+/* Evitar que la corrección del tema nativo sustituya
+ * nuestro indicador cuando el botón queda deshabilitado.
+ */
+scrollbar.horizontal:hover button.down:disabled {
+    background-image: none;
+}
+
+/* ----------------------------------------------------------
+ * SPINBUTTON - ESTADOS EXCLUSIVOS DEL MODO OSCURO
+ * ----------------------------------------------------------
+ * Geometría, iconos y superficie proceden del bloque común.
+ * Solo reemplazamos los colores de hover y pulsación para
+ * conservar el contraste validado en el tema oscuro.
+ * ---------------------------------------------------------- */
+
+/* --- Hover --- */
+spinbutton.horizontal button.up:hover {
+    background-image:
+        -gtk-icontheme("pan-up-symbolic"),
+        linear-gradient(to bottom,
+            @wmm_win32_hover_dark, @wmm_win32_hover_dark);
+}
+
+spinbutton.horizontal button.down:hover {
+    background-image:
+        -gtk-icontheme("pan-down-symbolic"),
+        linear-gradient(to bottom,
+            @wmm_win32_hover_dark, @wmm_win32_hover_dark);
+}
+
+/* --- Pulsación --- */
+spinbutton.horizontal button.up:active {
+    background-image:
+        -gtk-icontheme("pan-up-symbolic"),
+        linear-gradient(to bottom,
+            @wmm_win32_pressed_dark, @wmm_win32_pressed_dark);
+}
+
+spinbutton.horizontal button.down:active {
+    background-image:
+        -gtk-icontheme("pan-down-symbolic"),
+        linear-gradient(to bottom,
+            @wmm_win32_pressed_dark, @wmm_win32_pressed_dark);
+}
+
+/* WMM-DARK-END */
+
+/* ==========================================================
+ * ONLINE - HOVER DE ICONOS SUPERPUESTOS
+ * ==========================================================
+ * Conservar el tratamiento validado de los iconos Online
+ * en ambos esquemas de Windows.
+ * ========================================================== */
+button.wmm-online-select:hover,
+button.wmm-online-source-link:hover,
+notebook > stack list > row:hover,
+popover scrolledwindow list > row:hover,
+popover scrolledwindow list > row:selected {
+    background-image: none;
+    background-color: alpha(@wmm_win32_foreground, 0.28);
+}
+
+/* ==========================================================
+ * ENTRY - HOVER Y FOCO
+ * ==========================================================
+ * El tema win32 dibuja el foco mediante una imagen nativa.
+ * Neutralizarla y reutilizar el borde gris adaptable
+ * sin alterar las superficies de los campos.
+ * ========================================================== */
+entry.wmm-entry-border:hover,
+entry.wmm-entry-border:focus,
+scrolledwindow.wmm-entry-border:hover {
+    background-image: none;
+    border-image: none;
+    border: 1px solid alpha(@wmm_win32_foreground, 0.60);
+    box-shadow: none;
+}
+
+/* ==========================================================
+ * SEARCH - HOVER Y SELECCIÓN DE RESULTADOS
+ * ==========================================================
+ * El tema win32 utiliza el Highlight nativo para selected.
+ * Adaptar tanto la fila como sus hijos, que pueden recibir
+ * el estado de selección y conservar el fondo azul.
+ * ========================================================== */
+popover scrolledwindow list > row:hover,
+popover scrolledwindow list > row:selected {
+    background-image: none;
+    background-color: @wmm_win32_selected;
+    color: @wmm_win32_foreground;
+    border-image: none;
+    box-shadow: none;
+}
+
+/* Los hijos no deben recuperar el azul de selected. */
+popover scrolledwindow list > row:selected * {
+    background-image: none;
+    background-color: transparent;
+    color: @wmm_win32_foreground;
+}
+
+/* Conservar la atenuación de las coincidencias traducidas. */
+popover scrolledwindow list > row:selected .dim-label {
+    color: alpha(@wmm_win32_foreground, 0.55);
+}

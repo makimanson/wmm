@@ -34,7 +34,7 @@ sys.path.insert(0, _PROJECT_ROOT)
 import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('Gio', '2.0')
-from gi.repository import Gtk, Gio, GLib
+from gi.repository import Gtk, Gio, GLib, Gdk, GdkPixbuf
 
 # ==========================================================
 # IMPORTS DE MÓDULOS DEL PROYECTO
@@ -89,6 +89,45 @@ def _format_copyright(data):
     return f"Copyright \u00a9 {years} {author}"
 
 # ==========================================================
+# HISTORIA DE WMM
+# ==========================================================
+def _read_about_history():
+    """Lee únicamente la historia correspondiente al idioma de sesión."""
+    path = os.path.join(_PROJECT_ROOT, "licenses", "WMM", "WMM-a-little-history")
+
+    try:
+        with open(path, "r", encoding="utf-8-sig") as document:
+            lines = document.read().splitlines(keepends=True)
+    except (OSError, UnicodeError) as error:
+        print(f"[WMM ABOUT] Error reading history: {error}", file=sys.stderr)
+        return None
+
+    # Los marcadores delimitan el texto; no forman parte de la vista.
+    markers = ("[English]", "[Català]", "[Castellano]")
+    positions = {
+        line.rstrip("\r\n"): index
+        for index, line in enumerate(lines)
+        if line.rstrip("\r\n") in markers
+    }
+
+    if (len(positions) != 3 or
+            not positions[markers[0]] < positions[markers[1]] < positions[markers[2]]):
+        print("[WMM ABOUT] Invalid history language markers", file=sys.stderr)
+        return None
+
+    # Mismo criterio de idioma utilizado por Online y Docs Viewer.
+    raw = (os.environ.get("LANGUAGE") or os.environ.get("LC_ALL")
+           or os.environ.get("LC_MESSAGES") or os.environ.get("LANG") or "en")
+    language = raw.split(":", 1)[0].split(".", 1)[0].replace("-", "_").split("_", 1)[0].lower()
+    marker = {"ca": markers[1], "es": markers[2]}.get(language, markers[0])
+
+    start = positions[marker] + 1
+    end = next((positions[m] for m in markers
+                if positions[m] > positions[marker]), len(lines))
+
+    return "".join(lines[start:end]).strip() or None
+
+# ==========================================================
 # VENTANA ABOUT
 # ==========================================================
 class AboutWindow(Gtk.ApplicationWindow):
@@ -99,18 +138,48 @@ class AboutWindow(Gtk.ApplicationWindow):
         self.set_resizable(False)
         self.set_position(Gtk.WindowPosition.CENTER)
         self.set_keep_above(True)
-        self.set_icon_name("video-display")
+
+        # About e historia comparten ventana y geometría.
+        # La transición pertenece a GTK, sin animaciones manuales.
+        self._history_text = _read_about_history()
+
+        self._view_stack = Gtk.Stack()
+        self._view_stack.set_hhomogeneous(True)
+        self._view_stack.set_vhomogeneous(True)
+        self._view_stack.set_transition_type(Gtk.StackTransitionType.CROSSFADE)
+        self._view_stack.set_transition_duration(2400)
+        self.add(self._view_stack)
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         content.set_border_width(22)
-        self.add(content)
+        self._view_stack.add_named(content, "about")
 
         # ----------------------------------------------------------
         # IDENTIDAD DE LA APLICACIÓN
         # ----------------------------------------------------------
-        icon = Gtk.Image.new_from_icon_name("video-display", Gtk.IconSize.DIALOG)
+        # Identidad gráfica de WMM: PNG local con respaldo del tema GTK.
+        icon_path = os.path.join(platform.app_dir, "icon.png")
+
+        try:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(icon_path, 100, -1, True)
+            self.set_icon(pixbuf)
+            icon = Gtk.Image.new_from_pixbuf(pixbuf)
+        except (GLib.Error, OSError):
+            self.set_icon_name("video-display")
+            icon = Gtk.Image.new_from_icon_name("video-display", Gtk.IconSize.DIALOG)
+
         icon.set_halign(Gtk.Align.CENTER)
-        content.pack_start(icon, False, False, 0)
+
+        if self._history_text:
+            icon_button = Gtk.Button()
+            icon_button.set_relief(Gtk.ReliefStyle.NONE)
+            icon_button.get_style_context().add_class("flat")
+            icon_button.set_halign(Gtk.Align.CENTER)
+            icon_button.add(icon)
+            icon_button.connect("clicked", self._on_show_history)
+            content.pack_start(icon_button, False, False, 0)
+        else:
+            content.pack_start(icon, False, False, 0)
 
         short_name = Gtk.Label()
         short_name.set_markup(
@@ -152,7 +221,7 @@ class AboutWindow(Gtk.ApplicationWindow):
             ("GitHub", links["github"]),
             (_("Changelog"), f'wmm-doc:{links["changelog"]}'),
             (_("Help"), f'wmm-doc:{links["help"]}'),
-            (_("License"), f'wmm-doc:{data["license"]["document"]}'),
+            (_("License"), 'wmm-doc:licenses'),
         )
 
         links_markup = "   ".join(
@@ -167,7 +236,63 @@ class AboutWindow(Gtk.ApplicationWindow):
         links_label.connect("activate-link", self._on_activate_link)
         content.pack_start(links_label, False, False, 0)
 
+        # ----------------------------------------------------------
+        # HISTORIA OCULTA DE WMM
+        # ----------------------------------------------------------
+        if self._history_text:
+            story = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+            story.set_border_width(10)
+
+            back = Gtk.Button.new_from_icon_name(
+                "go-previous-symbolic", Gtk.IconSize.BUTTON)
+            back.set_relief(Gtk.ReliefStyle.NONE)
+            back.set_halign(Gtk.Align.START)
+            back.set_tooltip_text(_("About"))
+
+            # El CSS común elimina las dimensiones mínimas del tema GTK.
+            back.get_style_context().add_class("wmm-history-back")
+
+            back.connect("clicked", self._on_show_about)
+            story.pack_start(back, False, False, 0)
+
+            # El relato no modifica la geometría de About.
+            # Sólo el texto dispone de desplazamiento vertical.
+            scrolled = Gtk.ScrolledWindow()
+            scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+            scrolled.set_hexpand(True)
+            scrolled.set_vexpand(True)
+
+            text = Gtk.Label(label=self._history_text)
+            text.set_line_wrap(True)
+            text.set_max_width_chars(48)
+            text.set_xalign(0.0)
+            text.set_yalign(0.0)
+            text.set_selectable(True)
+
+            scrolled.add_with_viewport(text)
+            story.pack_start(scrolled, True, True, 0)
+
+            self._view_stack.add_named(story, "history")
+            self.connect("key-press-event", self._on_history_key_press)
+
+        self._view_stack.set_visible_child_name("about")
         self.show_all()
+
+    def _on_show_history(self, _button):
+        """Descubre el relato sin abrir otra ventana."""
+        self._view_stack.set_visible_child_name("history")
+
+    def _on_show_about(self, _button=None):
+        """Recupera la presentación original de About."""
+        self._view_stack.set_visible_child_name("about")
+
+    def _on_history_key_press(self, _window, event):
+        """Escape regresa a About sin cerrar la aplicación."""
+        if (event.keyval == Gdk.KEY_Escape and
+                self._view_stack.get_visible_child_name() == "history"):
+            self._on_show_about()
+            return True
+        return False
 
     def _on_activate_link(self, label, uri):
         """Abre documentos WMM en el visor interno y deja las URLs al sistema."""
@@ -212,9 +337,31 @@ class AboutApplication(Gtk.Application):
             self.quit()
 
     def do_activate(self):
+        if hasattr(platform, "prepare_gtk_color_scheme"):
+            platform.prepare_gtk_color_scheme()
+
         window = self.props.active_window
 
         if window is None:
+
+            # ----------------------------------------------------------
+            # CSS COMPARTIDO DE WMM
+            # ----------------------------------------------------------
+            # About es un proceso independiente del Panel.
+            # Cargar el recurso común una sola vez, al crear la ventana.
+            css_path = os.path.join(
+                platform.app_dir, "wmm_platform", "shell", "common", "wmm.css")
+
+            if os.path.isfile(css_path):
+                css_provider = Gtk.CssProvider()
+                css_provider.load_from_path(css_path)
+                Gtk.StyleContext.add_provider_for_screen(
+                    Gdk.Screen.get_default(), css_provider,
+                    Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+            else:
+                print(f"[WMM ABOUT] CSS compartido no disponible: {css_path}",
+                    file=sys.stderr)
+
             try:
                 data = _load_about_data()
             except (OSError, json.JSONDecodeError, TypeError, ValueError) as error:
@@ -226,7 +373,10 @@ class AboutApplication(Gtk.Application):
             window.connect("destroy", lambda *_: self.quit())
             self.add_window(window)
 
-        window.present()
+        if hasattr(platform, "present_window"):
+            platform.present_window(window)
+        else:
+            window.present()
 
     def do_shutdown(self):
         if self._engine_watch_id:

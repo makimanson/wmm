@@ -27,6 +27,58 @@ def get_install_path(data_base, app_domain):
     """Devuelve la ruta del frontend GNOME."""
     return os.path.join(data_base, 'gnome-shell', 'extensions', app_domain)
 
+def get_positioned_gtk_child_env():
+    """Prepara un formulario GTK para respetar posicionamiento absoluto en GNOME."""
+    if os.environ.get("XDG_SESSION_TYPE", "").lower() != "wayland":
+        return None
+
+    env = os.environ.copy()
+
+    # Bajo GNOME/Wayland, GTK3 no puede posicionar una toplevel mediante
+    # coordenadas globales. XWayland conserva esa capacidad cuando está disponible.
+    if not env.get("DISPLAY"):
+        return None
+
+    env["GDK_BACKEND"] = "x11"
+    return env
+
+def get_point_available_area(x, y):
+    """
+    Devuelve el área útil del monitor que contiene un punto global,
+    según la geometría autoritativa de Mutter.
+    """
+    try:
+        bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
+
+        result = bus.call_sync(
+            "org.maki.wmm.Gnome",
+            "/org/maki/wmm/Gnome",
+            "org.maki.wmm.Gnome",
+            "GetPointAvailableArea",
+            GLib.Variant("(ii)", (int(x), int(y))),
+            GLib.VariantType.new("(s)"),
+            Gio.DBusCallFlags.NONE,
+            1000, None)
+
+        value = result.unpack()[0]
+
+        if not value:
+            return None
+
+        area_x, area_y, width, height = (
+            int(part) for part in value.split(","))
+
+        if width <= 0 or height <= 0:
+            return None
+
+        return { "x": area_x, "y": area_y, "width": width, "height": height, }
+
+    except Exception as e:
+        log_event(
+            f"No se pudo obtener el área útil del punto desde GNOME Shell: {e}",
+            origin="GNOME", level="WARN", reason="D-BUS")
+        return None
+
 def get_window_available_area(pid):
     """
     Devuelve el área útil del monitor que contiene la ventana identificada
@@ -77,7 +129,7 @@ def get_window_available_area(pid):
         return None
 
 def _purge_background_cache(path):
-    """Purga de GNOME Shell la imagen de fondo asociada a la ruta indicada."""
+    """Gestiona la invalidación del fondo según las capacidades de GNOME Shell."""
     try:
         bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
 
@@ -91,19 +143,19 @@ def _purge_background_cache(path):
             Gio.DBusCallFlags.NONE,
             1000, None)
 
-        purged = bool(result.unpack()[0])
+        handled = bool(result.unpack()[0])
 
-        if purged:
-            log_event(f"Caché de fondo GNOME purgada: {path}",
+        if handled:
+            log_event(f"Gestión de caché de fondo GNOME completada: {path}",
                 origin="GNOME", level="DEBUG", reason="D-BUS")
         else:
-            log_event(f"GNOME Shell no pudo purgar la caché de fondo: {path}",
+            log_event(f"GNOME Shell no pudo gestionar la caché de fondo: {path}",
                 origin="GNOME", level="WARN", reason="D-BUS")
 
-        return purged
+        return handled
 
     except Exception as e:
-        log_event(f"No se pudo purgar la caché de fondo de GNOME Shell: {e}",
+        log_event(f"No se pudo gestionar la caché de fondo de GNOME Shell: {e}",
             origin="GNOME", level="WARN", reason="D-BUS")
         return False
 
@@ -113,7 +165,7 @@ def render_master_wallpaper(self, processed_images, monitors_map, config_handler
     """
     if not processed_images:
         log_event("No hay imágenes procesadas para GNOME",
-            origin="DESKTOP", level="ERROR", reason="LIBRARY")
+            origin="GNOME", level="ERROR", reason="LIBRARY")
         return False
 
     # Mutter normaliza el layout lógico para que su bounding box comience
@@ -223,7 +275,7 @@ def set_wallpaper(master_canvas, path, config_handler):
 
         master_canvas.save(path, "JPEG", quality=95)
         log_event(f"Lienzo maestro generado en GNOME: {path}",
-            origin="DESKTOP", level="INFO", reason="LIBRARY")
+            origin="GNOME", level="INFO", reason="LIBRARY")
 
         _purge_background_cache(path)
 
@@ -244,6 +296,250 @@ def set_wallpaper(master_canvas, path, config_handler):
     except Exception as e:
         log_event(f"GNOME no respondió: {e}",
             origin="GNOME", level="ERROR", reason="NOTIFY")
+
+def _get_next_background_keybinding():
+    """
+    Devuelve la entrada GSettings que ejecuta Siguiente fondo.
+
+    La identidad pertenece al comando de WMM, no al índice customN:
+    GNOME puede asignar cualquier índice y ensure_keybindings() conserva
+    el existente durante las migraciones.
+    """
+    import shlex
+
+    app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    send_command_path = os.path.join(app_dir, "python", "send_command.py")
+
+    schema_main = "org.gnome.settings-daemon.plugins.media-keys"
+    schema_custom = "org.gnome.settings-daemon.plugins.media-keys.custom-keybinding"
+
+    settings = Gio.Settings.new(schema_main)
+
+    for path in settings.get_strv("custom-keybindings"):
+        try:
+            custom = Gio.Settings.new_with_path(schema_custom, path)
+            arguments = shlex.split(custom.get_string("command"))
+
+            if len(arguments) != 4:
+                continue
+            if os.path.abspath(arguments[1]) != send_command_path:
+                continue
+            if arguments[3] != "HOTKEY":
+                continue
+
+            payload = json.loads(arguments[2])
+            if payload != {"action": "force_rotation"}:
+                continue
+
+            binding_type = custom.get_value("binding").get_type_string()
+            if binding_type not in ("s", "as"):
+                raise ValueError(
+                    f"Tipo de binding GNOME no soportado: {binding_type}")
+
+            return custom, binding_type
+
+        except (GLib.GError, ValueError, json.JSONDecodeError):
+            continue
+
+    raise RuntimeError("No se encontró el atajo GNOME de WMM")
+
+def validate_keybinding(shortcut):
+    """Valida la representación común según los aceleradores admitidos por GNOME."""
+    if shortcut is None:
+        return None
+    if not isinstance(shortcut, dict):
+        raise ValueError(_("This key combination is not supported."))
+
+    key = shortcut.get("key")
+    modifiers = shortcut.get("modifiers")
+
+    if not isinstance(key, str) or not key or not isinstance(modifiers, list):
+        raise ValueError(_("This key combination is not supported."))
+
+    gi.require_version("Gdk", "3.0")
+    gi.require_version("Gtk", "3.0")
+    from gi.repository import Gdk, Gtk
+
+    modifier_masks = {
+        "Control": Gdk.ModifierType.CONTROL_MASK,
+        "Alt": Gdk.ModifierType.MOD1_MASK,
+        "Shift": Gdk.ModifierType.SHIFT_MASK,
+        "Super": Gdk.ModifierType.SUPER_MASK,
+        "Meta": Gdk.ModifierType.META_MASK,
+        "Hyper": Gdk.ModifierType.HYPER_MASK,
+    }
+    modifier_order = tuple(modifier_masks)
+
+    if any(
+            not isinstance(name, str) or name not in modifier_masks
+            for name in modifiers):
+        raise ValueError(_("This key combination is not supported."))
+
+    canonical_modifiers = [
+        name for name in modifier_order if name in modifiers
+    ]
+
+    keyval = Gdk.keyval_from_name(key)
+    if not keyval:
+        raise ValueError(_("This key combination is not supported."))
+
+    # GTK representa las letras mediante el keyval base; Shift pertenece
+    # al modificador y no debe quedar codificado también en la tecla.
+    if len(key) == 1 and key.isalpha():
+        keyval = Gdk.keyval_to_lower(keyval)
+
+    modifier_mask = Gdk.ModifierType(0)
+    for name in canonical_modifiers:
+        modifier_mask |= modifier_masks[name]
+
+    if not Gtk.accelerator_valid(keyval, modifier_mask):
+        raise ValueError(_("This key combination is not supported."))
+
+    canonical_key = Gdk.keyval_name(keyval)
+    if not canonical_key:
+        raise ValueError(_("This key combination is not supported."))
+    if len(canonical_key) == 1 and canonical_key.isascii():
+        canonical_key = canonical_key.upper()
+
+    return {
+        "key": canonical_key,
+        "modifiers": canonical_modifiers,
+    }
+
+def request_keybindings(data_dir, request):
+    """Consulta o modifica el binding persistente que GNOME asigna a WMM."""
+    if not isinstance(request, dict):
+        return {"ok": False, "shortcut": None, "error": "invalid_request"}
+
+    try:
+        custom, binding_type = _get_next_background_keybinding()
+
+        gi.require_version("Gdk", "3.0")
+        gi.require_version("Gtk", "3.0")
+        from gi.repository import Gdk, Gtk
+
+        def read_shortcut():
+            if binding_type == "s":
+                binding = custom.get_string("binding")
+            else:
+                bindings = list(custom.get_strv("binding"))
+                binding = bindings[0] if bindings else ""
+
+            if not binding:
+                return None
+
+            keyval, modifier_mask = Gtk.accelerator_parse(binding)
+            if not keyval:
+                raise ValueError(f"Binding GNOME no válido: {binding}")
+
+            modifier_masks = (
+                ("Control", Gdk.ModifierType.CONTROL_MASK),
+                ("Alt", Gdk.ModifierType.MOD1_MASK),
+                ("Shift", Gdk.ModifierType.SHIFT_MASK),
+                ("Super", Gdk.ModifierType.SUPER_MASK | Gdk.ModifierType.MOD4_MASK),
+                ("Meta", Gdk.ModifierType.META_MASK),
+                ("Hyper", Gdk.ModifierType.HYPER_MASK),
+            )
+
+            key = Gdk.keyval_name(keyval)
+            if not key:
+                raise ValueError(f"Binding GNOME no válido: {binding}")
+            if len(key) == 1 and key.isascii():
+                key = key.upper()
+
+            return validate_keybinding({
+                "key": key,
+                "modifiers": [
+                    name for name, mask in modifier_masks
+                    if modifier_mask & mask
+                ],
+            })
+
+        action = request.get("action")
+
+        if action == "get":
+            shortcut = read_shortcut()
+            return {"ok": True, "shortcut": shortcut, "error": 0}
+
+        if action != "set" or "shortcut" not in request:
+            return {"ok": False, "shortcut": read_shortcut(),
+                    "error": "invalid_request"}
+
+        canonical = validate_keybinding(request["shortcut"])
+
+        if canonical is None:
+            binding = ""
+        else:
+            modifier_masks = {
+                "Control": Gdk.ModifierType.CONTROL_MASK,
+                "Alt": Gdk.ModifierType.MOD1_MASK,
+                "Shift": Gdk.ModifierType.SHIFT_MASK,
+                "Super": Gdk.ModifierType.SUPER_MASK,
+                "Meta": Gdk.ModifierType.META_MASK,
+                "Hyper": Gdk.ModifierType.HYPER_MASK,
+            }
+
+            keyval = Gdk.keyval_from_name(canonical["key"])
+            if len(canonical["key"]) == 1 and canonical["key"].isalpha():
+                keyval = Gdk.keyval_to_lower(keyval)
+
+            modifier_mask = Gdk.ModifierType(0)
+            for name in canonical["modifiers"]:
+                modifier_mask |= modifier_masks[name]
+
+            binding = Gtk.accelerator_name(keyval, modifier_mask)
+
+        if binding_type == "s":
+            changed = custom.set_string("binding", binding)
+        else:
+            changed = custom.set_strv("binding", [binding] if binding else [])
+
+        if not changed:
+            return {"ok": False, "shortcut": read_shortcut(),
+                    "error": "write_failed"}
+
+        Gio.Settings.sync()
+
+        observed = read_shortcut()
+        if observed != canonical:
+            return {"ok": False, "shortcut": observed,
+                    "error": "verification_failed"}
+
+        return {"ok": True, "shortcut": observed, "error": 0}
+
+    except Exception as error:
+        log_event(f"Error gestionando el atajo GNOME: {error}",
+            origin="GNOME", level="ERROR", reason="SETTINGS")
+        return {"ok": False, "shortcut": None, "error": "request_failed"}
+
+def apply_keybinding(config_handler, shortcut):
+    """Aplica y confirma Siguiente fondo mediante la autoridad GSettings de GNOME."""
+    canonical = validate_keybinding(shortcut)
+
+    previous = request_keybindings(
+        config_handler.data_dir, {"action": "get"})
+    if not previous["ok"]:
+        raise RuntimeError(
+            f"No se pudo consultar el atajo GNOME: {previous}")
+
+    result = request_keybindings(
+        config_handler.data_dir,
+        {"action": "set", "shortcut": canonical})
+
+    if not result["ok"] or result["shortcut"] != canonical:
+        restored = request_keybindings(
+            config_handler.data_dir,
+            {"action": "set", "shortcut": previous["shortcut"]})
+
+        if not restored["ok"] or restored["shortcut"] != previous["shortcut"]:
+            raise ValueError(
+                _("Could not restore the previous shortcut settings."))
+
+        raise ValueError(_("Could not apply the keyboard shortcut."))
+
+    log_event(f"Atajo GNOME guardado: {canonical}",
+        origin="GNOME", level="INFO", reason="SETTINGS")
+    return canonical
 
 def ensure_keybindings(app_dir):
     """

@@ -30,7 +30,7 @@ if _PROJECT_ROOT not in sys.path:
 # ==========================================================
 import gi
 gi.require_version('Gtk', '3.0')
-from gi.repository import Gtk, GLib, Gio
+from gi.repository import Gtk, Gdk, GLib, Gio, Pango
 
 # ==========================================================
 # IMPORTS DE MÓDULOS DEL PROYECTO
@@ -42,9 +42,11 @@ from i18n import _
 # LISTAS DE FILTROS PARA LOS COMBOS
 # ----------------------------------------------------------------------
 
-FILTER_ORIGINS = ["All", "ADD_BOOK", "BACKEND", "CHANNELS", "CINNAMON", "CONFIG", "CORE",
-        "DESKTOP", "ENGINE", "GNOME", "IMG_ENG", "IMG_SEL", "KDE", "LINUX", "MATE", "MON_DETECT",
-        "MON_EVENT", "PANEL", "SEND_COMM", "SHELL_SEND", "SHELL_ADD", "UNKNOW", "XFCE"]
+FILTER_ORIGINS = ["All", "ADD_BOOK", "BACKEND", "CHANNELS", "CINNAMON", "CONFIG",
+        "CORE", "DESKTOP", "ENGINE", "FAV_SECT", "GNOME", "IMG_ENG", "IMG_SEL",
+        "KDE", "KEYBINDING", "LINUX", "MATE", "MON_DETECT", "MON_EVENT", "MON_SECT",
+        "ONLINE_SECT", "OPTIONS_SECT", "PANEL", "SEND_COMM", "SHELL_SEND", "SHELL_ADD",
+        "SOURCES_SECT", "THUMB_SECT", "UNKNOW", "WIN32", "WINDOWS", "XFCE"]
 
 FILTER_LEVELS = ["All", "DEBUG", "ERROR", "INFO", "WARN"]
 
@@ -58,6 +60,25 @@ class DebugLogViewer(Gtk.Window):
         # Heredar los colores del tema del sistema (fondo de ventana)
         self.get_style_context().add_class("background")
         self.set_position(Gtk.WindowPosition.CENTER)
+
+        # ----------------------------------------------------------
+        # CSS COMPARTIDO DE WMM
+        # ----------------------------------------------------------
+        # El visor es un proceso independiente del Panel, por lo que
+        # necesita cargar su propia instancia del recurso común.
+        css_path = os.path.join(
+            platform.app_dir, "wmm_platform", "shell", "common", "wmm.css")
+
+        if os.path.isfile(css_path):
+            css_provider = Gtk.CssProvider()
+            css_provider.load_from_path(css_path)
+            Gtk.StyleContext.add_provider_for_screen(
+                Gdk.Screen.get_default(),
+                css_provider,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        else:
+            log_event(f"CSS compartido no disponible: {css_path}",
+                origin="PANEL", level="WARN", reason="SETTINGS")
 
         # ----------------------------------------------------------
         # PREFERENCIAS DEL VISOR
@@ -138,7 +159,10 @@ class DebugLogViewer(Gtk.Window):
         self.scrolled.set_overlay_scrolling(False)  # Las barras ocupan espacio propio y no cubren el texto
         self.textview = Gtk.TextView()
         self.textview.set_editable(False)
-        self.textview.set_monospace(True)
+
+        # La tipografía pertenece a las preferencias del visor, no al tema CSS.
+        self.textview.override_font(
+            Pango.FontDescription.from_string(self._viewer_preferences["font"]))
 
         # El área interna "text" de Gtk.TextView puede recibir un fondo distinto
         # al del nodo principal en algunos temas. Hacemos que herede explícitamente
@@ -146,15 +170,6 @@ class DebugLogViewer(Gtk.Window):
         textview_context = self.textview.get_style_context()
         textview_context.add_class("view")
         textview_context.add_class("wmm-log-view")
-
-        textview_css = Gtk.CssProvider()
-        textview_css.load_from_data(b"""
-            textview.wmm-log-view text {
-                color: inherit;
-                background-color: inherit;
-            }
-        """)
-        textview_context.add_provider(textview_css, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         self.textbuffer = self.textview.get_buffer()
         self.scrolled.add(self.textview)
@@ -224,6 +239,20 @@ class DebugLogViewer(Gtk.Window):
 
         switches_box.pack_start(reverse_vbox, False, False, 0)
 
+        # Selector de fuente y tamaño, siguiendo el criterio de Metadata.
+        font_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        font_box.pack_start(
+            Gtk.Label(label=_("Font and size") + ":"), False, False, 0)
+
+        self.font_button = Gtk.FontButton()
+        self.font_button.set_use_font(True)
+        self.font_button.set_use_size(False)
+        self.font_button.connect("font-set", self._on_font_changed)
+        self.font_button.connect("notify::font", self._truncate_font_label)
+        self.font_button.set_font(self._viewer_preferences["font"])
+
+        font_box.pack_start(self.font_button, False, False, 0)
+
         # ==========================================================
         # ORDEN DE EMPAQUETADO EN LA VENTANA
         # ==========================================================
@@ -242,11 +271,15 @@ class DebugLogViewer(Gtk.Window):
 
         # --- SEPARADOR INFERIOR (entre visor y barra de acciones) ---
         main_vbox.pack_start(bottom_separator, False, False, 4)
-        # --- FILA INFERIOR: SWITCHES (IZQ) + LIMPIAR (DER) ---
-        toolbar_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        toolbar_box.pack_start(switches_box, False, False, 0) # Switches alineados a la izquierda
-        toolbar_box.pack_start(Gtk.Box(), True, True, 0)      # Espaciador (empuja el botón limpiar)
-        toolbar_box.pack_end(clear_btn, False, False, 0)      # Limpiar a la derecha
+
+        # --- FILA INFERIOR: FUENTE (IZQ) + SWITCHES (CENTRO) + LIMPIAR (DER) ---
+        # Gtk.Box centra los switches respecto a toda la barra,
+        # independientemente del ancho del selector y del botón Clear.
+        toolbar_box = Gtk.Box(
+            orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        toolbar_box.pack_start(font_box, False, False, 0)
+        toolbar_box.set_center_widget(switches_box)
+        toolbar_box.pack_end(clear_btn, False, False, 0)
         main_vbox.pack_start(toolbar_box, False, False, 0)
 
         # ----------------------------------------------------------
@@ -272,7 +305,12 @@ class DebugLogViewer(Gtk.Window):
     # ==========================================================
     def _load_viewer_preferences(self):
         """Carga las preferencias visuales propias del Debug Log Viewer."""
-        defaults = { "auto_scroll": True, "reverse_order": True, "window_size": [800, 550], }
+        defaults = {
+            "auto_scroll": True,
+            "reverse_order": True,
+            "window_size": [800, 550],
+            "font": "Monospace 11",
+        }
 
         try:
             with open(self._settings_path, "r", encoding="utf-8") as f:
@@ -298,6 +336,8 @@ class DebugLogViewer(Gtk.Window):
         valid_size = (isinstance(window_size, list) and len(window_size) == 2
             and all(type(value) is int and value > 0 for value in window_size))
         preferences["window_size"] = window_size if valid_size else defaults["window_size"]
+        font = viewer_state.get("font", defaults["font"])
+        preferences["font"] = font if isinstance(font, str) and font.strip() else defaults["font"]
 
         return preferences
 
@@ -305,6 +345,10 @@ class DebugLogViewer(Gtk.Window):
         """Guarda una preferencia propia del Debug Log Viewer sin reformatear settings.json."""
         if key in ("auto_scroll", "reverse_order"):
             value = bool(value)
+
+        elif key == "font":
+            if not isinstance(value, str) or not value.strip():
+                return
 
         try:
             with open(self._settings_path, "r", encoding="utf-8") as f:
@@ -325,25 +369,21 @@ class DebugLogViewer(Gtk.Window):
         if isinstance(viewer_state, dict) and viewer_state.get(key) == value:
             return
 
-        match = re.search(
-            r'("debug_log_viewer"\s*:\s*\{)(.*?)(\n[ \t]*\})',
-            raw_settings, re.DOTALL
-        )
+        match = re.search(r'("debug_log_viewer"\s*:\s*\{)(.*?)(\n[ \t]*\})',
+            raw_settings, re.DOTALL)
 
         serialized_value = json.dumps(value, ensure_ascii=False)
 
         if match:
             body = match.group(2)
-            key_pattern = rf'(^[ \t]*"{re.escape(key)}"\s*:\s*)(?:true|false|\[[^\]]*\])'
+
+            # Admitir también cadenas JSON sin duplicar la clave al actualizar.
+            key_pattern = rf'(^[ \t]*"{re.escape(key)}"\s*:\s*)(?:true|false|\[[^\]]*\]|"(?:\\.|[^"\\])*")'
 
             if re.search(key_pattern, body, re.MULTILINE):
-                body = re.sub(
-                    key_pattern,
+                body = re.sub(key_pattern,
                     lambda m: m.group(1) + serialized_value,
-                    body,
-                    count=1,
-                    flags=re.MULTILINE
-                )
+                    body, count=1, flags=re.MULTILINE)
             else:
                 indent_match = re.search(r'\n([ \t]+)"', body)
                 indent = indent_match.group(1) if indent_match else "        "
@@ -358,13 +398,11 @@ class DebugLogViewer(Gtk.Window):
 
             prefix = raw_settings[:end].rstrip()
             separator = "," if prefix and not prefix.endswith("{") else ""
-            updated = (
-                prefix + separator +
+            updated = (prefix + separator +
                 '\n    "debug_log_viewer": {\n'
                 f'        "{key}": {serialized_value}\n'
                 "    }\n" +
-                raw_settings[end:]
-            )
+                raw_settings[end:])
 
         try:
             with open(self._settings_path, "w", encoding="utf-8") as f:
@@ -391,6 +429,25 @@ class DebugLogViewer(Gtk.Window):
             else '<span size="18000">↓</span>')
 
         self._refresh()
+
+    def _on_font_changed(self, button):
+        """Aplica la fuente elegida sin reconstruir ni releer el log."""
+        font_name = button.get_font()
+        self.textview.override_font(Pango.FontDescription.from_string(font_name))
+        self._save_viewer_preference("font", font_name)
+
+    def _truncate_font_label(self, button, _param):
+        """Limita el texto del selector, conservando la fuente completa."""
+        container = button.get_child()
+        if isinstance(container, Gtk.Box):
+            for child in container.get_children():
+                if isinstance(child, Gtk.Label):
+                    name = child.get_text()
+                    if len(name) > 18:
+                        child.set_text(name[:17] + "…")
+                    break
+
+        button.set_tooltip_text(button.get_font())
 
     def _on_clear_log(self, widget):
         """Pide confirmación y vacía el archivo de log."""
@@ -450,8 +507,7 @@ class DebugLogViewer(Gtk.Window):
         luminance = (
             0.2126 * bg_color.red +
             0.7152 * bg_color.green +
-            0.0722 * bg_color.blue
-        )
+            0.0722 * bg_color.blue)
 
         variation = 0.30
 
@@ -490,10 +546,8 @@ class DebugLogViewer(Gtk.Window):
             if self.reverse_order_switch.get_active():
                 adjustment.set_value(adjustment.get_lower())
             else:
-                adjustment.set_value(
-                    max(adjustment.get_lower(),
-                        adjustment.get_upper() - adjustment.get_page_size())
-                )
+                adjustment.set_value(max(adjustment.get_lower(),
+                    adjustment.get_upper() - adjustment.get_page_size()))
 
             return False
 
@@ -629,6 +683,9 @@ class DebugLogViewerApplication(Gtk.Application):
         self._platform = platform
 
     def do_activate(self):
+        if hasattr(self._platform, "prepare_gtk_color_scheme"):
+            self._platform.prepare_gtk_color_scheme()
+
         window = self.props.active_window
 
         if window is None:
@@ -637,7 +694,10 @@ class DebugLogViewerApplication(Gtk.Application):
             self.add_window(window)
             window.show_all()
 
-        window.present()
+        if hasattr(self._platform, "present_window"):
+            self._platform.present_window(window)
+        else:
+            window.present()
 
 if __name__ == "__main__":
     from wmm_platform.core import PlatformManager

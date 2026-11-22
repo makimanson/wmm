@@ -33,7 +33,10 @@ from datetime import datetime
 # ----------------------------------------------------------------------
 # BLOQUEO DE ARCHIVOS
 # ----------------------------------------------------------------------
-from wmm_platform.file_utils import lock_file as _lock_file, unlock_file as _unlock_file
+# La implementación pertenece a la capa de SO y se inyecta una vez que
+# PlatformManager ha resuelto la plataforma activa.
+_lock_file = None
+_unlock_file = None
 
 # ----------------------------------------------------------------------
 # CONSTANTES
@@ -55,9 +58,20 @@ TRUNCATE_THRESHOLD = 1000    # Umbral que dispara el truncado
 # ----------------------------------------------------------------------
 
 # Estas variables se inicializan a None y se configuran mediante
-# set_cache_dir(), llamada desde ConfigHandler al iniciar.
+# set_cache_dir() cuando el entrypoint ya ha resuelto la plataforma activa.
 # Así el logger no depende de rutas hardcodeadas y se adapta al SO.
 _LOG_PATH = None
+
+def set_file_locking(lock_file, unlock_file):
+    """
+    Configura las operaciones de bloqueo proporcionadas por la capa de SO.
+
+    El logger no detecta ni conoce la plataforma activa: consume únicamente
+    el contrato ya resuelto por PlatformManager.
+    """
+    global _lock_file, _unlock_file
+    _lock_file = lock_file
+    _unlock_file = unlock_file
 
 def set_cache_dir(cache_dir):
     """
@@ -86,9 +100,9 @@ def log_event(message, origin="UNKNOW", level="INFO", reason="GENERIC"):
 
     Seguridad:
         - Crea el directorio de caché si no existe.
-        - Usa bloqueo exclusivo (si está disponible) durante la escritura,
-          garantizando que las líneas se escriban completas incluso si
-          varios procesos escriben simultáneamente.
+        - Usa el bloqueo exclusivo proporcionado por la capa de SO durante
+          la escritura, garantizando que las líneas se escriban completas
+          incluso si varios procesos escriben simultáneamente.
         - Captura cualquier excepción y la imprime en stderr para no
           interrumpir el flujo del componente llamante.
 
@@ -97,6 +111,12 @@ def log_event(message, origin="UNKNOW", level="INFO", reason="GENERIC"):
     """
     # Si el logger aún no ha sido configurado, no escribir
     if not _LOG_PATH:
+        return
+
+    # Una ruta activa sin operaciones de bloqueo indica un bootstrap incompleto.
+    # Nunca escribir el log compartido sin la exclusión multiproceso prometida.
+    if _lock_file is None or _unlock_file is None:
+        print("[DEBUG_LOGGER] Bloqueo de archivos no configurado", file=sys.stderr)
         return
 
     # Validar nivel
@@ -142,7 +162,7 @@ def read_log():
         str: Contenido del archivo de log, o cadena vacía si no existe
              o no se puede leer.
     """
-    if not os.path.exists(_LOG_PATH):
+    if not _LOG_PATH or not os.path.exists(_LOG_PATH):
         return ""
     try:
         with open(_LOG_PATH, "r", encoding="utf-8") as f:
@@ -167,6 +187,16 @@ def clear_log():
     Útil al iniciar una nueva sesión de depuración para no arrastrar
     eventos de sesiones anteriores.
     """
+    # Si el logger aún no ha sido configurado, no hay ningún log que limpiar.
+    if not _LOG_PATH:
+        return
+
+    # Una ruta activa sin operaciones de bloqueo indica un bootstrap incompleto.
+    # Clear debe respetar la misma exclusión multiproceso que los escritores.
+    if _lock_file is None or _unlock_file is None:
+        print("[DEBUG_LOGGER] Bloqueo de archivos no configurado", file=sys.stderr)
+        return
+
     try:
         os.makedirs(os.path.dirname(_LOG_PATH), exist_ok=True)
 
@@ -191,6 +221,22 @@ def clear_log():
 # DIAGNÓSTICO RÁPIDO (solo si se ejecuta directamente)
 # ----------------------------------------------------------------------
 if __name__ == "__main__":
+    # El diagnóstico standalone no pasa por ningún otro entrypoint de WMM:
+    # debe resolver por sí mismo la plataforma, los locks y la ruta de caché.
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+    from wmm_platform.core import PlatformManager
+
+    platform = PlatformManager()
+
+    # Al ejecutarse este archivo como __main__, esta instancia del módulo es
+    # distinta de la que core.py importa como debug_logger. Recibe por tanto
+    # explícitamente el mismo contrato de bloqueo ya resuelto por la plataforma.
+    set_file_locking(platform.lock_file, platform.unlock_file)
+    set_cache_dir(platform.cache_dir)
+
     print("═" * 50)
     print("  WMM DEBUG LOGGER")
     print("═" * 50)

@@ -25,3 +25,35 @@
 .wmm-menu-idle {
     background-color: transparent;
 }
+.wmm-inline-header {
+    font-weight: bold;
+}
+/* Atajo de Next Background, alineado a la derecha. */
+.wmm-hotkey-label {
+    font-style: italic;
+    margin-left: 16px;
+}
+.wmm-tooltip {
+    background-color: rgba(24, 24, 24, 0.94);
+    color: #ffffff;
+    border-radius: 7px;
+    padding: 7px 10px;
+}
+.wmm-tooltip-title {
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+.wmm-delete-confirm {
+    padding: 10px 12px;
+    spacing: 8px;
+}
+.wmm-delete-confirm-title {
+    font-weight: bold;
+}
+.wmm-delete-confirm-buttons {
+    spacing: 8px;
+    padding-top: 4px;
+}
+.wmm-delete-confirm-body {
+    padding: 4px 0;
+}

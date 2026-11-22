@@ -20,6 +20,11 @@ import os
 import io
 import math
 import hashlib
+import json
+import warnings
+import threading
+
+from functools import wraps
 
 # ==========================================================
 # IMPORTS DE TERCEROS
@@ -36,6 +41,49 @@ from gi.repository import Gtk, Gdk, GdkPixbuf, GLib
 # ==========================================================
 from monitor_manager import get_spanned_reference_hash, get_total_canvas_geometry
 from debug_logger import log_event
+from exif_cache import read_exif
+from i18n import _
+
+# ==========================================================
+# DIAGNÓSTICO PILLOW: RUTA DE LA IMAGEN POR HILO
+# ==========================================================
+_pillow_warning_path = threading.local()
+_previous_showwarning = warnings.showwarning
+
+
+def _wmm_show_pillow_warning(message, category, filename, lineno, file=None, line=None):
+    """Registrar el aviso EXIF identificado sin afectar a otros warnings."""
+    img_path = getattr(_pillow_warning_path, "path", None)
+
+    if (img_path and issubclass(category, UserWarning)
+            and str(message) == "Truncated File Read"
+            and filename.replace("\\", "/").endswith("/PIL/TiffImagePlugin.py")):
+        log_event(f"Pillow: {message} | Imagen: {img_path}",
+            origin="IMG_ENG", level="WARN", reason="LIBRARY")
+        return
+
+    _previous_showwarning(message, category, filename, lineno, file=file, line=line)
+
+
+def _track_pillow_image(func):
+    """Asociar los avisos de Pillow al original procesado por cada hilo."""
+    @wraps(func)
+    def wrapped(path, *args, **kwargs):
+        previous = getattr(_pillow_warning_path, "path", None)
+        _pillow_warning_path.path = path
+        try:
+            return func(path, *args, **kwargs)
+        finally:
+            _pillow_warning_path.path = previous
+    return wrapped
+
+
+# Capturar cada aparición de este aviso, no sólo la primera.
+# El resto de categorías conserva su tratamiento habitual.
+warnings.filterwarnings("always", message=r"^Truncated File Read$",
+    category=UserWarning, module=r"^PIL\.TiffImagePlugin$")
+warnings.showwarning = _wmm_show_pillow_warning
+
 
 class ImageEngine:
     def __init__(self, config_handler, monitor_manager):
@@ -45,6 +93,203 @@ class ImageEngine:
         self.ch = config_handler
         self.mm = monitor_manager
         self.master_path = self.ch.master_canvas
+
+    @staticmethod
+    def _build_metadata_lines(img_path, entry, selected_fields, field_groups):
+        """Construye las líneas EXIF seleccionadas, sin intervenir en el dibujo."""
+        if not isinstance(img_path, str) or not isinstance(selected_fields, (list, tuple, set)):
+            return []
+
+        selected = set(selected_fields)
+        entry = entry if isinstance(entry, dict) else {}
+        lines = []
+
+        for group, fields in field_groups:
+            values = []
+            for key, label in fields:
+                if key not in selected:
+                    continue
+
+                if key == "filename":
+                    filename = os.path.basename(img_path.replace("\\", "/"))
+                    value = os.path.splitext(filename)[0]
+                elif key == "directory":
+                    value = os.path.dirname(img_path)
+                else:
+                    family, field = key.split(".", 1)
+                    family_data = entry.get(family, {})
+                    value = family_data.get(field) if isinstance(family_data, dict) else None
+
+                if value is None:
+                    continue
+
+                # Abreviaturas traducibles; las unidades SI permanecen como símbolos.
+                if key == "GPSInfo.AltitudeMeters" and isinstance(value, (int, float)):
+                    value = f"{_('Alt.')} {value:g} m"
+                elif key == "Geolocation.distance_km" and isinstance(value, (int, float)):
+                    value = f"{_('Dist.')} {value:.2f} km"
+                else:
+                    value = str(value).strip()
+
+                if not value:
+                    continue
+
+                if group == "Image":
+                    field_label = group if key == "filename" else label
+                    lines.append(f"{_(field_label)}: {value}")
+                else:
+                    values.append(value)
+
+            if group != "Image" and values:
+                lines.append(f"{_(group)}: {' · '.join(values)}")
+
+        return lines
+
+    def _load_metadata_lines(self, selection, settings=None):
+        """
+        Prepara las líneas EXIF de las imágenes seleccionadas.
+
+        Consulta settings.json y lee exif_cache.json una sola vez por
+        composición. No modifica las imágenes ni las cachés.
+        """
+        if settings is None:
+            settings = self.ch.load_json("settings").get("global", {})
+
+        if not settings.get("exif_metadata_enabled", False):
+            return {}
+
+        selected = settings.get("exif_metadata_fields", [])
+        if not isinstance(selected, list) or not selected:
+            return {}
+
+        # Descartar fondos de color y evitar procesar dos veces una misma ruta.
+        paths = {path for path in selection.values() if isinstance(path, str)}
+        if not paths:
+            return {}
+
+        # Una caché ausente no impide mostrar el nombre del archivo.
+        cache_path = os.path.join(self.ch.data_dir, "exif_cache.json")
+        try:
+            with open(cache_path, "r", encoding="utf-8") as file:
+                cache = json.load(file)
+        except (OSError, ValueError):
+            cache = {}
+
+        if not isinstance(cache, dict):
+            cache = {}
+
+        # Las imágenes internas de demostración no pertenecen a Sources
+        # ni a exif_cache.json. Sus metadatos se leen directamente.
+        demos_dir = os.path.normcase(os.path.abspath(
+            os.path.join(self.ch.app_root, "screenshots")))
+
+        lines_by_path = {}
+        for path in paths:
+            entry = cache.get(path)
+
+            if (not isinstance(entry, dict) and
+                    os.path.normcase(os.path.dirname(os.path.abspath(path))) == demos_dir):
+                try:
+                    entry = read_exif(path)
+                except (OSError, ValueError, TypeError, SyntaxError) as error:
+                    log_event(f"Error leyendo metadatos demo de {os.path.basename(path)}: {error}",
+                        origin="IMG_ENG", level="WARN", reason="LIBRARY")
+                    entry = {}
+
+            lines_by_path[path] = self._build_metadata_lines(
+                path, entry, selected,
+                self.ch.METADATA_FIELD_GROUPS)
+
+        return lines_by_path
+
+    @staticmethod
+    def _draw_metadata_block(image, lines, position, font_name,
+        margin_x, margin_y, area=None, opacity=67):
+        """
+        Compone los metadatos con PangoCairo sobre una imagen PIL.
+
+        La posición determina también la alineación del texto.
+        area limita la composición a una región visible del lienzo.
+        """
+        if not lines:
+            return image
+
+        import cairo
+        import gi
+        gi.require_foreign("cairo")
+        gi.require_version("PangoCairo", "1.0")
+        from gi.repository import Pango, PangoCairo
+
+        left, top, right, bottom = area or (0, 0, *image.size)
+        padding, spacing = 14, 6
+        max_width = right - left - 2 * (margin_x + padding)
+
+        if max_width <= 0:
+            return image
+
+        # Preparar y medir el texto con la tipografía seleccionada en GTK.
+        measure_surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, 1, 1)
+        layout = PangoCairo.create_layout(cairo.Context(measure_surface))
+        layout.set_font_description(
+            Pango.FontDescription.from_string(font_name or "Sans 12"))
+        layout.set_text("\n".join(lines), -1)
+        layout.set_spacing(spacing * Pango.SCALE)
+
+        natural_width, _ = layout.get_pixel_size()
+        text_width = min(natural_width, max_width)
+
+        # Ajustar las líneas excepcionalmente largas sin crear saltos.
+        layout.set_width(text_width * Pango.SCALE)
+        layout.set_ellipsize(Pango.EllipsizeMode.END)
+        layout.set_auto_dir(False)
+
+        align_right = position in ("top_right", "bottom_right")
+        align_bottom = position in ("bottom_left", "bottom_right")
+
+        layout.set_alignment(
+            Pango.Alignment.RIGHT if align_right else Pango.Alignment.LEFT)
+
+        _, text_height = layout.get_pixel_size()
+        block_width = text_width + 2 * padding
+        block_height = text_height + 2 * padding
+
+        if block_height > bottom - top - 2 * margin_y:
+            return image
+
+        x = right - margin_x - block_width if align_right else left + margin_x
+        y = bottom - margin_y - block_height if align_bottom else top + margin_y
+
+        # Rasterizar únicamente el rectángulo de los metadatos.
+        surface = cairo.ImageSurface(
+            cairo.FORMAT_ARGB32, block_width, block_height)
+        ctx = cairo.Context(surface)
+
+        radius = 8
+
+        ctx.new_sub_path()
+        ctx.arc(block_width - radius, radius, radius, -math.pi / 2, 0)
+        ctx.arc(block_width - radius, block_height - radius,
+                radius, 0, math.pi / 2)
+        ctx.arc(radius, block_height - radius,
+                radius, math.pi / 2, math.pi)
+        ctx.arc(radius, radius, radius, math.pi, 3 * math.pi / 2)
+        ctx.close_path()
+
+        ctx.set_source_rgba(0, 0, 0, max(0, min(100, opacity)) / 100)
+        ctx.fill()
+
+        ctx.move_to(padding, padding)
+        ctx.set_source_rgb(1, 1, 1)
+        PangoCairo.show_layout(ctx, layout)
+
+        # Transferir el resultado a PIL respetando el alfa premultiplicado.
+        surface.flush()
+        overlay = Image.frombytes(
+            "RGBA", (block_width, block_height),
+            bytes(surface.get_data()), "raw", "BGRa")
+
+        image.paste(overlay, (x, y), overlay.getchannel("A"))
+        return image
 
     @staticmethod
     def _create_color_surface(width, height, color_mode, solid_color, gradient_h, gradient_v):
@@ -101,12 +346,33 @@ class ImageEngine:
         return tuple(int(hex_str[i:i+2], 16) for i in (0, 2, 4))
 
     @staticmethod
+    @_track_pillow_image
     def _open_image_safe(path):
-        """Abre una imagen corrigiendo el modo P con transparencia para evitar warnings de Pillow."""
+        """Abre la imagen respetando la orientación EXIF y la transparencia P."""
         img = Image.open(path)
-        if img.mode == 'P' and 'transparency' in img.info:
-            img = img.convert('RGBA')
-        return img
+        try:
+            try:
+                orientation = img.getexif().get(274)
+            except (OSError, ValueError, TypeError, SyntaxError):
+                orientation = None
+
+            # Transformar únicamente imágenes con una orientación EXIF pendiente.
+            if orientation in (2, 3, 4, 5, 6, 7, 8):
+                corrected = ImageOps.exif_transpose(img)
+                img.close()
+                img = corrected
+
+            # Conservar el tratamiento existente de imágenes indexadas.
+            if img.mode == 'P' and 'transparency' in img.info:
+                converted = img.convert('RGBA')
+                img.close()
+                img = converted
+
+            return img
+
+        except Exception:
+            img.close()
+            raise
 
     def _process_single_image(self, selection, monitors_map, spanned_enabled,
                              solid_color, color_mode, gradient_h, gradient_v,
@@ -126,15 +392,25 @@ class ImageEngine:
         """
         processed_images = {}
 
+        # Preparar los metadatos una sola vez por composición.
+        metadata_settings = self.ch.load_json("settings").get("global", {})
+        metadata_lines = self._load_metadata_lines(selection, metadata_settings)
+        metadata_font = metadata_settings.get("exif_metadata_font", "Sans 12")
+        metadata_position = metadata_settings.get("exif_metadata_position", "top_left")
+        metadata_opacity = metadata_settings.get("exif_metadata_background_opacity", 67)
+        metadata_margin_x = metadata_settings.get("exif_metadata_margin_x", 64)
+        metadata_margin_y = metadata_settings.get("exif_metadata_margin_y", 42)
+
         if spanned_enabled:
             # --- Spanned: usar la imagen que ya viene en selection (build_selection ya decidió cuál es) ---
             if not selection:
-                log_event("Selection vacía para spanned", origin="IMG_ENG", level="ERROR", reason="LIBRARY")
+                log_event("Selection vacía para spanned",
+                    origin="IMG_ENG", level="ERROR", reason="LIBRARY")
                 return {}
 
             # 1. Tomar la primera imagen de selection (sin más lógica)
             img_path = next(iter(selection.values()))
-
+            image_valid = True
             # 2. Calcular el tamaño total del canvas
             canvas_w = max(mon['x'] + mon['width'] for mon in monitors_map.values())
             canvas_h = max(mon['y'] + mon['height'] for mon in monitors_map.values())
@@ -171,8 +447,39 @@ class ImageEngine:
                                 image_effect=image_effect
                             )
                 except Exception as e:
-                    log_event(f"Error procesando imagen base para spanned: {e}", origin="IMG_ENG", level="ERROR", reason="LIBRARY")
-                    canvas_image = self._create_color_surface(canvas_w, canvas_h, color_mode, solid_color, gradient_h, gradient_v)
+                    image_valid = False
+                    log_event(f"Error procesando imagen base para spanned: {e}",
+                        origin="IMG_ENG", level="ERROR", reason="LIBRARY")
+                    canvas_image = self._create_color_surface(canvas_w, canvas_h,
+                        color_mode, solid_color, gradient_h, gradient_v)
+
+            # Un único bloque EXIF sobre la composición panorámica.
+            if image_valid and isinstance(img_path, str):
+                lines = metadata_lines.get(img_path)
+                if lines:
+                    # Buscar la esquina visible más cercana a la elegida.
+                    right = metadata_position.endswith("right")
+                    bottom = metadata_position.startswith("bottom")
+                    corner_x = canvas_w if right else 0
+                    corner_y = canvas_h if bottom else 0
+
+                    monitor = min(monitors_map.values(), key=lambda mon: (
+                        ((mon["x"] + mon["width"] if right else mon["x"]) - corner_x) ** 2 +
+                        ((mon["y"] + mon["height"] if bottom else mon["y"]) - corner_y) ** 2
+                    ))
+
+                    area = (
+                        monitor["x"], monitor["y"],
+                        monitor["x"] + monitor["width"],
+                        monitor["y"] + monitor["height"]
+                    )
+
+                    try:
+                        self._draw_metadata_block(canvas_image, lines, metadata_position, metadata_font,
+                            metadata_margin_x, metadata_margin_y, area=area, opacity=metadata_opacity)
+                    except Exception as error:
+                        log_event(f"Error dibujando metadatos Spanned: {error}",
+                            origin="IMG_ENG", level="WARN", reason="LIBRARY")
 
             # 4. Recortar fragmentos para cada monitor
             for m_hash, mon in monitors_map.items():
@@ -188,6 +495,8 @@ class ImageEngine:
                 mon = monitors_map[m_hash]
                 target_w = mon['width']
                 target_h = mon['height']
+
+                image_valid = True
 
                 if isinstance(img_path, tuple) and img_path[0] == "color":
                     _, cm, sc, gh, gv = img_path
@@ -220,29 +529,59 @@ class ImageEngine:
                                     image_effect=image_effect
                                 )
                     except Exception as e:
-                        log_event(f"Error procesando imagen para {m_hash}: {e}", origin="IMG_ENG", level="ERROR", reason="LIBRARY")
-                        processed = self._create_color_surface(target_w, target_h, color_mode, solid_color, gradient_h, gradient_v)
+                        image_valid = False
+                        log_event(f"Error procesando imagen para {m_hash}: {e}",
+                            origin="IMG_ENG", level="ERROR", reason="LIBRARY")
+                        processed = self._create_color_surface(target_w, target_h,
+                            color_mode, solid_color, gradient_h, gradient_v)
+
+                # Dibujar los metadatos sobre la imagen terminada.
+                if image_valid and isinstance(img_path, str):
+                    lines = metadata_lines.get(img_path)
+                    if lines:
+                        try:
+                            self._draw_metadata_block(processed, lines, metadata_position, metadata_font,
+                                metadata_margin_x, metadata_margin_y, opacity=metadata_opacity)
+                        except Exception as error:
+                            log_event(f"Error dibujando metadatos: {error}",
+                                origin="IMG_ENG", level="WARN", reason="LIBRARY")
 
                 processed_images[m_hash] = processed
 
-        log_event(f"Imágenes procesadas: {len(processed_images)}", origin="IMG_ENG", level="DEBUG", reason="LIBRARY")
+        log_event(f"Imágenes procesadas: {len(processed_images)}",
+            origin="IMG_ENG", level="DEBUG", reason="LIBRARY")
         return processed_images
 
     # --- NUEVOS MÉTODOS ESTÁTICOS DE PROCESAMIENTO DE IMÁGENES ---
 
     @staticmethod
+    @_track_pillow_image
     def process_image(path):
         """
-        Abre la imagen para extraer su orientación y dimensiones reales.
+        Clasifica la orientación visual priorizando EXIF.
+        Verifica primero el archivo y consulta después sus metadatos,
+        sin decodificar ni modificar sus píxeles.
         Retorna (orient, w, h) o (None, 0, 0) si falla.
         """
         try:
+            # Pillow exige verificar inmediatamente después de abrir.
             with Image.open(path) as img:
                 img.verify()
-            with ImageEngine._open_image_safe(path) as img:
+
+            # La verificación invalida el objeto: reabrir para consultar EXIF.
+            with Image.open(path) as img:
                 w, h = img.size
-                orientation = "h" if w >= h else "v"
-                return orientation, w, h
+                try:
+                    exif_orientation = img.getexif().get(274)
+                except (OSError, ValueError, TypeError, SyntaxError):
+                    exif_orientation = None
+
+            if exif_orientation in (5, 6, 7, 8):
+                w, h = h, w
+
+            orientation = "h" if w >= h else "v"
+            return orientation, w, h
+
         except Exception as e:
             ext = os.path.splitext(path)[1].lower()
             if ext in ('.jpg', '.jpeg', '.png', '.bmp', '.webp', '.gif'):
@@ -250,6 +589,7 @@ class ImageEngine:
             return None, 0, 0
 
     @staticmethod
+    @_track_pillow_image
     def generate_thumbnail(img_path, max_height, max_width, thumb_dir=None):
         """
         Genera una miniatura proporcional de la imagen en formato JPEG.
@@ -291,14 +631,17 @@ class ImageEngine:
                         new_w = max_width
                         new_h = int(new_w / ratio)
                     img = img.resize((new_w, new_h), Image.Resampling.LANCZOS)
-                    img.save(thumb_path, "JPEG", quality=85)
+                    img.save(thumb_path, "JPEG", quality=75)
             except Exception as e:
-                log_event(f"Error generando miniatura para {os.path.basename(img_path)}: {e}", origin="IMG_ENG", level="WARN", reason="LIBRARY")
+                log_event(f"Error generando miniatura para {os.path.basename(img_path)}: {e}",
+                    origin="IMG_ENG", level="WARN", reason="LIBRARY")
                 return ""
         return thumb_path
 
     @staticmethod
-    def generate_composite_thumbnail(img_path, target_w, target_h, thumb_dir=None, wallpaper_effect_scope="blur", solid_color="#000000", gradient_h=None, gradient_v=None, color_mode="solid_color", image_effect="none"):
+    def generate_composite_thumbnail(img_path, target_w, target_h, thumb_dir=None,
+        wallpaper_effect_scope="blur", solid_color="#000000", gradient_h=None,
+        gradient_v=None, color_mode="solid_color", image_effect="none"):
         """
         Genera una miniatura compuesta (blur de fondo + imagen centrada)
         para que ocupe exactamente target_w × target_h sin deformar la imagen real.
@@ -350,7 +693,8 @@ class ImageEngine:
             composite.save(blurred_path, "JPEG", quality=85)
             return blurred_path
         except Exception as e:
-            log_event(f"Error generando blurred thumbnail: {e}", origin="IMG_ENG", level="WARN", reason="LIBRARY")
+            log_event(f"Error generando blurred thumbnail: {e}",
+                origin="IMG_ENG", level="WARN", reason="LIBRARY")
             return None
 
     @staticmethod
@@ -414,7 +758,9 @@ class ImageEngine:
     # ==========================================================
 
     @staticmethod
-    def apply_fit(img, target_w, target_h, wallpaper_effect_scope="blur", solid_color="#000000", gradient_h=None, gradient_v=None, color_mode="solid_color", image_effect="none"):
+    def apply_fit(img, target_w, target_h, wallpaper_effect_scope="blur",
+        solid_color="#000000", gradient_h=None, gradient_v=None,
+        color_mode="solid_color", image_effect="none"):
         """
         Ajusta la imagen para que quepa dentro del rectángulo destino manteniendo la proporción.
         Los huecos se rellenan según wallpaper_effect_scope: "blur" o "color".
@@ -531,7 +877,9 @@ class ImageEngine:
             return img
 
     @staticmethod
-    def _process_preview_image(img, target_w, target_h, mode, wallpaper_effect_scope="blur", solid_color="#000000", gradient_h=None, gradient_v=None, color_mode="solid_color", image_effect="none"):
+    def _process_preview_image(img, target_w, target_h, mode,
+        wallpaper_effect_scope="blur", solid_color="#000000", gradient_h=None,
+        gradient_v=None, color_mode="solid_color", image_effect="none"):
         """
         Procesa una imagen para preview reduciendo primero a la geometría
         necesaria y aplicando después los efectos visuales.
@@ -593,7 +941,9 @@ class ImageEngine:
 
         return container
 
-    def apply_spanned(self, img_path, canvas_w, canvas_h, mode, color_mode="blur", solid_color="#000000", gradient_h=None, gradient_v=None, wallpaper_effect_scope="blur", image_effect="none"):
+    def apply_spanned(self, img_path, canvas_w, canvas_h, mode,
+        color_mode="blur", solid_color="#000000", gradient_h=None,
+        gradient_v=None, wallpaper_effect_scope="blur", image_effect="none"):
         """
         Aplica el modo real (mode) al canvas completo definido por
         canvas_w y canvas_h (obtenidos previamente de MonitorManager).
@@ -639,7 +989,9 @@ class ImageEngine:
         processed.save(output_path, "JPEG", quality=85)
         return output_path, processed
 
-    def paint_monitors_thumbnails(self, fixed_widget, layout_data, img_source, wallpaper_mode, spanned_enabled, color_tuple, wallpaper_effect_scope="blur", image_effect="none", layout_info=None):
+    def paint_monitors_thumbnails(self, fixed_widget, layout_data, img_source,
+        wallpaper_mode, spanned_enabled, color_tuple, wallpaper_effect_scope="blur",
+        image_effect="none", layout_info=None, spanned_source_hash=None):
         """
         Pinta las miniaturas dentro de los EventBox existentes en fixed_widget.
         NO añade nuevos widgets si ya existe uno (modifica el existente).
@@ -656,13 +1008,27 @@ class ImageEngine:
             if canvas_w <= 0 or canvas_h <= 0:
                 return
 
-            # 2. Resolver el monitor de referencia Spanned mediante
-            #    la misma regla geométrica utilizada por ImageSelectionEngine.
+            # 2. Preferir el origen de la imagen Spanned realmente aplicada.
+            #    Puede proceder de cualquier monitor mediante Drag & Drop.
             spanned_hash = get_spanned_reference_hash(layout_info) if layout_info else None
             master_path = None
 
-            # Prioridad absoluta al monitor de referencia Spanned.
-            if spanned_hash:
+            if spanned_source_hash in img_source:
+                entry = img_source[spanned_source_hash]
+
+                if isinstance(entry, dict):
+                    path = entry.get("path", "")
+                    active = entry.get("active", True)
+                else:
+                    path = entry if entry else ""
+                    active = True
+
+                if active and path and os.path.exists(path):
+                    master_path = path
+
+            # Sin un origen válido, conservar la prioridad histórica
+            # del monitor de referencia y los fallbacks existentes.
+            if not master_path and spanned_hash:
                 entry = img_source.get(spanned_hash, {})
 
                 if isinstance(entry, dict):
@@ -874,12 +1240,5 @@ class ImageEngine:
         channels = 4 if has_alpha else 3
         pixels = GLib.Bytes.new(pil_image.tobytes())
 
-        return GdkPixbuf.Pixbuf.new_from_bytes(
-            pixels,
-            GdkPixbuf.Colorspace.RGB,
-            has_alpha,
-            8,
-            width,
-            height,
-            width * channels
-        )
+        return GdkPixbuf.Pixbuf.new_from_bytes(pixels, GdkPixbuf.Colorspace.RGB,
+            has_alpha, 8, width, height, width * channels)

@@ -1,0 +1,195 @@
+[English]
+
+WMM — RESPONSIBLE USE OF THIRD-PARTY SERVICES AND RESOURCES
+
+PREAMBLE: PURPOSE OF THIS DOCUMENT
+
+WMM (Wallpaper Multi-Monitor Manager) is an independent open-source project developed to provide tools for managing and customizing wallpapers in single-monitor and multi-monitor environments.
+As part of its functionality, WMM integrates external services that allow users to search, browse, and obtain images and other resources available on the Internet.
+This document outlines the principles governing these integrations, respect for the services involved, and the responsibilities associated with accessing third-party content.
+
+1. WMM COMMITMENT
+
+The integration of external resources into WMM aims to expand the application's capabilities while maintaining respect for those who make these resources available.
+Responsible development goes beyond merely complying with a service's technical restrictions. It also involves avoiding unnecessary resource consumption, recognizing the work of others, and maintaining a respectful relationship with the communities and platforms that share their resources.
+WMM adopts these principles as part of its development philosophy, seeking to ensure that new features are compatible with reasonable, conscious, and respectful use of external services.
+This document is provided for informational purposes and expresses the project's general principles.
+Under no circumstances does it replace the official terms of third-party services or modify the rights and obligations established by applicable licenses.
+
+2. PRINCIPLES OF RESPONSIBLE USE
+
+Access to external resources must be proportionate and must respect the technical limitations and conditions established by each service.
+To this end, WMM adopts the following principles:
+
+- Use the public interfaces and access mechanisms provided by each service.
+- Respect published request limits and technical restrictions.
+- Avoid unnecessary queries, repeated requests, and redundant downloads.
+- Implement preventive measures to reduce unnecessary consumption of external resources.
+- Respect error responses and service limitations without attempting to circumvent their restrictions.
+- Favor moderate, interactive use over mass content acquisition.
+
+These guidelines establish general development principles. Their technical implementation is adapted to the particular characteristics and conditions of each integration.
+When WMM establishes additional voluntary limitations, these reflect responsible design decisions and must not be confused with obligations imposed by external services.
+
+3. INDEPENDENCE AND RESPECT FOR EXTERNAL SERVICES
+
+WMM does not claim ownership rights over the external services it integrates.
+Their integration does not imply any commercial relationship, affiliation, sponsorship, official collaboration, participation in WMM's development, or endorsement by their operators.
+Each service retains full authority over its infrastructure, content, access conditions, and usage policies.
+WMM recognizes the work required to maintain these services and respects the conditions under which they are made available.
+
+4. RIGHTS OVER THIRD-PARTY CONTENT
+
+Resources obtained through external services may be protected by copyright, licenses, and specific conditions.
+Their public availability or accessibility through an API does not, by itself, authorize unrestricted use, modification, or redistribution.
+WMM does not claim rights over such content or grant permissions reserved for its legitimate rights holders.
+WMM's GPLv3 license governs the software but does not automatically extend to resources obtained through external services.
+References to the source service identify where content was obtained but do not, by themselves, establish authorship or usage rights.
+Users are responsible for respecting the conditions applicable to each item of content.
+
+5. PRIVACY AND EXTERNAL COMMUNICATIONS
+
+Using online services involves communications with external servers that may include search terms, query parameters, network addresses, and other technical data.
+The processing of this information is subject to each provider's privacy and data protection policies. WMM has no control over their infrastructure or data-processing practices.
+Users are encouraged to consult the providers' official terms and policies to understand how they handle communications and the information received.
+
+6. DOCUMENTATION AND APPLICABLE CONDITIONS
+
+WMM provides informational documentation about its integrations, responsible use measures, and references to each service's official terms and policies.
+This documentation is available under "About WMM > Licenses" and provides transparency regarding the operation and development of the integrations.
+These conditions may change independently of WMM; the providers' official documents are the authoritative reference and take precedence over descriptions included in WMM.
+Each service must be used in accordance with the terms currently in force.
+
+
+[Català]
+
+WMM — ÚS RESPONSABLE DE SERVEIS I RECURSOS DE TERCERS
+
+PREÀMBUL: FINALITAT D'AQUEST DOCUMENT
+
+WMM (Wallpaper Multi-Monitor Manager) és un projecte independent de codi obert, desenvolupat amb la finalitat d'oferir eines per gestionar i personalitzar fons de pantalla en entorns amb un o diversos monitors.
+Com a part de les seves funcionalitats, WMM integra serveis externs que permeten cercar, consultar i obtenir imatges i altres recursos disponibles a Internet.
+Aquest document exposa els principis que regeixen aquestes integracions, el respecte pels serveis utilitzats i les responsabilitats relacionades amb l'accés a continguts de tercers.
+
+1. COMPROMÍS DE WMM
+
+La incorporació de recursos externs a WMM té com a finalitat ampliar les possibilitats de l'aplicació sense perdre de vista el respecte per les persones i entitats que fan possibles aquests recursos.
+El desenvolupament responsable no consisteix únicament a complir les restriccions tècniques d'un servei, sinó també a evitar consums innecessaris, reconèixer la feina aliena i preservar una relació respectuosa amb les comunitats i plataformes que comparteixen els seus recursos.
+WMM assumeix aquests principis com a part de la seva filosofia de desenvolupament, procurant que la incorporació de noves funcionalitats sigui compatible amb un ús raonable, conscient i respectuós dels serveis externs.
+Aquest document té caràcter informatiu i expressa els principis generals del projecte.
+No substitueix en cap cas les condicions oficials de tercers ni modifica els drets i les obligacions establerts per les llicències aplicables.
+
+2. PRINCIPIS D'ÚS RESPONSABLE
+
+L'accés a recursos externs s'ha de fer de manera proporcionada, respectant les limitacions tècniques i les condicions establertes per cada servei.
+Amb aquesta finalitat, WMM adopta els principis següents:
+
+- Utilitzar les interfícies públiques i els mecanismes d'accés previstos per cada servei.
+- Respectar els límits de sol·licituds i les restriccions tècniques publicades.
+- Evitar consultes innecessàries, sol·licituds reiterades i descàrregues redundants.
+- Incorporar mesures preventives que redueixin el consum innecessari de recursos externs.
+- Respectar les respostes d'error o limitació del servei, sense intentar eludir-ne les restriccions.
+- Afavorir un ús interactiu i moderat davant l'obtenció massiva de continguts.
+
+Aquestes directrius estableixen criteris generals de desenvolupament. La seva aplicació tècnica s'adapta a les característiques i condicions particulars de cada integració.
+Quan WMM estableix limitacions voluntàries addicionals, aquestes responen a decisions de disseny responsable i no s'han de confondre amb obligacions imposades pels serveis externs.
+
+3. INDEPENDÈNCIA I RESPECTE PELS SERVEIS EXTERNS
+
+WMM no reclama drets de propietat sobre els serveis que integra.
+La seva incorporació no implica cap relació comercial, afiliació, patrocini, col·laboració oficial, participació en el desenvolupament de WMM ni suport per part dels seus responsables.
+Cada servei conserva plena autoritat sobre la seva infraestructura, els seus continguts, les condicions d'accés i les polítiques d'ús.
+WMM reconeix la feina necessària per mantenir aquests serveis i respecta les condicions sota les quals s'ofereixen.
+
+4. DRETS SOBRE ELS CONTINGUTS DE TERCERS
+
+Els recursos obtinguts mitjançant serveis externs poden estar protegits per drets d'autor, llicències i condicions particulars.
+La seva disponibilitat pública o l'accés mitjançant una API no autoritza per si mateix a utilitzar-los, modificar-los o redistribuir-los sense restriccions.
+WMM no reclama drets sobre aquests continguts ni concedeix permisos reservats als seus titulars.
+La llicència GPLv3 de WMM regula el programari, però no s'estén automàticament als recursos obtinguts.
+Les referències al servei d'origen identifiquen la procedència, però no acrediten per si mateixes l'autoria ni els drets d'ús.
+Correspon a l'usuari respectar les condicions aplicables a cada contingut.
+
+5. PRIVACITAT I COMUNICACIONS EXTERNES
+
+L'ús de serveis en línia implica comunicacions amb servidors externs que poden incloure termes de cerca, paràmetres de consulta, adreces de xarxa i altres dades tècniques.
+El tractament d'aquesta informació està subjecte a les polítiques de privacitat i protecció de dades de cada proveïdor. WMM no té control sobre la seva infraestructura ni sobre les seves pràctiques de tractament de dades.
+Es recomana consultar-ne les condicions i polítiques oficials per conèixer com gestionen les comunicacions i la informació rebuda.
+
+6. DOCUMENTACIÓ I CONDICIONS APLICABLES
+
+WMM proporciona documentació informativa sobre les seves integracions, les mesures d'ús responsable i les referències a les condicions i polítiques oficials de cada servei.
+Aquesta documentació està disponible a "Quant a WMM > Llicències" i ofereix transparència sobre el funcionament i el desenvolupament de les integracions.
+Aquestes condicions poden canviar independentment de WMM; els documents oficials dels proveïdors constitueixen la referència autoritzada i prevalen sobre les descripcions incloses a WMM.
+L'ús de cada servei s'ha d'ajustar a les condicions vigents.
+
+[Castellano]
+
+WMM — USO RESPONSABLE DE SERVICIOS Y RECURSOS DE TERCEROS
+
+PREÁMBULO: PROPÓSITO DE ESTE DOCUMENTO
+
+WMM (Wallpaper Multi-Monitor Manager) es un proyecto independiente de código abierto, desarrollado con el propósito de ofrecer herramientas para gestionar y personalizar fondos de pantalla en entornos con uno o varios monitores.
+Como parte de sus funcionalidades, WMM integra servicios externos que permiten buscar, consultar y obtener imágenes y otros recursos disponibles en Internet.
+Este documento expone los principios que rigen dichas integraciones, el respeto a los servicios utilizados y las responsabilidades relacionadas con el acceso a contenidos de terceros.
+
+1. COMPROMISO DE WMM
+
+La incorporación de recursos externos a WMM tiene como finalidad ampliar las posibilidades de la aplicación sin perder de vista el respeto a quienes hacen posibles dichos recursos.
+El desarrollo responsable no consiste únicamente en cumplir las restricciones técnicas de un servicio, sino también en evitar consumos innecesarios, reconocer el trabajo ajeno y preservar una relación respetuosa con las comunidades y plataformas que comparten sus recursos.
+WMM asume estos principios como parte de su filosofía de desarrollo, procurando que la incorporación de nuevas funcionalidades sea compatible con un uso razonable, consciente y respetuoso de los servicios externos.
+Este documento tiene carácter informativo y expresa los principios generales del proyecto.
+No sustituye en ningún caso las condiciones oficiales de terceros ni modifica los derechos y obligaciones establecidos por las licencias aplicables.
+
+2. PRINCIPIOS DE USO RESPONSABLE
+
+El acceso a recursos externos debe realizarse de forma proporcionada, respetando las limitaciones técnicas y las condiciones establecidas por cada servicio.
+Con esta finalidad, WMM adopta los siguientes principios:
+
+- Utilizar las interfaces públicas y los mecanismos de acceso previstos por cada servicio.
+- Respetar los límites de solicitudes y las restricciones técnicas publicadas.
+- Evitar consultas innecesarias, solicitudes reiterativas y descargas redundantes.
+- Incorporar medidas preventivas que reduzcan el consumo innecesario de recursos externos.
+- Respetar las respuestas de error o limitación del servicio, sin intentar eludir sus restricciones.
+- Favorecer un uso interactivo y moderado frente a la obtención masiva de contenidos.
+
+Estas directrices establecen criterios generales de desarrollo. Su aplicación técnica se adapta a las características y condiciones particulares de cada integración.
+Cuando WMM establece limitaciones voluntarias adicionales, estas responden a decisiones de diseño responsable y no deben confundirse con obligaciones impuestas por los servicios externos.
+
+3. INDEPENDENCIA Y RESPETO A LOS SERVICIOS EXTERNOS
+
+WMM no reclama derechos de propiedad sobre los servicios que integra.
+Su incorporación no implica relación comercial, afiliación, patrocinio, colaboración oficial, participación en el desarrollo de WMM ni respaldo por parte de sus responsables.
+Cada servicio conserva plena autoridad sobre su infraestructura, contenidos, condiciones de acceso y políticas de uso.
+WMM reconoce el trabajo necesario para mantener estos servicios y respeta las condiciones bajo las que se ofrecen.
+
+4. DERECHOS SOBRE LOS CONTENIDOS DE TERCEROS
+
+Los recursos obtenidos mediante servicios externos pueden estar protegidos por derechos de autor, licencias y condiciones particulares.
+Su disponibilidad pública o acceso mediante una API no autoriza por sí mismo a utilizarlos, modificarlos o redistribuirlos sin restricciones.
+WMM no reclama derechos sobre esos contenidos ni concede permisos reservados a sus titulares.
+La licencia GPLv3 de WMM regula el software, no automáticamente los recursos obtenidos.
+Las referencias al servicio de origen identifican la procedencia, pero no acreditan por sí mismas la autoría ni los derechos de uso.
+Corresponde al usuario respetar las condiciones aplicables a cada contenido.
+
+5. PRIVACIDAD Y COMUNICACIONES EXTERNAS
+
+El uso de servicios en línea implica comunicaciones con servidores externos que pueden incluir términos de búsqueda, parámetros de consulta, direcciones de red y otros datos técnicos.
+Su tratamiento está sujeto a las políticas de privacidad y protección de datos de cada proveedor, sobre cuya infraestructura y prácticas WMM no tiene control.
+Se recomienda consultar sus condiciones y políticas oficiales para conocer cómo gestionan las comunicaciones y la información recibida.
+
+6. DOCUMENTACIÓN Y CONDICIONES APLICABLES
+
+WMM proporciona documentación informativa sobre sus integraciones, medidas de uso responsable y referencias a las condiciones y políticas oficiales de cada servicio.
+Esta documentación está disponible desde "Acerca de WMM > Licencias" y ofrece transparencia sobre el funcionamiento y desarrollo de las integraciones.
+Estas condiciones pueden cambiar independientemente de WMM; los documentos oficiales de los proveedores constituyen la referencia autorizada y prevalecen sobre las descripciones incluidas en WMM.
+El uso de cada servicio debe ajustarse a las condiciones vigentes.
+
+[Copyright]
+
+────────────────────────────────────────
+
+Copyright © 2026 makimanson
+WMM — Wallpaper Multi-Monitor Manager
+
+────────────────────────────────────────

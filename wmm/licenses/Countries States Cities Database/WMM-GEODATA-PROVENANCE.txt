@@ -1,0 +1,43 @@
+WMM — Geographic Data: Provenance and Adaptation
+
+ORIGIN
+- Project: Countries States Cities Database (dr5hn)
+- Repository: https://github.com/dr5hn/countries-states-cities-database
+- License specified by the project: Open Database License 1.0 (ODbL)
+- Original license: https://github.com/dr5hn/countries-states-cities-database/blob/master/LICENSE
+- Preparation date: 2026-10-15
+
+ADAPTATION FOR WMM
+- Resulting file: countries+states+cities.json
+- Removed fields unrelated to geographical identification (currency, population,
+  GDP, time zones, telephone numbers, internal identifiers, etc.).
+- Preserved country (name, native, iso2, iso3, translations, latitude,
+  longitude), region (name, native, iso2, iso3166_2, type, latitude,
+  longitude), and locality (name, latitude, longitude).
+- Preserved the complete hierarchy, the original coordinate strings
+  with their full precision, and the order of the records.
+- Corrected a single invalid ASCII 0x08 byte in the supplied file.
+- No names, translations, or coordinates were changed.
+
+VERIFICATION
+- Countries/territories: 250
+- Regions: 5328
+- Localities: 152021
+- SHA-256 of the received source: 73db0e733cb849b16827b72a07f002eba562ac1664f0355e6997623723e4cc0d
+- SHA-256 of the reduced JSON: c6c4f3777d082c458c295fa3376c89208130cc4bf3d10b0ecb2b27e17e6baede
+
+LICENSE NOTICES
+This is an adapted version of a third-party database; the data remains
+subject to the applicable ODbL terms and attribution requirements of its sources.
+Before public distribution, include the complete license and review
+the original source attribution notices, as well as provide the visible
+attribution agreed upon for WMM.
+
+────────────────────────────────────────
+
+WMM — Wallpaper Multi-Monitor Manager
+Geographic data adaptation and provenance documentation
+
+SPDX-FileCopyrightText: 2026 makimanson
+
+────────────────────────────────────────

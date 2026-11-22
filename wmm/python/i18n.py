@@ -24,6 +24,12 @@ def initialize(platform):
     """
     global _APP_DOMAIN, _LOCALE_DIR
 
+    # Algunas plataformas no exportan directamente las variables de idioma
+    # que GNU gettext espera. La capa del SO puede prepararlas antes del bind
+    # sin alterar el comportamiento de las plataformas que ya las proporcionan.
+    if hasattr(platform, "prepare_gettext_environment"):
+        platform.prepare_gettext_environment()
+
     _APP_DOMAIN = platform.app_domain
     _LOCALE_DIR = platform.locale_dir
     _bind()

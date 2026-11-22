@@ -12,20 +12,21 @@ Centraliza la monitorización de cambios de hardware (conexión/desconexión de 
 
 Este módulo se encarga de:
     - Detectar el entorno (escritorio, SO) y elegir la estrategia de monitorización adecuada.
-    - Iniciar la escucha de eventos (D-Bus, Gdk, etc.).
+    - Iniciar la escucha de eventos mediante la estrategia adecuada al entorno.
     - Notificar al motor cuando se produce un cambio.
 
-No depende de GTK ni de la lógica de negocio. Solo usa los módulos de plataforma
-para implementar la monitorización específica de cada escritorio.
+Centraliza directamente las estrategias de monitorización específicas de cada
+entorno y notifica al motor mediante un callback común.
 
 Flujo típico:
     1. main.py llama a monitor_events.init_monitor_events(callback).
-    2. El módulo decide qué estrategia usar (GNOME D-Bus, fallback Gdk).
+    2. El módulo selecciona la estrategia nativa del entorno.
     3. Inicia la escucha y llama al callback cuando se detecta un cambio.
 
 """
 
 import ctypes
+import threading
 
 from debug_logger import log_event
 from monitor_detection import (
@@ -40,6 +41,7 @@ _x11_display = None
 _x11_io_channel = None
 _gnome_bus = None
 _gnome_signal_match = None
+_windows_event_thread = None
 
 # ==========================================================
 # 1. Estrategia para X11 (XRandR)
@@ -144,7 +146,131 @@ def init_x11_events(callback):
         return False
 
 # ==========================================================
-# 2. Estrategia para GNOME (D-Bus)
+# 2. Estrategia para Windows (Win32)
+# ==========================================================
+def init_windows_events(callback):
+    """
+    Escucha cambios de configuración de pantalla mediante WM_DISPLAYCHANGE.
+
+    Win32 necesita un message loop propio; se ejecuta en un hilo dedicado y
+    devuelve el evento al main loop de WMM antes de invocar el callback.
+    """
+    global _windows_event_thread
+
+    if (_windows_event_thread is not None and _windows_event_thread.is_alive()):
+        return True
+
+    try:
+        import gi
+        gi.require_version('GLib', '2.0')
+        from gi.repository import GLib
+
+        # Estos tipos sólo existen en monitor_detection bajo Windows.
+        from monitor_detection import (_MSG, _WNDCLASSW, _WNDPROC, get_windows_display_api)
+
+        user32, _setupapi, _advapi32, kernel32 = get_windows_display_api()
+
+        WM_DESTROY = 0x0002
+        WM_DISPLAYCHANGE = 0x007E
+        class_name = "WMMMonitorEventsWindow"
+
+        ready = threading.Event()
+        started = {"ok": False}
+
+        def _run_windows_events():
+            hwnd = None
+            class_registered = False
+
+            try:
+                hinstance = kernel32.GetModuleHandleW(None)
+                if not hinstance:
+                    raise ctypes.WinError(ctypes.get_last_error())
+
+                @_WNDPROC
+                def wnd_proc(hwnd, message, wparam, lparam):
+                    if message == WM_DISPLAYCHANGE:
+                        log_event("Evento WM_DISPLAYCHANGE recibido",
+                            origin="MON_EVENT", level="DEBUG", reason="HARDWARE")
+                        GLib.idle_add(callback, "hardware_changed")
+                        return 0
+
+                    if message == WM_DESTROY:
+                        user32.PostQuitMessage(0)
+                        return 0
+
+                    return user32.DefWindowProcW(hwnd, message, wparam, lparam)
+
+                window_class = _WNDCLASSW()
+                window_class.lpfnWndProc = wnd_proc
+                window_class.hInstance = hinstance
+                window_class.lpszClassName = class_name
+
+                if not user32.RegisterClassW(ctypes.byref(window_class)):
+                    raise ctypes.WinError(ctypes.get_last_error())
+
+                class_registered = True
+
+                # Sin WS_VISIBLE y sin parent sigue siendo una ventana top-level,
+                # necesaria para recibir WM_DISPLAYCHANGE broadcast.
+                hwnd = user32.CreateWindowExW( 0, class_name, "WMM Monitor Events",
+                    0, 0, 0, 0, 0, None, None, hinstance, None, )
+
+                if not hwnd:
+                    raise ctypes.WinError(ctypes.get_last_error())
+
+                started["ok"] = True
+                ready.set()
+
+                log_event("Monitorización Win32 iniciada (WM_DISPLAYCHANGE)",
+                    origin="MON_EVENT", level="INFO", reason="HARDWARE")
+
+                message = _MSG()
+
+                while True:
+                    result = user32.GetMessageW(
+                        ctypes.byref(message), None, 0, 0)
+
+                    if result == -1:
+                        raise ctypes.WinError(ctypes.get_last_error())
+
+                    if result == 0:
+                        break
+
+                    user32.DispatchMessageW(ctypes.byref(message))
+
+            except Exception as e:
+                log_event(f"Error en monitorización Win32: {e}",
+                    origin="MON_EVENT", level="ERROR", reason="HARDWARE")
+
+            finally:
+                ready.set()
+
+                if hwnd:
+                    user32.DestroyWindow(hwnd)
+
+                if class_registered:
+                    user32.UnregisterClassW(class_name, hinstance)
+
+        thread = threading.Thread( target=_run_windows_events, name="WMMMonitorEvents", daemon=True, )
+        thread.start()
+
+        # No devolvemos éxito hasta que RegisterClass/CreateWindow hayan
+        # terminado; Event sincroniza sin polling ni retardos arbitrarios.
+        ready.wait()
+
+        if not started["ok"]:
+            return False
+
+        _windows_event_thread = thread
+        return True
+
+    except Exception as e:
+        log_event(f"No se pudo iniciar monitorización Win32: {e}",
+            origin="MON_EVENT", level="ERROR", reason="HARDWARE")
+        return False
+
+# ==========================================================
+# 3. Estrategia para GNOME (D-Bus)
 # ==========================================================
 def init_gnome_events(callback):
     """
@@ -161,34 +287,30 @@ def init_gnome_events(callback):
         import dbus
         from dbus.mainloop.glib import DBusGMainLoop
 
-        _gnome_bus = dbus.SessionBus(
-            private=True,
-            mainloop=DBusGMainLoop()
-        )
+        _gnome_bus = dbus.SessionBus(private=True, mainloop=DBusGMainLoop())
 
         display_config = _gnome_bus.get_object(
             "org.gnome.Mutter.DisplayConfig",
-            "/org/gnome/Mutter/DisplayConfig"
-        )
+            "/org/gnome/Mutter/DisplayConfig")
 
         def on_monitors_changed(*args):
-            log_event("Señal MonitorsChanged recibida desde D-Bus", origin="MON_EVENT", level="DEBUG", reason="HARDWARE")
+            log_event("Señal MonitorsChanged recibida desde D-Bus",
+                origin="MON_EVENT", level="DEBUG", reason="HARDWARE")
             callback("hardware_changed")
 
-        _gnome_signal_match = display_config.connect_to_signal(
-            "MonitorsChanged",
-            on_monitors_changed
-        )
+        _gnome_signal_match = display_config.connect_to_signal("MonitorsChanged", on_monitors_changed)
 
-        log_event("Monitor D-Bus de GNOME iniciado correctamente", origin="MON_EVENT", level="INFO", reason="D-BUS")
+        log_event("Monitor D-Bus de GNOME iniciado correctamente",
+            origin="MON_EVENT", level="INFO", reason="D-BUS")
         return True
 
     except Exception as e:
-        log_event(f"Error al iniciar monitor D-Bus de GNOME: {e}", origin="MON_EVENT", level="ERROR", reason="D-BUS")
+        log_event(f"Error al iniciar monitor D-Bus de GNOME: {e}",
+            origin="MON_EVENT", level="ERROR", reason="D-BUS")
         return False
 
 # ==========================================================
-# 3. Estrategia de fallback (Gdk signals)
+# 4. Estrategia de fallback (Gdk signals)
 # ==========================================================
 def init_gdk_events(callback):
     """
@@ -202,7 +324,8 @@ def init_gdk_events(callback):
 
         display = Gdk.Display.get_default()
         if not display:
-            log_event("No se pudo obtener Gdk.Display para monitorización", origin="MON_EVENT", level="WARN", reason="HARDWARE")
+            log_event("No se pudo obtener Gdk.Display para monitorización",
+                origin="MON_EVENT", level="WARN", reason="HARDWARE")
             return False
 
         def _on_monitor_event(display, monitor):
@@ -211,23 +334,27 @@ def init_gdk_events(callback):
         display.connect("monitor-added", _on_monitor_event)
         display.connect("monitor-removed", _on_monitor_event)
 
-        log_event("Monitorización Gdk iniciada (fallback)", origin="MON_EVENT", level="INFO", reason="HARDWARE")
+        log_event("Monitorización Gdk iniciada (fallback)",
+            origin="MON_EVENT", level="INFO", reason="HARDWARE")
         return True
 
     except Exception as e:
-        log_event(f"Error al iniciar monitorización Gdk: {e}", origin="MON_EVENT", level="ERROR", reason="HARDWARE")
+        log_event(f"Error al iniciar monitorización Gdk: {e}",
+            origin="MON_EVENT", level="ERROR", reason="HARDWARE")
         return False
 
 # ==========================================================
-# 4. Orquestador principal
+# 5. Orquestador principal
 # ==========================================================
 def init_monitor_events(callback):
     """
-    Inicia la monitorización de cambios de hardware usando la mejor estrategia disponible.
-    Estrategias (por orden de prioridad):
-        1. X11 → init_x11_events() (XRandR)
-        2. GNOME Wayland → init_gnome_events() (D-Bus)
-        3. Otros → init_gdk_events() (fallback)
+    Inicia la monitorización de cambios de hardware según el entorno activo.
+
+    Estrategias:
+        - X11 → init_x11_events() (XRandR)
+        - GNOME Wayland → init_gnome_events() (D-Bus)
+        - Windows → init_windows_events() (WM_DISPLAYCHANGE)
+        - Otros → init_gdk_events() (fallback)
     """
     from wmm_platform.core import PlatformManager
 
@@ -255,7 +382,14 @@ def init_monitor_events(callback):
         log_event("D-Bus falló, usando fallback Gdk",
             origin="MON_EVENT", level="WARN", reason="HARDWARE")
 
-    # 3. Fallback: Gdk signals
+    # 3. Windows: WM_DISPLAYCHANGE
+    elif graphics_engine == 'win32' and desktop == 'windows':
+        if init_windows_events(callback):
+            return True
+        log_event("Win32 falló, usando fallback Gdk",
+            origin="MON_EVENT", level="WARN", reason="HARDWARE")
+
+    # 4. Fallback: Gdk signals
     log_event("Usando monitorización Gdk (fallback)",
         origin="MON_EVENT", level="DEBUG", reason="HARDWARE")
     return init_gdk_events(callback)

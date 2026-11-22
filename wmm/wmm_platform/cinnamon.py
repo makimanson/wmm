@@ -399,6 +399,279 @@ def set_wallpaper(master_canvas, final_path, config_handler):
     except Exception as e:
         log_event(f"Cinnamon no respondió: {e}", origin="CINNAMON", level="ERROR", reason="NOTIFY")
 
+def _get_next_background_keybinding():
+    """
+    Devuelve la entrada GSettings que pertenece a Next Background.
+
+    En Cinnamon la identidad estable es el nombre del custom keybinding;
+    el comando puede cambiar entre topologías de instalación.
+    """
+    full_name = f"WMM - { _('Next Background') }"
+
+    schema_main = "org.cinnamon.desktop.keybindings"
+    schema_custom = "org.cinnamon.desktop.keybindings.custom-keybinding"
+    base_path = "/org/cinnamon/desktop/keybindings/custom-keybindings/"
+
+    settings = Gio.Settings.new(schema_main)
+
+    for item in settings.get_strv("custom-list"):
+        if item == "__dummy__":
+            continue
+
+        path = f"{base_path}{item}/"
+
+        try:
+            custom = Gio.Settings.new_with_path(schema_custom, path)
+
+            if custom.get_string("name") == full_name:
+                return settings, custom
+
+        except GLib.Error:
+            continue
+
+    raise RuntimeError("No se encontró el atajo Cinnamon de WMM")
+
+
+def _reload_custom_keybindings(settings):
+    """
+    Fuerza a Cinnamon a reconstruir sus custom keybindings.
+
+    Cinnamon escucha cambios de custom-list, no las modificaciones internas
+    de binding. Alternar __dummy__ conserva el mecanismo ya utilizado por
+    ensure_keybindings() sin crear ni eliminar la entrada real de WMM.
+    """
+    custom_list = settings.get_strv("custom-list")
+
+    if "__dummy__" in custom_list:
+        custom_list.remove("__dummy__")
+    else:
+        custom_list.append("__dummy__")
+
+    settings.set_strv("custom-list", custom_list)
+    Gio.Settings.sync()
+
+
+def validate_keybinding(shortcut):
+    """Valida la representación común según los aceleradores de Cinnamon."""
+    if shortcut is None:
+        return None
+
+    if not isinstance(shortcut, dict):
+        raise ValueError(_("This key combination is not supported."))
+
+    key = shortcut.get("key")
+    modifiers = shortcut.get("modifiers")
+
+    if not isinstance(key, str) or not key or not isinstance(modifiers, list):
+        raise ValueError(_("This key combination is not supported."))
+
+    gi.require_version("Gdk", "3.0")
+    gi.require_version("Gtk", "3.0")
+    from gi.repository import Gdk, Gtk
+
+    modifier_masks = {
+        "Control": Gdk.ModifierType.CONTROL_MASK,
+        "Alt": Gdk.ModifierType.MOD1_MASK,
+        "Shift": Gdk.ModifierType.SHIFT_MASK,
+        "Super": Gdk.ModifierType.SUPER_MASK,
+        "Meta": Gdk.ModifierType.META_MASK,
+        "Hyper": Gdk.ModifierType.HYPER_MASK,
+    }
+    modifier_order = tuple(modifier_masks)
+
+    if any(not isinstance(name, str) or name not in modifier_masks for name in modifiers):
+        raise ValueError(_("This key combination is not supported."))
+
+    canonical_modifiers = [name for name in modifier_order if name in modifiers]
+
+    keyval = Gdk.keyval_from_name(key)
+
+    if not keyval:
+        raise ValueError(_("This key combination is not supported."))
+
+    # La tecla mantiene su keyval base; Shift pertenece exclusivamente
+    # a los modificadores de la combinación.
+    if len(key) == 1 and key.isalpha():
+        keyval = Gdk.keyval_to_lower(keyval)
+
+    modifier_mask = Gdk.ModifierType(0)
+
+    for name in canonical_modifiers:
+        modifier_mask |= modifier_masks[name]
+
+    if not Gtk.accelerator_valid(keyval, modifier_mask):
+        raise ValueError(_("This key combination is not supported."))
+
+    canonical_key = Gdk.keyval_name(keyval)
+
+    if not canonical_key:
+        raise ValueError(_("This key combination is not supported."))
+
+    if len(canonical_key) == 1 and canonical_key.isascii():
+        canonical_key = canonical_key.upper()
+
+    return { "key": canonical_key, "modifiers": canonical_modifiers, }
+
+
+def request_keybindings(data_dir, request):
+    """
+    Consulta o modifica el binding persistente que Cinnamon asigna a WMM.
+
+    data_dir forma parte del contrato común aunque Cinnamon no necesite
+    utilizarlo para acceder a GSettings.
+    """
+    if not isinstance(request, dict):
+        return { "ok": False, "shortcut": None, "error": "invalid_request", }
+
+    try:
+        settings, custom = _get_next_background_keybinding()
+
+        gi.require_version("Gdk", "3.0")
+        gi.require_version("Gtk", "3.0")
+        from gi.repository import Gdk, Gtk
+
+        def read_shortcut():
+            bindings = list(custom.get_strv("binding"))
+            binding = bindings[0] if bindings else ""
+
+            if not binding:
+                return None
+
+            keyval, modifier_mask = Gtk.accelerator_parse(binding)
+
+            if not keyval:
+                raise ValueError(
+                    f"Binding Cinnamon no válido: {binding}")
+
+            modifier_masks = (
+                ("Control", Gdk.ModifierType.CONTROL_MASK),
+                ("Alt", Gdk.ModifierType.MOD1_MASK),
+                ("Shift", Gdk.ModifierType.SHIFT_MASK),
+                ("Super",
+                    Gdk.ModifierType.SUPER_MASK |
+                    Gdk.ModifierType.MOD4_MASK),
+                ("Meta", Gdk.ModifierType.META_MASK),
+                ("Hyper", Gdk.ModifierType.HYPER_MASK),
+            )
+
+            key = Gdk.keyval_name(keyval)
+
+            if not key:
+                raise ValueError(
+                    f"Binding Cinnamon no válido: {binding}")
+
+            if len(key) == 1 and key.isascii():
+                key = key.upper()
+
+            return validate_keybinding({
+                "key": key,
+                "modifiers": [
+                    name for name, mask in modifier_masks
+                    if modifier_mask & mask
+                ],
+            })
+
+        action = request.get("action")
+
+        if action == "get":
+            shortcut = read_shortcut()
+
+            return { "ok": True, "shortcut": shortcut, "error": 0, }
+
+        if action != "set" or "shortcut" not in request:
+            return { "ok": False, "shortcut": read_shortcut(), "error": "invalid_request", }
+
+        canonical = validate_keybinding(request["shortcut"])
+
+        if canonical is None:
+            bindings = []
+
+        else:
+            modifier_masks = {
+                "Control": Gdk.ModifierType.CONTROL_MASK,
+                "Alt": Gdk.ModifierType.MOD1_MASK,
+                "Shift": Gdk.ModifierType.SHIFT_MASK,
+                "Super": Gdk.ModifierType.SUPER_MASK,
+                "Meta": Gdk.ModifierType.META_MASK,
+                "Hyper": Gdk.ModifierType.HYPER_MASK,
+            }
+
+            keyval = Gdk.keyval_from_name(canonical["key"])
+
+            if (len(canonical["key"]) == 1 and canonical["key"].isalpha()):
+                keyval = Gdk.keyval_to_lower(keyval)
+
+            modifier_mask = Gdk.ModifierType(0)
+
+            for name in canonical["modifiers"]:
+                modifier_mask |= modifier_masks[name]
+
+            binding = Gtk.accelerator_name(keyval, modifier_mask)
+
+            bindings = [binding]
+
+        if not custom.set_strv("binding", bindings):
+            return { "ok": False, "shortcut": read_shortcut(), "error": "write_failed", }
+
+        Gio.Settings.sync()
+
+        # Aquí no basta con escribir binding: Cinnamon reconstruye sus
+        # custom keybindings únicamente cuando cambia custom-list.
+        _reload_custom_keybindings(settings)
+
+        observed = read_shortcut()
+
+        if observed != canonical:
+            return { "ok": False, "shortcut": observed, "error": "verification_failed", }
+
+        return { "ok": True, "shortcut": observed, "error": 0, }
+
+    except Exception as error:
+        log_event(f"Error gestionando el atajo Cinnamon: {error}",
+            origin="CINNAMON", level="ERROR", reason="SETTINGS")
+
+        return { "ok": False, "shortcut": None, "error": "request_failed", }
+
+
+def apply_keybinding(config_handler, shortcut):
+    """
+    Aplica y confirma Next Background mediante la autoridad GSettings
+    de Cinnamon.
+    """
+    canonical = validate_keybinding(shortcut)
+
+    previous = request_keybindings(config_handler.data_dir, {"action": "get"})
+
+    if not previous["ok"]:
+        raise RuntimeError(f"No se pudo consultar el atajo Cinnamon: {previous}")
+
+    result = request_keybindings(
+        config_handler.data_dir,
+        {
+            "action": "set",
+            "shortcut": canonical,
+        }
+    )
+
+    if not result["ok"] or result["shortcut"] != canonical:
+        restored = request_keybindings(
+            config_handler.data_dir,
+            {
+                "action": "set",
+                "shortcut": previous["shortcut"],
+            }
+        )
+
+        if (not restored["ok"] or restored["shortcut"] != previous["shortcut"]):
+            raise ValueError(_("Could not restore the previous shortcut settings."))
+
+        raise ValueError(_("Could not apply the keyboard shortcut."))
+
+    log_event(f"Atajo Cinnamon guardado: {canonical}",
+        origin="CINNAMON", level="INFO", reason="SETTINGS")
+
+    return canonical
+
 def ensure_keybindings(app_dir):
     """
     Instala el atajo de teclado de WMM si todavía no existe.
@@ -464,10 +737,11 @@ def ensure_keybindings(app_dir):
                     # Cinnamon sólo reconstruye los custom keybindings cuando
                     # custom-list cambia; alternar __dummy__ reproduce el
                     # mismo mecanismo usado por su panel de configuración.
-                    if "__dummy__" in custom_list:
-                        custom_list.remove("__dummy__")
-                    else:
-                        custom_list.append("__dummy__")
+                    if existing_command != command:
+                        ks.set_string("command", command)
+                        Gio.Settings.sync()
+
+                        _reload_custom_keybindings(settings)
 
                     settings.set_strv("custom-list", custom_list)
                     settings.sync()

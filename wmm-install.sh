@@ -154,6 +154,7 @@ case "$DESKTOP" in
         LEGACY_APP_DIR="$DATA_BASE/plasma/$APP_DOMAIN"
         PLASMOID_DIR="$DATA_BASE/plasma/plasmoids/$APP_DOMAIN"
         FRONTEND_DIR="$PLASMOID_DIR"
+        KDE_ABOUT_ICON="$DATA_BASE/icons/hicolor/128x128/apps/org.maki.wmm.png"
         LAUNCHER="$APPLICATIONS_DIR/org.maki.wmm.kde.desktop"
         AUTOSTART="$AUTOSTART_DIR/org.maki.wmm.kde.desktop"
         LEGACY_KDE_LAUNCHER="$APPLICATIONS_DIR/org.maki.wmm.desktop"
@@ -483,8 +484,13 @@ add_optional_dep() { DEPS+=("optional${DEP_SEP}$1${DEP_SEP}$2${DEP_SEP}$3${DEP_S
 build_deps() {
     DEPS=()
     add_dep GTK 'PyGObject (GTK bindings)' "python3 -c 'import gi'" python3-gi
-    add_dep GTK 'GTK 3.0 Introspection' "python3 -c 'import gi; gi.require_version(\"Gtk\",\"3.0\"); from gi.repository import Gtk'" gir1.2-gtk-3.0
-    add_dep GTK 'GLib 2.0 Introspection' "python3 -c 'import gi; gi.require_version(\"GLib\",\"2.0\"); from gi.repository import GLib'" gir1.2-glib-2.0
+    add_dep GTK 'GTK 3.0 Introspection' \
+        "python3 -c 'import gi; gi.require_version(\"Gtk\",\"3.0\"); from gi.repository import Gtk'" gir1.2-gtk-3.0
+    add_dep GTK 'GLib 2.0 Introspection' \
+        "python3 -c 'import gi; gi.require_version(\"GLib\",\"2.0\"); from gi.repository import GLib'" gir1.2-glib-2.0
+    # PangoCairo requiere el puente PyGObject-Cairo; importar gi no garantiza su presencia.
+    add_dep GTK 'PyGObject Cairo integration' \
+        "python3 -c 'import cairo, gi; gi.require_foreign(\"cairo\")'" python3-gi-cairo
     # Dependencias específicas del escritorio.
     if [ "$DESKTOP" = gnome ]; then
         add_dep GNOME \
@@ -560,7 +566,6 @@ build_deps() {
     add_dep WMM 'NumPy (Python scientific computing)' "python3 -c 'import numpy'" python3-numpy
     add_dep WMM 'Libnotify (notifications)' 'command -v notify-send' libnotify-bin
     add_dep WMM GetText 'command -v xgettext' gettext
-    add_dep WMM 'Zenity (dialogs)' 'command -v zenity' zenity
     add_dep WMM 'D-Bus client' 'command -v dbus-send' dbus
 }
 
@@ -603,6 +608,7 @@ print_deps() {
 pkg_map() {
     case "$1:$2" in
         dnf:python3-gi)                  echo python3-gobject ;;
+        dnf:python3-gi-cairo)            echo python3-gobject ;;
         dnf:gir1.2-gtk-3.0)             echo gtk3 ;;
         dnf:gir1.2-glib-2.0)            echo glib2 ;;
         dnf:gir1.2-wnck-3.0)            echo libwnck3 ;;
@@ -618,6 +624,7 @@ pkg_map() {
         pacman:libnotify-bin)             echo libnotify ;;
         pacman:gnome-shell-extension-prefs) echo gnome-shell-extensions ;;
         pacman:python3-gi)                echo python-gobject ;;
+        pacman:python3-gi-cairo)          echo python-cairo ;;
         pacman:gir1.2-gtk-3.0)           echo gtk3 ;;
         pacman:gir1.2-glib-2.0)          echo glib2 ;;
         pacman:gir1.2-wnck-3.0)          echo libwnck3 ;;
@@ -786,11 +793,12 @@ validate_source() {
     local -a req=(
         python
         wmm_platform
-        data
+        wmm_platform/shell/data
         help
+        licenses/WMM/RESPONSIBLE_USE.txt
         wmm_platform/shell/po
         python/main.py
-        data/about.json
+        wmm_platform/shell/data/about.json
         wmm_platform/shell/linux/org.maki.wmm.service
         wmm_platform/shell/linux/settings_core.ini
     )
@@ -803,6 +811,7 @@ validate_source() {
                 wmm_platform/shell/cinnamon/metadata.cinnamon.json
                 wmm_platform/shell/cinnamon/applet.cinnamon.js
                 wmm_platform/shell/cinnamon/org.maki.wmm.cinnamon.desktop
+                wmm_platform/shell/cinnamon/stylesheet.css
             )
             ;;
 
@@ -901,10 +910,17 @@ PRESERVE=(
     monitor_vault.json
     bookmarks.json
     bookmarks_single_list.json
+    rotation_h.json
+    rotation_v.json
+    sel_rotation_h.json
+    sel_rotation_v.json
+    bookmark_rotation_h.json
+    bookmark_rotation_v.json
     history.json
     history_vault.json
     history_presets.json
     image_cache.json
+    image_online.json
     scan_index.json
 )
 
@@ -1014,29 +1030,27 @@ prepare_staging() {
     # Copiar una versión limpia del proyecto y la documentación.
     cp -a "$PROJECT_DIR/." "$STAGING/" || return 1
 
-    # El README fuente referencia la presentación dentro de /wmm para que funcione
-    # en GitHub/paquete. Al instalar, /wmm se convierte en la raíz de APP_DIR,
-    # así que materializamos únicamente la ruta correspondiente al árbol instalado.
+    # El README fuente utiliza rutas relativas al repositorio.
+    # Al instalar, /wmm se convierte en la raíz de APP_DIR.
+    # Adaptar las rutas de presentación y recursos comunes.
     sed \
-        's|wmm/WMM-presentation\.jpg|WMM-presentation.jpg|g' \
+        -e 's|wmm/WMM-presentation\.jpg|WMM-presentation.jpg|g' \
+        -e 's|wmm/wmm_platform/shell/logos/|wmm_platform/shell/logos/|g' \
         "$README_FILE" > "$STAGING/README.md" \
         || return 1
 
     cp -f "$CHANGELOG_FILE" "$STAGING/CHANGELOG.md" || return 1
     cp -f "$LICENSE_FILE" "$STAGING/LICENSE" || return 1
 
-    # data/ ya no pertenece al árbol de aplicación.
-    rm -rf "$STAGING/data" || return 1
-
     # ----------------------------------------------------------
     # DATA WMM
     # ----------------------------------------------------------
-    # Sembrar el nuevo árbol de datos con los recursos distribuidos.
-    cp -a "$PROJECT_DIR/data/." "$DATA_STAGING/" || return 1
+    # Sembrar el nuevo árbol de datos desde su ubicación en shell.
+    cp -a "$PROJECT_DIR/wmm_platform/shell/data/." "$DATA_STAGING/" || return 1
 
     # about.json contiene valores propios de esta versión.
     template \
-        "$PROJECT_DIR/data/about.json" \
+        "$PROJECT_DIR/wmm_platform/shell/data/about.json" \
         "$DATA_STAGING/about.json" \
         || return 1
 
@@ -1120,6 +1134,10 @@ prepare_staging() {
     find "$STAGING" -type f -name '*.pyc' -delete 2>/dev/null
     find "$STAGING" -type f -exec chmod -x {} \;
     find "$DATA_STAGING" -type f -exec chmod -x {} \;
+
+    # file_utils.py es legado: el bloqueo de archivos pertenece ahora
+    # directamente a la capa de cada sistema operativo.
+    rm -f "$STAGING/wmm_platform/file_utils.py"
 
     # Instalar las herramientas locales y crear el paquete de reparación.
     prepare_installer_payload || return 1
@@ -1649,6 +1667,17 @@ backup_external_resources() {
                     return 1
                 }
             fi
+
+            # El icono del About vive fuera del árbol del plasmoide.
+            # Conservar el anterior permite recuperar también pruebas
+            # manuales o personalizaciones si falla la instalación.
+            if [ -f "$KDE_ABOUT_ICON" ]; then
+                cp -a "$KDE_ABOUT_ICON" "$EXTERNAL_BACKUP/kde-about-icon.png" || {
+                    discard_external_backup
+                    return 1
+                }
+            fi
+
             ;;
 
         mate)
@@ -1773,6 +1802,8 @@ restore_external_resources() {
             restore_external_file "$EXTERNAL_BACKUP/autostart.desktop" "$AUTOSTART" || return 1
             restore_external_file "$EXTERNAL_BACKUP/install-manager.service" "$INSTALL_MANAGER_SERVICE" || return 1
             restore_external_file "$EXTERNAL_BACKUP/debug-log-viewer.service" "$DEBUG_LOG_VIEWER_SERVICE" || return 1
+            # Recuperar el estado exacto del icono previo al reemplazo.
+            restore_external_file "$EXTERNAL_BACKUP/kde-about-icon.png" "$KDE_ABOUT_ICON" || return 1
             ;;
 
         mate)
@@ -1947,6 +1978,11 @@ install_external() {
                 "$new/applet.js" \
                 || { rm -rf "$new"; return 1; }
 
+            cp -f \
+                "$PROJECT_DIR/wmm_platform/shell/cinnamon/stylesheet.css" \
+                "$new/stylesheet.css" \
+                || { rm -rf "$new"; return 1; }
+
             cp -f "$PROJECT_DIR/icon.png" "$new/icon.png" \
                 || { rm -rf "$new"; return 1; }
 
@@ -1961,6 +1997,7 @@ install_external() {
                 || { rm -rf "$new"; return 1; }
 
             [ -f "$new/applet.js" ] \
+                && [ -f "$new/stylesheet.css" ] \
                 && [ -f "$new/icon.png" ] \
                 && [ -f "$new/metadata.json" ] \
                 && [ -f "$new/settings_core.ini" ] \
@@ -2163,6 +2200,24 @@ install_external() {
                     rm -rf "$new"
                     return 1
                 }
+
+            # El About nativo resuelve KPlugin.Icon mediante el tema de iconos.
+            # La plantilla conserva video-display como fallback cuando
+            # icon.png no está disponible en el paquete de instalación.
+            if [ -s "$PROJECT_DIR/icon.png" ]; then
+                mkdir -p "$(dirname "$KDE_ABOUT_ICON")" || return 1
+
+                install -m 0644 "$PROJECT_DIR/icon.png" "$KDE_ABOUT_ICON" \
+                    || return 1
+
+                # Publicar el nombre propio sólo después de instalar el PNG.
+                sed -i 's|"Icon": "video-display"|"Icon": "org.maki.wmm"|' \
+                    "$new/metadata.json" \
+                    || {
+                        rm -rf "$new"
+                        return 1
+                    }
+            fi
 
             # settings_core.ini enlaza el frontend Plasma con el core y los
             # datos comunes. Debe quedar completo antes de publicar el plasmoide.
@@ -2514,6 +2569,15 @@ rollback() {
                 2>/dev/null || true
 
             rm -rf "$PLASMOID_DIR" 2>/dev/null || true
+
+            # Sólo restaurar si el respaldo llegó a completarse.
+            # Si falló antes de instalar recursos, no tocar el icono previo.
+            if [ -n "$EXTERNAL_BACKUP" ] && [ -d "$EXTERNAL_BACKUP" ]; then
+                restore_external_file \
+                    "$EXTERNAL_BACKUP/kde-about-icon.png" \
+                    "$KDE_ABOUT_ICON" \
+                    || external_restore_failed=1
+            fi
         fi
 
         if [ "$DESKTOP" = mate ]; then
@@ -2662,6 +2726,16 @@ run_install() {
         [ -n "$DATA_STAGING" ] && rm -rf "$DATA_STAGING"
         return 1
     }
+
+    # KDE puede encontrar un icono preexistente incluso en instalación
+    # limpia. Respaldarlo antes de sustituirlo evita perderlo ante un fallo.
+    if [ "$DESKTOP" = kde ]; then
+        backup_external_resources || {
+            fail 'Could not back up existing KDE integration resources.'
+            rollback
+            return 1
+        }
+    fi
 
     install_external || {
         fail 'Desktop integration failed.'

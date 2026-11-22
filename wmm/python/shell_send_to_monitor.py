@@ -26,7 +26,6 @@ FLUJO DE CONTROL:
 import sys
 import os
 import subprocess
-import time
 
 # ==========================================================
 # CONFIGURACIÓN DEL PATH DEL PROYECTO
@@ -134,6 +133,9 @@ def main():
     # Inicializar la plataforma
     platform = PlatformManager()
 
+    if hasattr(platform, "prepare_gtk_color_scheme"):
+        platform.prepare_gtk_color_scheme()
+
     if hasattr(platform, "set_process_name"):
         platform.set_process_name("WMM SendToMon")
 
@@ -146,33 +148,53 @@ def main():
     # Crear el gestor de configuración
     ch = ConfigHandler(cache_base_dir=platform.cache_dir, platform=platform)
 
-    log_event(f"sys.argv = {sys.argv}", origin="SHELL_SEND", level="DEBUG", reason="BOOKMARK")
-    log_event(f"CWD = {os.getcwd()}", origin="SHELL_SEND", level="DEBUG", reason="BOOKMARK")
+    log_event(f"sys.argv = {sys.argv}",
+        origin="SHELL_SEND", level="DEBUG", reason="BOOKMARK")
+    log_event(f"CWD = {os.getcwd()}",
+        origin="SHELL_SEND", level="DEBUG", reason="BOOKMARK")
     log_event(f"Iniciando envío a monitor: {os.path.basename(image_path)}",
               origin="SHELL_SEND", level="INFO", reason="BOOKMARK")
 
     # --- Control de instancia única ---
+    # El lock demuestra qué instancia posee el diálogo; el PID conserva
+    # únicamente su identidad y se elimina durante el cierre limpio.
+    lock_path = os.path.join(ch.cache_dir, "send_to_monitor.lock")
     pid_path = os.path.join(ch.cache_dir, "pid_send_to_monitor.pid")
-    os.makedirs(os.path.dirname(pid_path), exist_ok=True)
+    os.makedirs(ch.cache_dir, exist_ok=True)
 
-    if os.path.exists(pid_path):
-        try:
-            with open(pid_path, "r") as f:
-                old_pid = int(f.read().strip())
-            if old_pid != os.getpid():
-                subprocess.run(["pkill", "-P", str(old_pid)], check=False)
-                time.sleep(0.2)
-        except (OSError, ValueError, FileNotFoundError):
-            pass
-        try:
-            os.remove(pid_path)
-        except FileNotFoundError:
-            pass
-
-    with open(pid_path, "w") as f:
-        f.write(str(os.getpid()))
+    lock_file = open(lock_path, "a+")
 
     try:
+        acquired = platform.try_lock_file(lock_file)
+
+        if not acquired:
+            # Sólo un lock ocupado convierte el PID publicado por la instancia
+            # anterior en una identidad válida para sustituirla.
+            try:
+                with open(pid_path, "r", encoding="utf-8") as pid_reader:
+                    old_pid = int(pid_reader.read().strip())
+            except (OSError, ValueError):
+                log_event("Instancia anterior sin PID válido; no se fuerza su cierre",
+                    origin="SHELL_SEND", level="WARN", reason="NOTIFY")
+                return
+
+            try:
+                platform.terminate_process(old_pid)
+            except OSError as error:
+                # Puede haber terminado por sí sola entre la lectura y la
+                # terminación. Continuar sólo si el lock ya ha quedado libre.
+                if not platform.try_lock_file(lock_file):
+                    log_event(f"No se pudo sustituir la instancia anterior: {error}",
+                        origin="SHELL_SEND", level="WARN", reason="NOTIFY")
+                    return
+            else:
+                # Esperar a la liberación real del proceso anterior.
+                platform.lock_file(lock_file)
+
+        # Desde este punto somos propietarios del diálogo.
+        with open(pid_path, "w", encoding="utf-8") as pid_writer:
+            pid_writer.write(str(os.getpid()))
+
         # --- Leer monitores activos ---
         vault = ch.load_json("vault")
         active = vault.get("active_session", {})
@@ -190,31 +212,35 @@ def main():
             label = ch.get_monitor_display_name(m_hash)
 
             if info.get("primary", False):
-                label += " (Primary)"
+                label += " " + _("Primary")
 
             monitors_list.append(label)
             label_to_hash[label] = m_hash
 
         if not monitors_list:
-            log_event("No hay monitores activos", origin="SHELL_SEND", level="ERROR", reason="NOTIFY")
-            ch._send_notification(
-                "WMM: " + _("No monitors"),
-                _("No active monitors found"),
-                level="warn"
-            )
+            log_event("No hay monitores activos",
+                origin="SHELL_SEND", level="ERROR", reason="NOTIFY")
+            ch._send_notification("WMM: " + _("No monitors"),
+                _("No active monitors found"), level="warn")
             sys.exit(1)
 
         # --- Mostrar diálogo GTK nativo ---
         dialog = MonitorSelectorDialog(monitors_list, label_to_hash, mfg_map)
+
+        if hasattr(platform, "present_window"):
+            platform.present_window(dialog)
+
         response = dialog.run()
         dialog.destroy()
 
         if response != Gtk.ResponseType.OK or not dialog.selected_hash:
-            log_event("Envío cancelado por el usuario", origin="SHELL_SEND", level="INFO", reason="NOTIFY")
+            log_event("Envío cancelado por el usuario",
+                origin="SHELL_SEND", level="INFO", reason="NOTIFY")
             sys.exit(0)
 
         m_hash = dialog.selected_hash
-        log_event(f"Monitor seleccionado: {m_hash[:8]}...", origin="SHELL_SEND", level="INFO", reason="NOTIFY")
+        log_event(f"Monitor seleccionado: {m_hash[:8]}...",
+            origin="SHELL_SEND", level="INFO", reason="NOTIFY")
 
         # --- Actualizar el vault ---
         entry = active.get(m_hash, {})
@@ -227,32 +253,53 @@ def main():
         ch.save_json("vault", vault)
 
         # --- Notificar al motor ---
-        log_event("Notificando al motor (apply_manual_selection)", origin="SHELL_SEND", level="DEBUG", reason="COMMAND")
+        log_event("Notificando al motor (apply_manual_selection)",
+            origin="SHELL_SEND", level="DEBUG", reason="COMMAND")
         import json
         cmd = json.dumps({"action": "apply_manual_selection"})
         script = os.path.join(os.path.dirname(__file__), "send_command.py")
         try:
-            subprocess.run(["python3", script, cmd], check=True)
+            subprocess.run([sys.executable, script, cmd], check=True)
         except Exception as e:
-            log_event(f"No se pudo notificar al motor: {e}", origin="SHELL_SEND", level="WARN", reason="COMMAND")
+            log_event(f"No se pudo notificar al motor: {e}",
+                origin="SHELL_SEND", level="WARN", reason="COMMAND")
 
         # Notificación de confirmación
         name = os.path.basename(image_path)
         monitor_label = dialog.selected_label or m_hash[:8]
         ch._send_notification(
             reason="WMM: " + _("Image sent to monitor"),
-            detail_msg=_("Image '{name}' assigned to monitor {monitor}.").format(name=name, monitor=monitor_label),
-            level="info"
-        )
+            detail_msg=_("Image '{name}' assigned to monitor {monitor}.")
+                .format(name=name, monitor=monitor_label),
+            level="info")
 
     finally:
-        log_event("Finalizando envío a monitor", origin="SHELL_SEND", level="DEBUG", reason="NOTIFY")
+        log_event("Finalizando envío a monitor",
+            origin="SHELL_SEND", level="DEBUG", reason="NOTIFY")
+
+        # Mientras conservamos el lock ninguna nueva instancia puede publicar
+        # su identidad, así que sólo podemos retirar nuestro propio PID.
         if os.path.exists(pid_path):
             try:
-                os.remove(pid_path)
-            except FileNotFoundError:
+                with open(pid_path, "r", encoding="utf-8") as pid_reader:
+                    content = pid_reader.read().strip()
+
+                if content and int(content) == os.getpid():
+                    os.remove(pid_path)
+
+            except (OSError, ValueError):
                 pass
 
+        if not lock_file.closed:
+            try:
+                platform.unlock_file(lock_file)
+            except OSError:
+                pass
+
+            try:
+                lock_file.close()
+            except OSError:
+                pass
 
 if __name__ == "__main__":
     main()

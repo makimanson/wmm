@@ -347,6 +347,229 @@ def correct_initial_window_position(pid):
         log_event(f"No se pudo programar la corrección inicial: {e}",
             origin="MATE", level="WARN", reason="LAYOUT")
 
+def _get_next_background_keybinding():
+    """Devuelve la entrada customN que ejecuta Siguiente fondo en MATE."""
+    import json
+    import shlex
+
+    app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    send_command_path = os.path.join(app_dir, "python", "send_command.py")
+
+    schema = "org.mate.control-center.keybinding"
+    base_path = "/org/mate/desktop/keybindings/"
+
+    # customN no posee una lista maestra en MATE. La identidad pertenece al
+    # comando WMM, no al índice elegido durante la instalación.
+    for index in range(100):
+        path = f"{base_path}custom{index}/"
+
+        try:
+            custom = Gio.Settings.new_with_path(schema, path)
+            arguments = shlex.split(custom.get_string("action"))
+
+            if len(arguments) != 4:
+                continue
+            if os.path.abspath(arguments[1]) != send_command_path:
+                continue
+            if arguments[3] != "HOTKEY":
+                continue
+
+            payload = json.loads(arguments[2])
+            if payload != {"action": "force_rotation"}:
+                continue
+
+            return custom
+
+        except (GLib.GError, ValueError, json.JSONDecodeError):
+            continue
+
+    raise RuntimeError("No se encontró el atajo MATE de WMM")
+
+def validate_keybinding(shortcut):
+    """Valida la representación común según los aceleradores admitidos por MATE."""
+    if shortcut is None:
+        return None
+    if not isinstance(shortcut, dict):
+        raise ValueError(_("This key combination is not supported."))
+
+    key = shortcut.get("key")
+    modifiers = shortcut.get("modifiers")
+
+    if not isinstance(key, str) or not key or not isinstance(modifiers, list):
+        raise ValueError(_("This key combination is not supported."))
+
+    gi.require_version("Gtk", "3.0")
+    from gi.repository import Gtk
+
+    modifier_masks = {
+        "Control": Gdk.ModifierType.CONTROL_MASK,
+        "Alt": Gdk.ModifierType.MOD1_MASK,
+        "Shift": Gdk.ModifierType.SHIFT_MASK,
+        "Super": Gdk.ModifierType.SUPER_MASK,
+        "Meta": Gdk.ModifierType.META_MASK,
+        "Hyper": Gdk.ModifierType.HYPER_MASK,
+    }
+    modifier_order = tuple(modifier_masks)
+
+    if any(
+            not isinstance(name, str) or name not in modifier_masks
+            for name in modifiers):
+        raise ValueError(_("This key combination is not supported."))
+
+    canonical_modifiers = [
+        name for name in modifier_order if name in modifiers
+    ]
+
+    keyval = Gdk.keyval_from_name(key)
+    if not keyval:
+        raise ValueError(_("This key combination is not supported."))
+
+    # Shift pertenece al modificador; la tecla alfabética se conserva
+    # internamente en su keyval base para evitar codificarlo dos veces.
+    if len(key) == 1 and key.isalpha():
+        keyval = Gdk.keyval_to_lower(keyval)
+
+    modifier_mask = Gdk.ModifierType(0)
+    for name in canonical_modifiers:
+        modifier_mask |= modifier_masks[name]
+
+    if not Gtk.accelerator_valid(keyval, modifier_mask):
+        raise ValueError(_("This key combination is not supported."))
+
+    canonical_key = Gdk.keyval_name(keyval)
+    if not canonical_key:
+        raise ValueError(_("This key combination is not supported."))
+    if len(canonical_key) == 1 and canonical_key.isascii():
+        canonical_key = canonical_key.upper()
+
+    return {
+        "key": canonical_key,
+        "modifiers": canonical_modifiers,
+    }
+
+def request_keybindings(data_dir, request):
+    """Consulta o modifica el binding persistente que MATE asigna a WMM."""
+    if not isinstance(request, dict):
+        return {"ok": False, "shortcut": None, "error": "invalid_request"}
+
+    try:
+        custom = _get_next_background_keybinding()
+
+        gi.require_version("Gtk", "3.0")
+        from gi.repository import Gtk
+
+        def read_shortcut():
+            binding = custom.get_string("binding")
+            if not binding:
+                return None
+
+            keyval, modifier_mask = Gtk.accelerator_parse(binding)
+            if not keyval:
+                raise ValueError(f"Binding MATE no válido: {binding}")
+
+            modifier_masks = (
+                ("Control", Gdk.ModifierType.CONTROL_MASK),
+                ("Alt", Gdk.ModifierType.MOD1_MASK),
+                ("Shift", Gdk.ModifierType.SHIFT_MASK),
+                ("Super", Gdk.ModifierType.SUPER_MASK | Gdk.ModifierType.MOD4_MASK),
+                ("Meta", Gdk.ModifierType.META_MASK),
+                ("Hyper", Gdk.ModifierType.HYPER_MASK),
+            )
+
+            key = Gdk.keyval_name(keyval)
+            if not key:
+                raise ValueError(f"Binding MATE no válido: {binding}")
+            if len(key) == 1 and key.isascii():
+                key = key.upper()
+
+            return validate_keybinding({ "key": key, "modifiers": [
+                    name for name, mask in modifier_masks
+                    if modifier_mask & mask], })
+
+        action = request.get("action")
+
+        if action == "get":
+            shortcut = read_shortcut()
+            return {"ok": True, "shortcut": shortcut, "error": 0}
+
+        if action != "set" or "shortcut" not in request:
+            return {"ok": False, "shortcut": read_shortcut(),
+                    "error": "invalid_request"}
+
+        canonical = validate_keybinding(request["shortcut"])
+
+        if canonical is None:
+            binding = ""
+        else:
+            modifier_masks = {
+                "Control": Gdk.ModifierType.CONTROL_MASK,
+                "Alt": Gdk.ModifierType.MOD1_MASK,
+                "Shift": Gdk.ModifierType.SHIFT_MASK,
+                "Super": Gdk.ModifierType.SUPER_MASK,
+                "Meta": Gdk.ModifierType.META_MASK,
+                "Hyper": Gdk.ModifierType.HYPER_MASK,
+            }
+
+            keyval = Gdk.keyval_from_name(canonical["key"])
+            if len(canonical["key"]) == 1 and canonical["key"].isalpha():
+                keyval = Gdk.keyval_to_lower(keyval)
+
+            modifier_mask = Gdk.ModifierType(0)
+            for name in canonical["modifiers"]:
+                modifier_mask |= modifier_masks[name]
+
+            binding = Gtk.accelerator_name(keyval, modifier_mask)
+
+        changed = custom.set_string("binding", binding)
+        if not changed:
+            return {"ok": False, "shortcut": read_shortcut(),
+                    "error": "write_failed"}
+
+        Gio.Settings.sync()
+
+        # GSettings es la autoridad: sólo confirmamos después de releer el
+        # valor realmente persistido por MATE.
+        observed = read_shortcut()
+        if observed != canonical:
+            return {"ok": False, "shortcut": observed,
+                    "error": "verification_failed"}
+
+        return {"ok": True, "shortcut": observed, "error": 0}
+
+    except Exception as error:
+        log_event(f"Error gestionando el atajo MATE: {error}",
+            origin="MATE", level="ERROR", reason="SETTINGS")
+        return {"ok": False, "shortcut": None, "error": "request_failed"}
+
+def apply_keybinding(config_handler, shortcut):
+    """Aplica y confirma Siguiente fondo mediante la autoridad GSettings de MATE."""
+    canonical = validate_keybinding(shortcut)
+
+    previous = request_keybindings(
+        config_handler.data_dir, {"action": "get"})
+    if not previous["ok"]:
+        raise RuntimeError(
+            f"No se pudo consultar el atajo MATE: {previous}")
+
+    result = request_keybindings(
+        config_handler.data_dir,
+        {"action": "set", "shortcut": canonical})
+
+    if not result["ok"] or result["shortcut"] != canonical:
+        restored = request_keybindings(
+            config_handler.data_dir,
+            {"action": "set", "shortcut": previous["shortcut"]})
+
+        if not restored["ok"] or restored["shortcut"] != previous["shortcut"]:
+            raise ValueError(
+                _("Could not restore the previous shortcut settings."))
+
+        raise ValueError(_("Could not apply the keyboard shortcut."))
+
+    log_event(f"Atajo MATE guardado: {canonical}",
+        origin="MATE", level="INFO", reason="SETTINGS")
+    return canonical
+
 def ensure_keybindings(app_dir):
     """
     Instala el atajo de teclado de WMM si todavía no existe.

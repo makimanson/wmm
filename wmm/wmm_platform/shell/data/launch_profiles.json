@@ -52,5 +52,10 @@
     "zed": {
         "executables": ["zed", "zeditor"],
         "open_at_line": ["{file}:{line}"]
-    }
+    },
+
+	"notepad++": {
+		"executables": ["notepad++.exe"],
+		"open_at_line": ["-n{line}", "{file}"]
+	}
 }

@@ -51,7 +51,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
     """
     Ventana principal de configuración de WMM.
     """
-    _WORKAREA_MARGIN = 70
+    _WORKAREA_MARGIN = 65
     _LEFT_PANEL_TRANSITION_MS = 220
 
     def __init__(self, app):
@@ -61,12 +61,12 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         # ----------------------------------------------------------
         # Obtener la ruta de caché de la plataforma
         self.platform = PlatformManager()
+        if hasattr(self.platform, "prepare_gtk_color_scheme"):
+            self.platform.prepare_gtk_color_scheme()
         if hasattr(self.platform, "set_process_name"):
             self.platform.set_process_name("WMM Panel")
-        cache_base = None
-        if hasattr(self.platform, 'get_cache_dir') and self.platform.get_cache_dir:
-            cache_base = self.platform.get_cache_dir()
-        log_event(f"Cache dir desde PlatformManager: {self.platform.cache_dir}", origin="PANEL", level="DEBUG", reason="SETTINGS")
+        log_event(f"Cache dir desde PlatformManager: {self.platform.cache_dir}",
+            origin="PANEL", level="DEBUG", reason="SETTINGS")
         self.handler = ConfigHandler(cache_base_dir=self.platform.cache_dir)
         self.backend = WMMBackend(self.handler)
         self.ie = ImageEngine(self.handler, None)
@@ -79,49 +79,25 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         # ----------------------------------------------------------
         self._loading = False
         self._sources_operation_active = False
-        self._sources_need_refresh = False
 
         # ----------------------------------------------------------
-        # CSS DEL PANEL
+        # CSS COMPARTIDO DE WMM
         # ----------------------------------------------------------
-        css_provider = Gtk.CssProvider()
-        css_provider.load_from_data(b"""
-            .favorite-thumbnail {
-                border: 2px solid @theme_selected_bg_color;
-                border-radius: 4px;
-                padding: 2px;
-            }
-            .favorites-panel {
-                border: 2px solid @theme_selected_bg_color;
-                border-radius: 4px;
-            }
-            .dnd-source {
-                border: 2px solid @warning_color;
-            }
-            .monitor-frame {
-                border: 2px solid @theme_fg_color;
-                background: alpha(@theme_fg_color, 0.05);
-            }
-            .dnd-target {
-                border-color: @theme_selected_bg_color;
-                border-width: 2px;
-            }
-            .align-active {
-                background-color: alpha(@theme_fg_color, 0.3);
-                border-radius: 3px;
-                padding: 0px 2px;
-            }
-            .edit-aspects-box {
-                border: 1px solid alpha(@theme_fg_color, 0.4);
-                border-radius: 4px;
-                padding: 4px 4px;
-            }
-        """)
-        Gtk.StyleContext.add_provider_for_screen(
-            Gdk.Screen.get_default(),
-            css_provider,
-            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
-        )
+        # Durante la migración conservamos el CSS incrustado como
+        # respaldo. La ubicación del recurso es común a las plataformas.
+        css_path = os.path.join(
+            self.platform.app_dir, "wmm_platform", "shell", "common", "wmm.css")
+
+        if os.path.isfile(css_path):
+            shared_css_provider = Gtk.CssProvider()
+            shared_css_provider.load_from_path(css_path)
+            Gtk.StyleContext.add_provider_for_screen(
+                Gdk.Screen.get_default(),
+                shared_css_provider,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        else:
+            log_event(f"CSS compartido no disponible: {css_path}",
+                origin="PANEL", level="WARN", reason="SETTINGS")
 
         # ----------------------------------------------------------
         # CONSTRUCCIÓN DE LA INTERFAZ
@@ -131,6 +107,14 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         self.set_position(Gtk.WindowPosition.CENTER)
         self.connect("map-event", self._on_initial_map)
         self.main_layout = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+
+        # Limitar los switches compactos al contenido del Panel.
+        self.main_layout.get_style_context().add_class("wmm-panel-switches")
+
+        # Los separadores propios del Panel no deben afectar
+        # a otras ventanas GTK que carguen el CSS compartido.
+        self.main_layout.get_style_context().add_class("wmm-control-panel")
+        self.main_layout.get_style_context().add_class("wmm-themed-separators")
         self.main_layout.set_border_width(10)
         self.add(self.main_layout)
 
@@ -166,8 +150,24 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         self.left_wrapper.add_named(self.collapsed_wrapper, "collapsed")
 
         # COLUMNA DERECHA
+        # Cabecera Displays fija; el Paned reparte únicamente
+        # el espacio entre los monitores virtuales y Thumbnails.
         self.right_col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         self.main_layout.pack_start(self.right_col, True, True, 0)
+
+        self.monitors_header_slot = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.right_col.pack_start(self.monitors_header_slot, False, False, 0)
+
+        self.monitor_thumb_paned = Gtk.Paned(orientation=Gtk.Orientation.VERTICAL)
+        self.monitor_thumb_paned.set_wide_handle(True)
+        self.monitor_thumb_paned.get_style_context().add_class("wmm-monitors-split")
+        self.right_col.pack_start(self.monitor_thumb_paned, True, True, 0)
+
+        self.monitors_slot = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        self.thumbnails_slot = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+
+        self.monitor_thumb_paned.pack1(self.monitors_slot, False, True)
+        self.monitor_thumb_paned.pack2(self.thumbnails_slot, True, False)
 
         # ----------------------------------------------------------
         # WIDGETS COMPARTIDOS ENTRE SECCIONES
@@ -177,11 +177,10 @@ class WMMControlPanel(Gtk.ApplicationWindow):
 
         # Checkbox de favorito (usado por Monitors y Favorites)
         self.fav_checkbox = Gtk.CheckButton(label="")
-        self.fav_checkbox.set_tooltip_text(_("Create/update preset on accept"))
 
         # Botón Aceptar (usado por Monitors y Favorites)
-        self.accept_btn = Gtk.Button.new_from_icon_name("emblem-ok-symbolic", Gtk.IconSize.BUTTON)
-        self.accept_btn.set_tooltip_text(_("Save composition as preset"))
+        # MonitorsSection resuelve los tooltips según el origen de edición.
+        self.accept_btn = Gtk.Button.new_from_icon_name("object-select-symbolic", Gtk.IconSize.BUTTON)
         self.accept_btn.set_sensitive(False)
 
         # Recurso visual único para las fases secuenciales Sources → Thumbnails:
@@ -199,24 +198,19 @@ class WMMControlPanel(Gtk.ApplicationWindow):
 
         # 1. Monitores
         self.monitors_section = MonitorsSection(
-            self.handler, self.backend, self.ie, self.right_col,
+            self.handler, self.backend, self.ie, self.monitors_slot,
+            header_col=self.monitors_header_slot,
             fav_checkbox=self.fav_checkbox,
             accept_btn=self.accept_btn,
-            spanned_switch=None
-        )
-
-        self.right_separator = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL)
-        self.right_col.pack_start(self.right_separator, False, False, 0)
+            spanned_switch=None)
 
         # 2. Opciones
         self.options_section = OptionsSection(
-            self.handler, self.backend, self.ie, self.left_col
-        )
+            self.handler, self.backend, self.ie, self.left_col)
 
         # 3. Favoritos
         self.favorites_section = FavoritesSection(
-            self.handler, self.backend, self.ie, self.left_col
-        )
+            self.handler, self.backend, self.ie, self.left_col)
 
         # 4. Asignar callbacks a las tres primeras
         self.monitors_section.set_callbacks(self._build_monitors_callbacks())
@@ -238,20 +232,49 @@ class WMMControlPanel(Gtk.ApplicationWindow):
             'finish_sources_operation': self._finish_sources_operation,
             'is_sources_operation_active': self._is_sources_operation_active,
             'set_progress_active': self._set_progress_active,
+            'refresh_selective_rotation_availability':
+                self.options_section.refresh_selective_rotation_availability,
             'get_parent_window': lambda: self,
         })
 
         # 7. Thumbnails (sin callbacks aún)
         self.thumbnails_section = ThumbnailsSection(
-            self.handler, self.backend, self.right_col,
+            self.handler, self.backend, self.thumbnails_slot,
             scan_progress=self.scan_progress,
-            btn_spacer=self.btn_spacer
-        )
+            btn_spacer=self.btn_spacer)
+
         # Ahora que existe, le asignamos sus callbacks
         self.thumbnails_section.set_callbacks(self._build_thumbnails_callbacks())
 
+        # Adaptar la representación al tirador y al espacio disponible.
+        self.monitor_thumb_paned.connect("notify::position", self._on_monitor_split_changed)
+
+        # Detectar el final real del ajuste, sin temporizadores ni polling.
+        self._monitor_split_drag_start = None
+        self.monitor_thumb_paned.add_events(
+            Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.BUTTON_RELEASE_MASK)
+        self.monitor_thumb_paned.connect("button-press-event", self._on_monitor_split_pressed)
+        self.monitor_thumb_paned.connect_after("button-release-event", self._on_monitor_split_released)
+        self.monitor_thumb_paned.connect("size-allocate", self._on_monitor_split_changed)
+
         # Puente explícito entre fases: al terminar Sources, continuar con Thumbnails.
         self.sources_section._callbacks['load_thumbnails'] = self.thumbnails_section._load_thumbnails
+
+        # Al descargar originales Online, ejecutar la misma sincronización de Sources.
+        self.thumbnails_section.online_section.set_library_sync_callback(
+            self.sources_section.on_refresh_sources_clicked)
+
+        # El Panel comunica traslados a Monitors sin exponer su sesión a Online.
+        self.thumbnails_section.online_section.set_online_promotion_callback(
+            self.monitors_section.on_online_original_promoted)
+
+        # La selección de Sources sólo filtra la vista local ya construida.
+        self.sources_section.sources_tree.get_selection().connect(
+            "changed", self.thumbnails_section.on_source_selection_changed)
+
+        # El clic sobre una fuente ya seleccionada también debe abrir Library.
+        self.sources_section.sources_tree.connect(
+            "button-press-event", self.thumbnails_section.on_source_row_pressed)
 
         # ----------------------------------------------------------
         # CARGA INICIAL DE DATOS
@@ -281,7 +304,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         self._restore_left_panel_state()
 
         # Activar el flag de monitores tras el primer layout completo
-        GLib.timeout_add(300, lambda: setattr(self.monitors_section, '_panel_realized', True) or False)
+        GLib.timeout_add(300, self._initialize_monitor_split)
 
     # ==========================================================
     # ESTADO VISUAL DE LAS SECCIONES
@@ -296,7 +319,50 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         log_event(f"Estado de sección guardado: {section}={expanded}",
             origin="PANEL", level="DEBUG", reason="SETTINGS")
 
-    def _expand_section_to_fit(self, requested):
+    def _save_options_subsection_states(self):
+        """Persiste el estado visual de las subsecciones de Opciones."""
+        options = self.options_section
+        states = {
+            "persist": options.persist_content.get_visible(),
+            "spanned": options.spanned_content.get_visible(),
+            "slideshow": options.slideshow_content.get_visible(),
+            "metadata": options.metadata_content.get_visible()
+        }
+
+        settings = self.backend.load_json("settings")
+        settings.setdefault("panel", {})["options_subsections"] = states
+        self.backend.save_json("settings", settings)
+
+    def _fold_options_subsections_to_fit(self, required_height, available_height,
+            protected=None):
+        """Pliega subsecciones sólo cuando las secciones principales no bastan."""
+        options = self.options_section
+
+        if not options.options_content.get_visible():
+            return required_height()
+
+        subsections = (
+            ("metadata", options.metadata_content),
+            ("slideshow", options.slideshow_content),
+            ("spanned", options.spanned_content),
+            ("persist", options.persist_content),
+        )
+
+        for name, content in subsections:
+            if required_height() <= available_height:
+                break
+
+            if name == protected or not content.get_visible():
+                continue
+
+            options.set_subsection_expanded(name, False)
+            log_event(
+                f"Subsección {name} plegada automáticamente",
+                origin="PANEL", level="DEBUG", reason="LAYOUT")
+
+        return required_height()
+
+    def _expand_section_to_fit(self, requested, requested_subsection=None):
         """Abre una sección cerrando antes otras si la altura disponible lo exige."""
         sections = {
             "options": (self.options_section, self.options_section.options_content),
@@ -317,9 +383,9 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         border = self.main_layout.get_border_width()
 
         def required_height():
+            # Sólo la columna izquierda participa en las decisiones de plegado.
             left_minimum, _ = self.left_col.get_preferred_size()
-            right_minimum, _ = self.right_col.get_preferred_size()
-            return max(left_minimum.height, right_minimum.height) + (border * 2)
+            return left_minimum.height + (border * 2)
 
         required = required_height()
 
@@ -338,6 +404,13 @@ class WMMControlPanel(Gtk.ApplicationWindow):
             log_event(f"{candidate.capitalize()} plegada automáticamente al abrir {requested}: requerido={required}, disponible={available_height}",
                 origin="PANEL", level="DEBUG", reason="LAYOUT")
 
+        # Segundo nivel: conservar la petición del usuario y plegar
+        # subsecciones sólo después de agotar las secciones principales.
+        if required > available_height:
+            required = self._fold_options_subsections_to_fit(
+                required_height, available_height,
+                protected=requested_subsection)
+
         if required > available_height:
             log_event(f"El panel sigue excediendo el área disponible al abrir {requested}: requerido={required}, disponible={available_height}",
                 origin="PANEL", level="WARN", reason="LAYOUT")
@@ -352,6 +425,27 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         self.options_section.set_expanded(sections.get("options", True))
         self.favorites_section.set_expanded(sections.get("favorites", True))
         self.sources_section.set_expanded(sections.get("sources", True))
+        self.options_section.restore_subsection_states(
+            settings.get("panel", {}).get("options_subsections", {}))
+
+        # Recuperar la última selección por identidad lógica.
+        # Expandir sus ancestros antes de seleccionarla evita perder
+        # el puntero cuando la carpeta está dentro de una rama plegada.
+        selected_path = settings.get("panel", {}).get("selected_source_path")
+
+        if selected_path is not None:
+            tree = self.sources_section.sources_tree
+
+            def restore_selection(model, path, tree_iter, *args):
+                if model.get_value(tree_iter, 2) != selected_path:
+                    return False
+
+                tree.expand_to_path(path)
+                tree.get_selection().select_path(path)
+                tree.scroll_to_cell(path, None, True, 0.5, 0.0)
+                return True
+
+            self.sources_section.sources_model.foreach(restore_selection)
 
         GLib.idle_add(self._fit_collapsed)
 
@@ -396,6 +490,12 @@ class WMMControlPanel(Gtk.ApplicationWindow):
                         f"Favoritos plegada automáticamente para ajustar el panel: "
                         f"requerido={required}, disponible={available_height}",
                         origin="PANEL", level="DEBUG", reason="LAYOUT")
+
+                # Si Fuentes y Favoritos no liberan suficiente altura,
+                # continuar con las subsecciones de Opciones.
+                if required > available_height:
+                    required = self._fold_options_subsections_to_fit(
+                        required_height, available_height)
 
                 if required > available_height:
                     log_event(
@@ -473,7 +573,10 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         bar.set_margin_start(0)
         bar.set_margin_end(6)
 
-        expand_btn = Gtk.Button(label="▶")
+        expand_btn = Gtk.Button.new_from_icon_name(
+            "media-playback-start-symbolic", Gtk.IconSize.BUTTON)
+        expand_btn.get_image().set_pixel_size(14)
+
         expand_btn.set_tooltip_text(_("Expand side panel"))
         expand_btn.connect("clicked", lambda *_: self._set_left_panel_collapsed(False))
         bar.pack_start(expand_btn, False, False, 0)
@@ -510,7 +613,10 @@ class WMMControlPanel(Gtk.ApplicationWindow):
             'get_edit_mode_active': lambda: self.backend.edit_mode_active,
             'get_loading_state': lambda: self._loading,
             'get_fav_rotation_switch': lambda: self.favorites_section.fav_rotation_switch,
+            'set_selective_rotation_mode':
+                lambda enabled: self.sources_section.set_selective_mode(enabled),
             'get_parent_window': lambda: self,
+            'refresh_online_sources': lambda: self.sources_section.on_refresh_sources_clicked(None),
             'get_application': lambda: self.get_application(),
             'save_window_size': self._save_window_size,
             'on_open_debug_log': self._on_open_debug_log,
@@ -533,6 +639,9 @@ class WMMControlPanel(Gtk.ApplicationWindow):
             'get_loading_state': lambda: self._loading,
             'get_edit_mode_active': lambda: self.backend.edit_mode_active,
             'get_parent_window': lambda: self,
+            'refresh_online_sources': lambda: self.sources_section.on_refresh_sources_clicked(None),
+            'mark_online_incorporated': lambda paths:
+                self.thumbnails_section.online_section.mark_incorporated_originals(paths),
         }
 
     # ==========================================================
@@ -543,6 +652,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         return {
             'on_load_preset_to_edit': self._on_load_preset_to_edit,
             'on_update_mode_info_label': self.options_section._update_mode_info_label,
+            'notify_engine': self._notify_engine,
             'on_show_warning_dialog': self._show_warning_dialog,
             'on_single_favorites_changed': self._refresh_single_favorites,
             'get_loading_state': lambda: self._loading,
@@ -558,9 +668,8 @@ class WMMControlPanel(Gtk.ApplicationWindow):
             'begin_sources_operation': self._begin_sources_operation,
             'finish_sources_operation': self._finish_sources_operation,
             'is_sources_operation_active': self._is_sources_operation_active,
+            'is_sources_tree_rebuilding': lambda: self.sources_section._rebuilding_sources_tree,
             'set_progress_active': self._set_progress_active,
-            'load_bookmarks_single': self.favorites_section._load_bookmarks_single,
-            'load_thumbnails': self.thumbnails_section._load_thumbnails,
             'get_parent_window': lambda: self,
             'on_single_favorites_changed': self._refresh_single_favorites,
         }
@@ -575,6 +684,18 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         self.thumbnails_section._load_favorites_view()
         return False
 
+    def create_context_menu(self):
+        """Crea un menú GTK y delega su presentación nativa al SO."""
+        menu = Gtk.Menu()
+        menu.get_style_context().add_class("wmm-themed-separators")
+
+        # Windows desactiva las decoraciones que generan el marco azul
+        # del tema win32. Linux conserva el comportamiento GTK original.
+        if hasattr(self.platform, "prepare_gtk_context_menu"):
+            self.platform.prepare_gtk_context_menu(menu)
+
+        return menu
+
     def _create_section_label(self, text):
         """Crea una etiqueta de sección con formato."""
         label = Gtk.Label()
@@ -582,10 +703,81 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         label.set_halign(Gtk.Align.START)
         return label
 
+    def _monitor_header_offset(self):
+        """Altura fija anterior al Paned, incluida la separación visual."""
+        return (self.monitors_section._header_box.get_preferred_height()[1]
+            + self.right_col.get_spacing())
+
+    def _on_monitor_split_pressed(self, paned, event):
+        """Registra únicamente movimientos iniciados sobre el tirador."""
+        if event.button == 1 and event.window == paned.get_handle_window():
+            self._monitor_split_drag_start = paned.get_position()
+        return False
+
+    def _on_monitor_split_released(self, paned, event):
+        """Consolida la calidad cuando termina un movimiento del tirador."""
+        if event.button != 1 or self._monitor_split_drag_start is None:
+            return False
+
+        initial = self._monitor_split_drag_start
+        self._monitor_split_drag_start = None
+
+        if paned.get_position() != initial:
+            self._on_monitor_split_changed(paned)
+            self.monitors_section._refresh_visual_preview_quality()
+
+        return False
+
+    def _initialize_monitor_split(self):
+        """Aplica el reparto natural inicial o la posición persistida."""
+        section = self.monitors_section
+        section.on_panel_realized()
+
+        if not self._monitor_split_has_saved_position:
+            natural_h = section.monitor_group_box.get_preferred_height()[1]
+            self.monitor_thumb_paned.set_position(natural_h)
+
+        self._on_monitor_split_changed(self.monitor_thumb_paned)
+        return GLib.SOURCE_REMOVE
+
+    def _on_monitor_split_changed(self, paned, _pspec=None):
+        """Limita la expansión vertical al espacio útil de los monitores."""
+        section = self.monitors_section
+        if not section._panel_realized:
+            return
+
+        controls_h = (section._switch_align_box.get_preferred_height()[1]
+            + section._button_align_box.get_preferred_height()[1])
+
+        area_w = section._monitor_resize_area.get_allocated_width()
+        position = paned.get_position()
+
+        # La anchura física limita cuánto pueden crecer los monitores.
+        max_canvas_h = section._get_max_visual_area_height(area_w)
+        if max_canvas_h is not None:
+            max_position = controls_h + max_canvas_h
+            if position > max_position:
+                position = max_position
+                paned.set_position(position)
+
+        # Por debajo del mínimo visual, conservar el recorte progresivo.
+        section._apply_visual_layout(area_w, position - controls_h)
+
     def _restore_window_size(self):
         """Solicita el último tamaño guardado; la workarea actual conserva la autoridad final."""
         settings = self.backend.load_json("settings")
-        window_size = settings.get("panel", {}).get("window_size", {})
+        panel_state = settings.get("panel", {})
+
+        # La posición persistida incluye la cabecera fija.
+        split_position = panel_state.get("monitors_split_position")
+        self._monitor_split_has_saved_position = (
+            type(split_position) is int and split_position > 0)
+
+        if self._monitor_split_has_saved_position:
+            self.monitor_thumb_paned.set_position(
+                max(0, split_position - self._monitor_header_offset()))
+
+        window_size = panel_state.get("window_size", {})
 
         if not isinstance(window_size, dict):
             return
@@ -601,7 +793,7 @@ class WMMControlPanel(Gtk.ApplicationWindow):
             origin="PANEL", level="DEBUG", reason="LAYOUT")
 
     def _save_window_size(self):
-        """Guarda el tamaño efectivo actual del Panel al finalizar limpiamente."""
+        """Guarda tamaño y selección de Sources al finalizar limpiamente."""
         width, height = self.get_size()
 
         if width <= 0 or height <= 0:
@@ -609,10 +801,22 @@ class WMMControlPanel(Gtk.ApplicationWindow):
 
         settings = self.backend.load_json("settings")
         panel_state = settings.setdefault("panel", {})
-        panel_state["window_size"] = {
-            "width": int(width),
-            "height": int(height),
-        }
+        panel_state["window_size"] = { "width": int(width), "height": int(height), }
+
+        # Persistir el reparto junto con la geometría de la ventana,
+        # nunca durante cada movimiento del separador.
+        split_position = self.monitor_thumb_paned.get_position()
+        if split_position > 0:
+            panel_state["monitors_split_position"] = int(
+                split_position + self._monitor_header_offset())
+
+        # La selección se identifica por su ruta, no por su posición GTK.
+        # Se guarda junto al tamaño para evitar escrituras en cada clic.
+        selection = self.sources_section.sources_tree.get_selection()
+        model, tree_iter = selection.get_selected()
+        panel_state["selected_source_path"] = (
+            model.get_value(tree_iter, 2) if tree_iter else None)
+
         self.backend.save_json("settings", settings)
         log_event(f"Tamaño del Panel guardado: {width}x{height}",
             origin="PANEL", level="DEBUG", reason="SETTINGS")
@@ -760,43 +964,74 @@ class WMMControlPanel(Gtk.ApplicationWindow):
     # ==========================================================
     # CARGA DE PREFERENCIAS DESDE SETTINGS.JSON
     # ==========================================================
+
     def _load_settings(self):
         """Carga los ajustes desde settings.json y actualiza la interfaz."""
         self._loading = True
         settings = self.backend.load_settings()
-
-        # Sincronizar switches y combos de OptionsSection
         opts = self.options_section
-        opts.slideshow_switch.set_active(settings.get("slideshow_enabled", True))
-        opts.mode_switch.set_active(settings.get("slideshow_mode", "sync") == "sync")
-        opts.max_interval_spin.set_value(settings.get("slideshow_max_interval", 60))
-        opts.rotation_spin.set_value(settings.get("slideshow_interval", 15))
-        opts.persist_switch.set_active(not settings.get("persist_on_reboot", True))
-        opts.spanned_switch.set_active(settings.get("spanned_enabled", False))
 
+        # ----------------------------------------------------------
+        # CHANGE WALLPAPER ON STARTUP
+        # ----------------------------------------------------------
+        # --- Change wallpaper on startup ---
+        opts.persist_switch.set_active(
+            not settings.get("persist_on_reboot", True))
+
+        # --- Match monitor orientation ---
+        opts.match_orientation_switch.set_active(
+            settings.get("match_orientation", True))
+
+        # --- Selective rotation ---
+        opts.selective_rotation_switch.set_active(
+            settings.get("selective_rotation_enabled", False))
+        opts.refresh_selective_rotation_availability()
+
+        # Durante la carga, notify::active no propaga cambios a Sources.
+        # Reflejar explícitamente el estado persistido del modo selectivo.
+        self.sources_section.set_selective_mode(
+            opts.selective_rotation_switch.get_active())
+
+        # --- Slideshow mode ---
+        opts.mode_switch.set_active(
+            settings.get("slideshow_mode", "sync") == "sync")
+
+        # ----------------------------------------------------------
+        # SPANNED
+        # ----------------------------------------------------------
+        # --- Spanned ---
+        opts.spanned_switch.set_active(
+            settings.get("spanned_enabled", False))
+
+        # --- Picture aspect ---
         mode = settings.get("wallpaper_mode", "fit")
         keys = list(ConfigHandler.ASPECT_MODES.keys())
         index = keys.index(mode) if mode in keys else 0
         opts.aspect_combo.set_active(index)
 
+        # --- Image Effect ---
         wallpaper_effect = settings.get("wallpaper_effect", "none")
         keys = list(ConfigHandler.IMAGE_EFFECT.keys())
-        index = keys.index(wallpaper_effect) if wallpaper_effect in ConfigHandler.IMAGE_EFFECT else 0
+        index = (keys.index(wallpaper_effect)
+            if wallpaper_effect in ConfigHandler.IMAGE_EFFECT else 0)
         opts.image_effect_combo.set_active(index)
 
+        # --- Background Effect ---
         wallpaper_effect_scope = settings.get("wallpaper_effect_scope", "blur")
         keys = list(ConfigHandler.BACK_EFFECT.keys())
-        index = keys.index(wallpaper_effect_scope) if wallpaper_effect_scope in ConfigHandler.BACK_EFFECT else 0
+        index = (keys.index(wallpaper_effect_scope)
+            if wallpaper_effect_scope in ConfigHandler.BACK_EFFECT else 0)
         opts.back_effect_combo.set_active(index)
 
+        # --- Background color ---
         color_mode = settings.get("color_mode", "solid_color")
         keys = list(ConfigHandler.COLOR_MODES.keys())
         index = keys.index(color_mode) if color_mode in keys else 0
         opts.bg_mode_combo.set_active(index)
         opts._update_bg_color_buttons(color_mode)
 
-        # Colores
-        self._set_btn_color(opts.solid_color_btn, settings.get("solid_color", "#000000"))
+        self._set_btn_color(
+            opts.solid_color_btn, settings.get("solid_color", "#000000"))
         grad_h = settings.get("gradient_h", ["#000000", "#8D9797"])
         self._set_btn_color(opts.grad_h_start_btn, grad_h[0])
         self._set_btn_color(opts.grad_h_end_btn, grad_h[1])
@@ -804,17 +1039,79 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         self._set_btn_color(opts.grad_v_start_btn, grad_v[0])
         self._set_btn_color(opts.grad_v_end_btn, grad_v[1])
 
-        # Sincronizar switch de favoritos
-        self.favorites_section.fav_rotation_switch.set_active(settings.get("slideshow_bookmark", False))
+        # ----------------------------------------------------------
+        # SLIDESHOW
+        # ----------------------------------------------------------
+        # --- Slideshow ---
+        opts.slideshow_switch.set_active(
+            settings.get("slideshow_enabled", True))
 
-        # Actualizar label de modo
+        # --- Max. Frequency ---
+        opts.max_interval_spin.set_value(
+            settings.get("slideshow_max_interval", 60))
+
+        # --- Slideshow every ---
+        opts.rotation_spin.set_value(
+            settings.get("slideshow_interval", 15))
+
+        # ----------------------------------------------------------
+        # IMAGE METADATA
+        # ----------------------------------------------------------
+        # --- Image Metadata ---
+        opts.metadata_switch.set_active(
+            settings.get("exif_metadata_enabled", False))
+
+        # --- Visible fields ---
+        # Los campos se leen al abrir su diálogo, no durante esta carga.
+
+        # --- Font and size ---
+        opts.metadata_font_button.set_font(
+            settings.get("exif_metadata_font", "Sans 12"))
+
+        # --- Position ---
+        position = settings.get("exif_metadata_position", "top_left")
+        if position not in ConfigHandler.METADATA_POSITIONS:
+            position = "top_left"
+        opts.metadata_position_combo.set_active_id(position)
+
+        # --- Horizontal margin ---
+        opts.metadata_margin_x_scale.set_value(
+            max(0, min(100, settings.get("exif_metadata_margin_x", 64))))
+
+        # --- Vertical margin ---
+        opts.metadata_margin_y_scale.set_value(
+            max(0, min(100, settings.get("exif_metadata_margin_y", 42))))
+
+        # --- Background opacity ---
+        opacity = settings.get("exif_metadata_background_opacity", 40)
+        opts.metadata_opacity_scale.set_value(
+            max(0, min(100, opacity)))
+
+        # ----------------------------------------------------------
+        # FAVORITES
+        # ----------------------------------------------------------
+        # --- Favorites rotation ---
+        self.favorites_section.fav_rotation_switch.set_active(
+            settings.get("slideshow_bookmark", False))
+
+        # La etiqueta Sync/Async depende también del modo Favorites.
+        # Actualizarla sólo después de cargar ambos switches.
         opts._update_mode_info_label()
 
-        # Restaurar alineación del grupo de monitores
+        # ----------------------------------------------------------
+        # DISPLAYS
+        # ----------------------------------------------------------
+        # --- Monitor group alignment ---
         align_value = settings.get("monitor_group_align", "START")
-        align_map = {"START": Gtk.Align.START, "CENTER": Gtk.Align.CENTER, "END": Gtk.Align.END}
-        self.monitors_section.monitor_group_box.set_halign(align_map.get(align_value, Gtk.Align.START))
-        self.monitors_section._update_align_labels(align_map.get(align_value, Gtk.Align.START))
+        align_map = {
+            "START": Gtk.Align.START,
+            "CENTER": Gtk.Align.CENTER,
+            "END": Gtk.Align.END
+        }
+        self.monitors_section.monitor_group_box.set_halign(
+            align_map.get(align_value, Gtk.Align.START))
+        self.monitors_section._update_align_labels(
+            align_map.get(align_value, Gtk.Align.START))
 
         self._loading = False
 
@@ -839,11 +1136,31 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         if preset_monitors is None:
             return
 
+        # Cargar un preset restablece la edición virtual, incluso si
+        # anteriormente estaba activa la vista física desde Online.
+        self.monitors_section._edit_live_preview = False
+
         # Actualizar UI
         self.monitors_section._current_preset_name = preset_name
         self.fav_checkbox.set_active(True)
 
         # Sincronizar UI de edición con valores temporales del backend
+        # Restaurar la relación de aspecto sin interpretar el cambio
+        # visual del combo como una nueva edición de la composición.
+        if self.backend.edit_temp_wp_mode is not None:
+            keys = list(ConfigHandler.ASPECT_MODES.keys())
+            mode = self.backend.edit_temp_wp_mode
+            index = keys.index(mode) if mode in keys else 0
+
+            combo = self.monitors_section.aspect_combo_edit
+            callback = self.monitors_section._on_aspect_edit_changed
+
+            combo.handler_block_by_func(callback)
+            try:
+                combo.set_active(index)
+            finally:
+                combo.handler_unblock_by_func(callback)
+
         if self.backend.edit_temp_spanned_enabled is not None:
             self.monitors_section.spanned_switch_edit.set_active(self.backend.edit_temp_spanned_enabled)
         if self.backend.edit_temp_image_effect is not None:
@@ -895,26 +1212,16 @@ class WMMControlPanel(Gtk.ApplicationWindow):
     # GESTIÓN DE PID Y SEÑALES DEL MOTOR
     # ==========================================================
     def _setup_panel_communications(self):
-        """Registra el PID del panel e instala el monitor de archivos."""
-        pid_path = os.path.join(self.handler.cache_dir, "pid_panel.pid")
-        os.makedirs(os.path.dirname(pid_path), exist_ok=True)
+        """Instala el canal de eventos entre el engine y el panel."""
 
-        if os.path.exists(pid_path):
-            try:
-                with open(pid_path, "r") as f: old_pid = int(f.read().strip())
-                os.kill(old_pid, 0)
-                log_event(f"Otro panel ya está corriendo (PID {old_pid})",
-                    origin="PANEL", level="WARN", reason="NOTIFY")
-            except (OSError, ValueError):
-                pass
-
-        with open(pid_path, "w") as f:
-            f.write(str(os.getpid()))
-        log_event(f"PID {os.getpid()} registrado en {pid_path}",
-            origin="PANEL", level="INFO", reason="NOTIFY")
-
-        # Monitor de archivos para recibir eventos del motor
-        self._setup_panel_monitor()
+        # Las plataformas con transporte nativo reciben los eventos del engine
+        # directamente. Las demás conservan command_panel.json + FileMonitor.
+        if self.platform.start_receiving_panel_events(
+                self._process_panel_event):
+            log_event("Canal nativo de eventos del panel iniciado",
+                origin="PANEL", level="INFO", reason="COMMAND")
+        else:
+            self._setup_panel_monitor()
 
     def _setup_panel_monitor(self):
         """Configura el Gio.FileMonitor para escuchar command_panel.json."""
@@ -930,70 +1237,83 @@ class WMMControlPanel(Gtk.ApplicationWindow):
         log_event("Monitor de command_panel.json iniciado. Esperando eventos del motor...",
             origin="PANEL", level="INFO", reason="COMMAND")
 
-    def _on_panel_file_changed(self, monitor, file, other_file, event_type):
-        """Callback asíncrono cuando el motor escribe en command_panel.json."""
-        try:
+    def _process_panel_event(self, event):
+        """
+        Procesa un evento recibido del engine independientemente del transporte.
 
+        FileMonitor y los transportes nativos convergen aquí para mantener una
+        única autoridad sobre las acciones que actualizan el panel.
+        """
+        action = event.get("action", "")
+
+        if not action:
+            return
+
+        log_event(f"Evento recibido del motor: {action}",
+            origin="PANEL", level="DEBUG", reason="COMMAND")
+
+        if action == "wallpaper_changed":
+            GLib.idle_add(self.monitors_section._load_monitors_normal)
+
+        elif action == "settings_updated":
+            GLib.idle_add(self._load_settings)
+
+        elif action == "bookmarks_updated":
+            GLib.idle_add(self.favorites_section._load_presets)
+            GLib.idle_add(self._refresh_single_favorites)
+
+        elif action == "hardware_changed":
+            GLib.idle_add(self.monitors_section._refresh_after_hardware_change)
+
+            # Windows: workaround GTK para recuperar el D&D después
+            # de un cambio de topología física de monitores.
+            if self.platform.platform == "win32":
+                GLib.idle_add(self.platform.recover_dnd_after_topology_change, self)
+
+        elif action == "shutdown":
+            log_event("Cierre solicitado por el engine",
+                origin="PANEL", level="INFO", reason="COMMAND")
+            self._on_delete_event(None, None)
+
+        else:
+            log_event(f"Acción desconocida recibida del motor: {action}",
+                origin="PANEL", level="WARN", reason="COMMAND")
+
+    def _on_panel_file_changed(self, monitor, file, other_file, event_type):
+        """Recibe eventos del engine mediante command_panel.json."""
+        try:
             if event_type != Gio.FileMonitorEvent.CHANGES_DONE_HINT:
                 return
+
             command_path = file.get_path()
+
             with open(command_path, "r", encoding="utf-8") as f:
                 event = json.load(f)
-            action = event.get("action", "")
 
-            # Refuerzo anti-eco: si no hay acción, no hacemos nada
-            if not action:
+            if not event.get("action"):
                 return
 
-            log_event(f"Evento recibido del motor: {action}",
-                origin="PANEL", level="DEBUG", reason="COMMAND")
-
-            # Limpiamos el buzón (esto disparará otro evento, pero la condición de arriba lo parará)
+            # Vaciar inmediatamente el buzón para evitar reprocesados.
             with open(command_path, "w", encoding="utf-8") as f:
                 json.dump({}, f)
 
-            # --- DISPATCH DE LA ACCIÓN ---
-            if action == "wallpaper_changed":
-                GLib.idle_add(self.monitors_section._load_monitors_normal)
-            elif action == "settings_updated":
-                GLib.idle_add(self._load_settings)
-            elif action == "bookmarks_updated":
-                GLib.idle_add(self.favorites_section._load_presets)
-                GLib.idle_add(self._refresh_single_favorites)
-            elif action == "hardware_changed":
-                GLib.idle_add(self.monitors_section._load_monitors_normal)
-            elif action == "shutdown":
-                log_event("Cierre solicitado por el engine",
-                    origin="PANEL", level="INFO", reason="COMMAND")
-                self._on_delete_event(None, None)
-            else:
-                log_event(f"Acción desconocida recibida del motor: {action}",
-                    origin="PANEL", level="WARN", reason="COMMAND")
+            self._process_panel_event(event)
 
         except json.JSONDecodeError:
-            # El archivo estaba a medias, lo ignoramos
+            # El archivo estaba a medias, lo ignoramos.
             pass
+
         except Exception as e:
             log_event(f"Error al procesar evento del motor: {e}",
                 origin="PANEL", level="ERROR", reason="COMMAND")
 
     def _on_delete_event(self, widget, event):
-        """Guarda el tamaño final y limpia el PID/monitor al cerrar."""
+        """Guarda el tamaño final y limpia el monitor al cerrar."""
         self._save_window_size()
 
         # Cancelar el monitor de archivos
         if hasattr(self, '_panel_monitor') and self._panel_monitor:
             self._panel_monitor.cancel()
-
-        pid_path = os.path.join(self.handler.cache_dir, "pid_panel.pid")
-        if os.path.exists(pid_path):
-            try:
-                os.remove(pid_path)
-                log_event("Archivo PID eliminado. Cierre limpio",
-                    origin="PANEL", level="INFO", reason="NOTIFY")
-            except Exception as e:
-                log_event(f"Error al eliminar PID: {e}",
-                    origin="PANEL", level="ERROR", reason="NOTIFY")
 
         app = self.get_application()
         if app:
@@ -1009,15 +1329,21 @@ class PanelApplication(Gtk.Application):
 
     def do_activate(self):
         """Crea o presenta el panel y evita instancias huérfanas si falla el arranque."""
+        def present(window):
+            if hasattr(window.platform, "present_window"):
+                window.platform.present_window(window)
+            else:
+                window.present()
+
         if self.window:
-            self.window.present()
+            present(self.window)
             return
 
         try:
             window = WMMControlPanel(self)
             self.add_window(window)
             self.window = window
-            window.present()
+            present(window)
 
         except Exception as e:
             # El traceback debe quedar disponible incluso si el logger de WMM

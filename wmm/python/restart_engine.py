@@ -15,7 +15,6 @@ import os
 import sys
 import time
 import subprocess
-import fcntl
 
 # Configurar el path del proyecto
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -39,13 +38,8 @@ def main():
     engine_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "main.py")
 
     # 1. Lanzar el nuevo motor
-    subprocess.Popen(
-        ["python3", engine_path],
-        start_new_session=True,
-        env=os.environ.copy(),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
-    )
+    subprocess.Popen([sys.executable, engine_path], start_new_session=True,
+        env=os.environ.copy(), stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
     # 2. Verificar que el nuevo engine mantiene el lock de instancia
     time.sleep(0.9)  # Margen para completar el arranque
@@ -53,47 +47,49 @@ def main():
     engine_running = False
 
     if os.path.exists(pid_path):
+        stage = "abrir archivo PID"
+
         try:
             with open(pid_path, "r+") as pid_file:
-                try:
-                    fcntl.flock(
-                        pid_file.fileno(),
-                        fcntl.LOCK_EX | fcntl.LOCK_NB
-                    )
-                except BlockingIOError:
+                stage = "comprobar bloqueo"
+                lock_acquired = pm.try_lock_file(pid_file)
+
+                if not lock_acquired:
                     # El lock pertenece al engine activo.
                     engine_running = True
                 else:
                     # Nadie mantiene el lock: el archivo es sólo un resto obsoleto.
-                    fcntl.flock(pid_file.fileno(), fcntl.LOCK_UN)
+                    stage = "liberar bloqueo obsoleto"
+                    pm.unlock_file(pid_file)
 
-        except OSError:
-            pass
+        except FileNotFoundError as error:
+            # El archivo puede desaparecer entre exists() y open().
+            if stage != "abrir archivo PID":
+                log_event(
+                    f"Error verificando nuevo Engine: etapa={stage}; "
+                    f"archivo={pid_path!r}; causa={error}",
+                    origin="RESTART", level="ERROR", reason="COMMAND")
+
+        except OSError as error:
+            log_event(
+                f"Error verificando nuevo Engine: etapa={stage}; "
+                f"archivo={pid_path!r}; causa={error}",
+                origin="RESTART", level="ERROR", reason="COMMAND")
 
     if engine_running:
         ch._send_notification(
             reason="WMM: " + _("Engine restarted"),
             detail_msg=_("The engine has been restarted successfully."),
-            level="info"
-        )
-        log_event(
-            "Engine reiniciado correctamente",
-            origin="RESTART",
-            level="INFO",
-            reason="COMMAND"
-        )
+            level="info")
+        log_event("Engine reiniciado correctamente",
+            origin="RESTART", level="INFO", reason="COMMAND")
     else:
         ch._send_notification(
             reason="WMM: " + _("Engine restart failed"),
             detail_msg=_("The engine could not be started. Check the debug log."),
-            level="error"
-        )
-        log_event(
-            "El engine no arrancó tras el reinicio",
-            origin="RESTART",
-            level="ERROR",
-            reason="COMMAND"
-        )
+            level="error")
+        log_event("El engine no arrancó tras el reinicio",
+            origin="RESTART", level="ERROR", reason="COMMAND")
 
 if __name__ == "__main__":
     main()

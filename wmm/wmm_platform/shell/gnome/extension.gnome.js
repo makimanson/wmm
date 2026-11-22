@@ -9,6 +9,7 @@
 import Gio from 'gi://Gio';
 import Clutter from 'gi://Clutter';
 import GLib from 'gi://GLib';
+import GObject from 'gi://GObject';
 import St from 'gi://St';
 import Meta from 'gi://Meta';
 import Gettext from 'gettext';
@@ -17,6 +18,34 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import * as Slider from 'resource:///org/gnome/shell/ui/slider.js';
 import * as PanelMenu from 'resource:///org/gnome/shell/ui/panelMenu.js';
+
+const WMMPanelButton = GObject.registerClass(
+class WMMPanelButton extends PanelMenu.Button {
+    _init(owner) {
+        super._init(0.0, 'WMM', false);
+
+        this._owner = owner;
+
+        /*
+         * GNOME <= 49 procesa los clics desde vfunc_event().
+         * GNOME >= 50 usa un ClickGesture interno que se ejecuta antes.
+         * Desactivarlo cuando existe deja una única autoridad para todo
+         * el rango soportado: nuestro vfunc_event().
+         */
+        this._clickGesture?.set_enabled(false);
+    }
+
+    vfunc_event(event) {
+        if (event.type() === Clutter.EventType.BUTTON_PRESS) {
+            const result = this._owner?._onPanelButtonPress(event);
+
+            if (result === Clutter.EVENT_STOP)
+                return Clutter.EVENT_STOP;
+        }
+
+        return super.vfunc_event(event);
+    }
+});
 
 // Mutter's window/workarea information is only available from inside GNOME Shell.
 // Expose the minimum interface required by gnome.py to query the usable area
@@ -31,9 +60,14 @@ const workareaInterface = `
       <arg name="pid" type="u" direction="in"/>
       <arg name="area" type="s" direction="out"/>
     </method>
+    <method name="GetPointAvailableArea">
+      <arg name="x" type="i" direction="in"/>
+      <arg name="y" type="i" direction="in"/>
+      <arg name="area" type="s" direction="out"/>
+    </method>
     <method name="PurgeBackgroundCache">
       <arg name="path" type="s" direction="in"/>
-      <arg name="purged" type="b" direction="out"/>
+      <arg name="handled" type="b" direction="out"/>
     </method>
   </interface>
 </node>`;
@@ -91,13 +125,20 @@ export default class WMMExtension {
         this._currentMaxInterval = 60;
         this.favItems = [];
         this._syncingUI = false;
-        this._keepMenuOpen = false;
-        this._isForcedOpen = false;
         this._button = null;
         this._menu = null;
+        this._contextMenu = null;
+        this._contextMenuManager = null;
+        this._deleteConfirmMenu = null;
         this._icon = null;
+        this._tooltip = null;
+        this._tooltipTitle = null;
+        this._tooltipText = null;
+        this._tooltipTimeoutId = 0;
+        this._tooltipHoverSignalId = 0;
         this._motorBusy = true;
         this._busySignalId = 0;
+        this._bookmarksSignalId = 0;
         this._workareaDbus = null;
         this._workareaOwnerId = 0;
     }
@@ -107,8 +148,11 @@ export default class WMMExtension {
         GLib.spawn_async(null, ["python3", this.enginePath], null, GLib.SpawnFlags.SEARCH_PATH, null);
 
         // Panel button
-        this._button = new PanelMenu.Button(0.0, 'WMM', false);
+        this._button = new WMMPanelButton(this);
 
+        // GNOME 50+ abre PanelMenu.Button mediante un ClickGesture interno,
+        // mientras que versiones anteriores lo hacen desde el evento del actor.
+        // WMM necesita distinguir ambos botones de forma uniforme en GNOME 45–51.
         this._icon = new St.Icon({
             icon_name: 'view-refresh',
             style_class: 'system-status-icon'
@@ -165,27 +209,197 @@ export default class WMMExtension {
             return;
 
         // From this point the translation catalog is already available.
-        this._button.container.tooltip_text = 'WMM: ' + _('Wallpaper Multi-Monitor Manager') + '\n' +
-            _('Click action') + ': ' + _('Next Background') + '\n' +
-            _('Secondary Click') + ': ' + _('Context Menu');
-
         this._menu = this._button.menu;
+
+        // GNOME Shell cierra el submenú anterior al abrir otro.
+        // WMM permite mantener varios desplegados hasta que el usuario los cierre.
+        this._menu._setOpenedSubMenu = () => {};
+
         this._populateMenu();
 
+        this._contextMenu = new PopupMenu.PopupMenu(
+            this._button, 0.0, St.Side.TOP
+        );
+        this._contextMenu.actor.add_style_class_name('panel-menu');
+        Main.uiGroup.add_child(this._contextMenu.actor);
+        this._contextMenu.actor.hide();
+
+        this._contextMenuManager = new PopupMenu.PopupMenuManager(this._button);
+        this._contextMenuManager.addMenu(this._contextMenu);
+
+        this._populateContextMenu();
+        this._createTooltip();
+        this._subscribeBookmarksState();
         this._subscribeBusyState();
         this._refreshBusyState();
+    }
 
-        this._menu.connect('open-state-changed', (menu, open) => {
-            if (!open && this._keepMenuOpen) {
-                this._keepMenuOpen = false;
-                GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-                    this._isForcedOpen = true;
-                    menu.open();
-                    this._refreshSettingsFromDisk(false);
-                    return false;
-                });
-            }
+    _createTooltip() {
+        if (this._tooltip || !this._button)
+            return;
+
+        this._tooltip = new St.BoxLayout({
+            style_class: 'wmm-tooltip',
+            reactive: false,
+            visible: false
         });
+        this._tooltip.get_layout_manager().set_orientation(
+            Clutter.Orientation.VERTICAL
+        );
+
+        this._tooltipTitle = new St.Label({
+            style_class: 'wmm-tooltip-title'
+        });
+
+        this._tooltipText = new St.Label();
+
+        this._tooltip.add_child(this._tooltipTitle);
+        this._tooltip.add_child(this._tooltipText);
+
+        Main.uiGroup.add_child(this._tooltip);
+
+        this._button.set_track_hover(true);
+        this._tooltipHoverSignalId = this._button.connect(
+            'notify::hover',
+            () => {
+                if (this._button.hover)
+                    this._scheduleTooltip();
+                else
+                    this._hideTooltip();
+            }
+        );
+    }
+
+    _scheduleTooltip() {
+        this._cancelTooltipTimeout();
+
+        // Retardo deliberado: pasar simplemente sobre el icono no debe
+        // convertir el tooltip en ruido visual.
+        this._tooltipTimeoutId = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT,
+            400,
+            () => {
+                this._tooltipTimeoutId = 0;
+
+                if (this._button?.hover &&
+                        !this._menu?.isOpen &&
+                        !this._contextMenu?.isOpen)
+                    this._showTooltip();
+
+                return GLib.SOURCE_REMOVE;
+            }
+        );
+    }
+
+    _scheduleMenuItemTooltip(item) {
+        this._cancelTooltipTimeout();
+
+        this._tooltipTimeoutId = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT,
+            400,
+            () => {
+                this._tooltipTimeoutId = 0;
+
+                if (item?.hover && this._menu?.isOpen) {
+                    this._tooltipTitle.hide();
+                    this._tooltipText.set_text(_('Secondary click: assign a keyboard shortcut'));
+                    this._showTooltipFor(item, true);
+                }
+
+                return GLib.SOURCE_REMOVE;
+            }
+        );
+    }
+
+    _cancelTooltipTimeout() {
+        if (!this._tooltipTimeoutId)
+            return;
+
+        GLib.Source.remove(this._tooltipTimeoutId);
+        this._tooltipTimeoutId = 0;
+    }
+
+    _showTooltip() {
+        if (!this._tooltip)
+            return;
+
+        this._tooltipTitle.set_text('Wallpaper Multi-Monitor Manager');
+        this._tooltipTitle.show();
+
+        const text =
+            _('Click action') + ': ' + _('Main Menu') + '\n' +
+            _('Middle Click') + ': ' + _('Next Background') + '\n' +
+            _('Secondary Click') + ': ' + _('Context Menu');
+
+        const escapedText = GLib.markup_escape_text(text, -1);
+
+        this._tooltipText.get_clutter_text().set_markup(
+            `<span line_height="1.18">${escapedText}</span>`
+        );
+
+        this._showTooltipFor(this._button, false);
+    }
+
+    _showTooltipFor(source, preferRight) {
+        if (!this._tooltip || !source)
+            return;
+
+        const monitor = Main.layoutManager.findMonitorForActor(source);
+        if (!monitor)
+            return;
+
+        const [sourceX, sourceY] = source.get_transformed_position();
+        const [sourceWidth, sourceHeight] = source.get_transformed_size();
+
+        const [, tooltipWidth] = this._tooltip.get_preferred_width(-1);
+        const [, tooltipHeight] =
+            this._tooltip.get_preferred_height(tooltipWidth);
+
+        const margin = 8;
+
+        const left = monitor.x + margin;
+        const right = monitor.x + monitor.width - margin;
+        const top = monitor.y + margin;
+        const bottom = monitor.y + monitor.height - margin;
+
+        let x;
+        let y;
+
+        if (preferRight) {
+            // Mostrar junto a la entrada sin abandonar nunca su monitor.
+            x = sourceX + sourceWidth + margin;
+            y = sourceY + (sourceHeight - tooltipHeight) / 2;
+
+            if (x + tooltipWidth > right)
+                x = sourceX - tooltipWidth - margin;
+        } else {
+            // Tooltip del icono del panel.
+            x = sourceX + (sourceWidth - tooltipWidth) / 2;
+            y = sourceY + sourceHeight + margin;
+
+            if (y + tooltipHeight > bottom)
+                y = sourceY - tooltipHeight - margin;
+        }
+
+        x = Math.max(
+            left,
+            Math.min(x, right - tooltipWidth)
+        );
+
+        y = Math.max(
+            top,
+            Math.min(y, bottom - tooltipHeight)
+        );
+
+        this._tooltip.set_position(Math.round(x), Math.round(y));
+        this._tooltip.show();
+    }
+
+    _hideTooltip() {
+        this._cancelTooltipTimeout();
+
+        if (this._tooltip)
+            this._tooltip.hide();
     }
 
     _setMotorBusy(busy) {
@@ -193,6 +407,34 @@ export default class WMMExtension {
 
         if (this._icon)
             this._icon.icon_name = this._motorBusy ? 'view-refresh' : 'video-display';
+    }
+
+    _subscribeBookmarksState() {
+        if (this._bookmarksSignalId)
+            return;
+
+        this._bookmarksSignalId = Gio.DBus.session.signal_subscribe(
+            'org.maki.wmm',
+            'org.maki.wmm',
+            'BookmarksChanged',
+            '/org/maki/wmm',
+            null,
+            Gio.DBusSignalFlags.NONE,
+            (_connection, _sender, _path, _interface, _signal, parameters) => {
+                try {
+                    const [jsonData] = parameters.deepUnpack();
+                    const bookmarks = JSON.parse(jsonData);
+
+                    if (!bookmarks || typeof bookmarks !== 'object')
+                        return;
+
+                    this._cachedBookmarks = bookmarks;
+                    this._paintBookmarks(bookmarks);
+                } catch (e) {
+                    log('WMM BookmarksChanged: ' + e.message);
+                }
+            }
+        );
     }
 
     _subscribeBusyState() {
@@ -258,6 +500,11 @@ export default class WMMExtension {
             this._engineWatchId = 0;
         }
 
+        if (this._bookmarksSignalId) {
+            Gio.DBus.session.signal_unsubscribe(this._bookmarksSignalId);
+            this._bookmarksSignalId = 0;
+        }
+
         if (this._busySignalId) {
             Gio.DBus.session.signal_unsubscribe(this._busySignalId);
             this._busySignalId = 0;
@@ -319,6 +566,31 @@ export default class WMMExtension {
      * The result is returned as "x,y,width,height". An empty string means that
      * Mutter could not find a window for the requested PID.
      */
+    /**
+     * Return the usable area of the monitor containing a global stage point.
+     *
+     * El punto procede de un actor de GNOME Shell, por lo que Mutter debe
+     * conservar la autoridad sobre la selección del monitor y su workarea.
+     */
+    GetPointAvailableArea(x, y) {
+        const monitorIndex = Main.layoutManager.monitors.findIndex(monitor =>
+            x >= monitor.x &&
+            x < monitor.x + monitor.width &&
+            y >= monitor.y &&
+            y < monitor.y + monitor.height
+        );
+
+        if (monitorIndex < 0)
+            return '';
+
+        const workspace = global.workspace_manager.get_active_workspace();
+        if (!workspace)
+            return '';
+
+        const area = workspace.get_work_area_for_monitor(monitorIndex);
+        return `${area.x},${area.y},${area.width},${area.height}`;
+    }
+
     GetWindowAvailableArea(pid) {
         const window = global.display.list_all_windows().find(window => window.get_pid() === pid);
 
@@ -331,28 +603,215 @@ export default class WMMExtension {
 
     PurgeBackgroundCache(path) {
         try {
-            const file = Gio.File.new_for_path(path);
-            Meta.BackgroundImageCache.get_default().purge(file);
+            // GNOME 51 invalida la caché mediante la vigilancia del archivo.
+            // Las versiones anteriores conservan la purga explícita.
+            if (Meta.BackgroundImageCache) {
+                const file = Gio.File.new_for_path(path);
+                Meta.BackgroundImageCache.get_default().purge(file);
+            }
             return true;
         } catch (e) {
             log('WMM background cache purge ERROR: ' + e.message);
             return false;
         }
     }
-    // ── Menu construction (same as Cinnamon) ──────────────
+
+    _onPanelButtonPress(event) {
+        const button = event.get_button();
+        this._hideTooltip();
+        if (button === 1) {
+            if (this._contextMenu?.isOpen)
+                this._contextMenu.close();
+
+            if (this._menu) {
+                // Leer antes de abrir evita cambios de geometría posteriores.
+                // Al regresar del formulario, recuperamos el binding definitivo.
+                if (!this._menu.isOpen)
+                    this._refreshNextBackgroundKeybinding();
+
+                this._menu.toggle();
+            }
+
+            return Clutter.EVENT_STOP;
+        }
+
+        if (button === 2) {
+            if (this._menu?.isOpen)
+                this._menu.close();
+
+            if (this._contextMenu?.isOpen)
+                this._contextMenu.close();
+
+            if (this._motorBusy)
+                return Clutter.EVENT_STOP;
+
+            this._setMotorBusy(true);
+
+            if (!this._sendActionToEngine({ action: 'force_rotation' }))
+                this._refreshBusyState();
+
+            return Clutter.EVENT_STOP;
+        }
+
+        if (button === 3) {
+            if (this._menu?.isOpen)
+                this._menu.close();
+
+            if (this._contextMenu)
+                this._contextMenu.toggle();
+
+            return Clutter.EVENT_STOP;
+        }
+
+        return Clutter.EVENT_PROPAGATE;
+    }
+
+    _refreshNextBackgroundKeybinding() {
+        if (!this.nextBackgroundHotkeyLabel)
+            return;
+
+        let binding = '';
+
+        /*
+         * GNOME conserva el atajo en GSettings, no en settings.json.
+         * Identificamos la entrada por el comando WMM que ejecuta,
+         * nunca por su nombre traducido ni por el índice customN.
+         */
+        try {
+            const settings = Gio.Settings.new(
+                'org.gnome.settings-daemon.plugins.media-keys'
+            );
+
+            const schema =
+                'org.gnome.settings-daemon.plugins.media-keys.custom-keybinding';
+
+            const scriptPath = GLib.canonicalize_filename(
+                this.appDir + '/python/send_command.py',
+                GLib.get_current_dir()
+            );
+
+            for (const path of settings.get_strv('custom-keybindings')) {
+                try {
+                    const custom = Gio.Settings.new_with_path(schema, path);
+                    const command = custom.get_string('command');
+
+                    const [, argv] = GLib.shell_parse_argv(command);
+
+                    if (argv.length !== 4 ||
+                        GLib.canonicalize_filename(argv[1], GLib.get_current_dir()) !== scriptPath ||
+                        argv[3] !== 'HOTKEY')
+                        continue;
+
+                    const payload = JSON.parse(argv[2]);
+
+                    if (payload.action !== 'force_rotation' ||
+                        Object.keys(payload).length !== 1)
+                        continue;
+
+                    // GNOME admite versiones del esquema con binding s o as.
+                    const type = custom.get_value('binding').get_type_string();
+
+                    if (type === 's')
+                        binding = custom.get_string('binding');
+                    else if (type === 'as')
+                        binding = custom.get_strv('binding')[0] || '';
+
+                    break;
+
+                } catch (_error) {
+                    // Una entrada ajena o inválida no debe impedir
+                    // localizar el atajo propio de WMM.
+                    continue;
+                }
+            }
+
+        } catch (error) {
+            log('WMM: Error leyendo el atajo Next Background: ' + error.message);
+        }
+
+        // GNOME Shell no necesita GTK para presentar el acelerador.
+        const labels = {
+            Control: 'Ctrl',
+            Primary: 'Ctrl',
+            Alt: 'Alt',
+            Mod1: 'Alt',
+            Shift: _('Shift'),
+            Super: 'Super',
+            Mod4: 'Super',
+            Meta: 'Meta',
+            Hyper: 'Hyper'
+        };
+
+        const parts = [];
+
+        const key = binding.replace(/<([^>]+)>/g, (_match, modifier) => {
+            parts.push(labels[modifier] || modifier);
+            return '';
+        });
+
+        if (key)
+            parts.push(key.length === 1 ? key.toUpperCase() : key);
+
+        this.nextBackgroundHotkeyLabel.set_text(parts.join(' + '));
+    }
+
+    // ── Menu construction ──
     _populateMenu() {
         // this._menu ya está creado en enable()
 
         // Next Wallpaper — primera opción del menú
         let rotateItem = new PopupMenu.PopupMenuItem(_('Next Background'));
-        rotateItem.connect('activate', () => {
-            this._keepMenuOpen = true;
 
+        // El acelerador se presenta a la derecha, sin alterar la acción
+        // ni los botones admitidos por Next Background.
+        rotateItem.label.x_expand = true;
+
+        this.nextBackgroundHotkeyLabel = new St.Label({
+            text: '',
+            style_class: 'wmm-hotkey-label',
+            y_align: Clutter.ActorAlign.CENTER
+        });
+
+        rotateItem.add_child(this.nextBackgroundHotkeyLabel);
+
+        rotateItem.set_track_hover(true);
+        rotateItem.connect('notify::hover', () => {
+            if (rotateItem.hover)
+                this._scheduleMenuItemTooltip(rotateItem);
+            else
+                this._hideTooltip();
+        });
+        rotateItem.connect('activate', (_item, event) => {
+            // GNOME conecta su cierre después de nuestro callback.
+            // Detener esta emisión conserva el menú abierto sin reabrirlo.
+            GObject.signal_stop_emission_by_name(rotateItem, 'activate');
+
+            // Sólo el botón izquierdo ejecuta la rotación.
+            // El derecho queda reservado para configurar el atajo.
+            const type = event?.type();
+            if (type === Clutter.EventType.BUTTON_PRESS ||
+                type === Clutter.EventType.BUTTON_RELEASE) {
+                const button = event.get_button();
+                if (button === 3) {
+                    // Utilizar el centro del menú antes de cerrarlo: Mutter
+                    // delimitará el formulario a la workarea del monitor.
+                    const [x, y] = this._menu.actor.get_transformed_position();
+                    const [width, height] = this._menu.actor.get_transformed_size();
+
+                    this._menu.close();
+                    this._sendActionToEngine({
+                        action: 'open_keybinding',
+                        x: Math.round(x + width / 2),
+                        y: Math.round(y + height / 2)
+                    });
+                    return;
+                }
+                if (button !== 1)
+                    return;
+            }
             if (this._motorBusy)
                 return;
-
             this._setMotorBusy(true);
-
             if (!this._sendActionToEngine({ action: 'force_rotation' }))
                 this._refreshBusyState();
         });
@@ -361,6 +820,7 @@ export default class WMMExtension {
 
         // Bookmarks
         this.menuBookmarks = new PopupMenu.PopupSubMenuMenuItem(_('Favorites'));
+        this.menuBookmarks.label.add_style_class_name('wmm-inline-header');
         this.menuBookmarks.menu.actor.add_style_class_name('wmm-submenu');
         this._menu.addMenuItem(this.menuBookmarks);
 
@@ -377,11 +837,15 @@ export default class WMMExtension {
         this.favRotationSwitch.connect('toggled', (item, state) => {
             if (this._syncingUI) return;
 
-            this._keepMenuOpen = true;
             if (state && !this.masterItem.state) this._syncTimerUI(true);
             this._updateTimerSettings();
         });
+        this.favRotationSwitch.connect('activate', () => {
+            // Evitar el cierre nativo del menú principal al activar un switch inline.
+            GObject.signal_stop_emission_by_name(this.favRotationSwitch, 'activate');
+        });
         this.menuBookmarks.menu.addMenuItem(this.favRotationSwitch);
+
         this.menuBookmarks.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
         let addBookmarkItem = new PopupMenu.PopupBaseMenuItem({ activate: false, reactive: false });
@@ -394,9 +858,16 @@ export default class WMMExtension {
             track_hover: true
         });
         addBookmarkButton.connect('clicked', () => {
-            this._keepMenuOpen = false;
+            const [x, y] = addBookmarkButton.get_transformed_position();
+            const [width, height] = addBookmarkButton.get_transformed_size();
+
             this._menu.close();
-            this._sendActionToEngine({ action: "add_bookmark" });
+
+            this._sendActionToEngine({
+                action: "add_bookmark",
+                x: Math.round(x + width / 2),
+                y: Math.round(y + height / 2)
+            });
         });
         addBookmarkItem.add_child(addBookmarkButton);
         this.menuBookmarks.menu.addMenuItem(addBookmarkItem);
@@ -405,6 +876,7 @@ export default class WMMExtension {
 
         // Timer
         this.menuTimer = new PopupMenu.PopupSubMenuMenuItem(_('Slideshow'));
+        this.menuTimer.label.add_style_class_name('wmm-inline-header');
         this._menu.addMenuItem(this.menuTimer);
 
         // Switch maestro
@@ -421,17 +893,23 @@ export default class WMMExtension {
         this.masterItem.connect('toggled', (item, state) => {
             if (this._syncingUI) return;
 
-            this._keepMenuOpen = true;
             item.label.set_text(state ? _('Enabled') : _('Disabled'));
             this._syncTimerUI(state);
             this._updateTimerSettings();
         });
+        this.masterItem.connect('activate', () => {
+            // Conservar el submenú abierto sin cerrar y reabrir el popup principal.
+            GObject.signal_stop_emission_by_name(this.masterItem, 'activate');
+        });
         this.menuTimer.menu.addMenuItem(this.masterItem);
+
         this.menuTimer.menu.actor.add_style_class_name('wmm-submenu');
+
         // --- Selector de intervalo ---
         let intervalItem = new PopupMenu.PopupBaseMenuItem({ activate: false });
         intervalItem.add_style_class_name('wmm-flat-row');
-        let intervalBox = new St.BoxLayout({ vertical: true, x_expand: true, style: 'spacing: 4px;' });
+        let intervalBox = new St.BoxLayout({x_expand: true, style: 'spacing: 4px;'});
+        intervalBox.get_layout_manager().set_orientation(Clutter.Orientation.VERTICAL);
         this._currentInterval = 15;
         this.intervalLabel = new St.Label({
             text: this._currentInterval + ' ' + _('minutes'),
@@ -460,9 +938,12 @@ export default class WMMExtension {
         this.modeSwitch.connect('toggled', (item, state) => {
             if (this._syncingUI) return;
 
-            this._keepMenuOpen = true;
             item.label.set_text(state ? _('Displays') + ': ' + _('SYNC (All)') : _('Displays') + ': ' + _('ASYNC (One)'));
             this._updateTimerSettings();
+        });
+        this.modeSwitch.connect('activate', () => {
+            // Evitar el cierre nativo del menú tras modificar el modo de presentación.
+            GObject.signal_stop_emission_by_name(this.modeSwitch, 'activate');
         });
         this._menu.addMenuItem(this.modeSwitch);
 
@@ -471,49 +952,76 @@ export default class WMMExtension {
         this.spannedSwitch.connect('toggled', () => {
             if (this._syncingUI) return;
 
-            this._keepMenuOpen = true;
             this._updateTimerSettings();
         });
+        this.spannedSwitch.connect('activate', () => {
+            // Conservar el menú abierto sin recurrir al cierre y reapertura.
+            GObject.signal_stop_emission_by_name(this.spannedSwitch, 'activate');
+        });
+
         this._menu.addMenuItem(this.spannedSwitch);
 
-        // Tools: utilidades auxiliares separadas del bloque de uso directo.
-        this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        // Image Metadata
+        this.metadataSwitch = new PopupMenu.PopupSwitchMenuItem(_('Image Metadata'), false);
+        this.metadataSwitch.connect('toggled', (item, state) => {
+            if (this._syncingUI) return;
 
-        this.menuTools = new PopupMenu.PopupSubMenuMenuItem(_('Tools'));
-        this.menuTools.menu.actor.add_style_class_name('wmm-submenu');
-        this._menu.addMenuItem(this.menuTools);
+            // Conservar el estado local mientras el Engine persiste el cambio.
+            if (!this._cachedSettings) this._cachedSettings = {};
+            this._cachedSettings.exif_metadata_enabled = state;
 
+            this._sendActionToEngine({
+                action: 'set_metadata_enabled',
+                enabled: state
+            });
+        });
+        this.metadataSwitch.connect('activate', () => {
+            // Mantener abierto el menú, igual que los demás switches de GNOME.
+            GObject.signal_stop_emission_by_name(this.metadataSwitch, 'activate');
+        });
+        this._menu.addMenuItem(this.metadataSwitch);
+
+        this._menuOpenSignalId = this._menu.connect('open-state-changed', (menu, open) => {
+            if (open)
+                this._refreshSettingsFromDisk();
+        });
+    }
+
+    _populateContextMenu() {
         let settingsItem = new PopupMenu.PopupMenuItem(_('Settings'));
         settingsItem.connect('activate', () => this._openSettingsPanel());
-        this.menuTools.menu.addMenuItem(settingsItem);
+        this._contextMenu.addMenuItem(settingsItem);
 
         let syncItem = new PopupMenu.PopupMenuItem(_('Sync Library'));
-        syncItem.connect('activate', () => this._sendActionToEngine({ action: 'sync_library' }));
-        this.menuTools.menu.addMenuItem(syncItem);
+        syncItem.connect('activate', () =>
+            this._sendActionToEngine({ action: 'sync_library' }));
+        this._contextMenu.addMenuItem(syncItem);
 
-        let installManagerItem = new PopupMenu.PopupMenuItem(_('Install Manager'));
-        installManagerItem.connect('activate', () => this._launchTool(this.installManagerPath));
-        this.menuTools.menu.addMenuItem(installManagerItem);
+        let installManagerItem =
+            new PopupMenu.PopupMenuItem(_('Install Manager'));
+        installManagerItem.connect('activate', () =>
+            this._launchTool(this.installManagerPath));
+        this._contextMenu.addMenuItem(installManagerItem);
 
-        let debugLogItem = new PopupMenu.PopupMenuItem(_('Debug Log Viewer'));
-        debugLogItem.connect('activate', () => this._launchTool(this.debugLogViewerPath));
-        this.menuTools.menu.addMenuItem(debugLogItem);
+        let debugLogItem =
+            new PopupMenu.PopupMenuItem(_('Debug Log Viewer'));
+        debugLogItem.connect('activate', () =>
+            this._launchTool(this.debugLogViewerPath));
+        this._contextMenu.addMenuItem(debugLogItem);
 
         let helpItem = new PopupMenu.PopupMenuItem(_('Help'));
-        helpItem.connect('activate', () => this._sendActionToEngine({ action: 'open_help' }));
-        this.menuTools.menu.addMenuItem(helpItem);
+        helpItem.connect('activate', () =>
+            this._sendActionToEngine({ action: 'open_help' }));
+        this._contextMenu.addMenuItem(helpItem);
 
-        // About permanece fuera de Tools dentro de la estructura común de WMM.
-        let aboutItem = new PopupMenu.PopupMenuItem(_('About') + ' WMM Manager');
-        aboutItem.connect('activate', () => this._sendActionToEngine({ action: 'open_about' }));
-        this._menu.addMenuItem(aboutItem);
+        this._contextMenu.addMenuItem(
+            new PopupMenu.PopupSeparatorMenuItem());
 
-        // Exit WMM
-        //
-        // La salida se realiza deshabilitando la propia extensión. De este modo,
-        // tanto esta opción como el gestor de extensiones de GNOME recorren
-        // exactamente el mismo lifecycle y terminan en disable().
-        this._menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+        let aboutItem =
+            new PopupMenu.PopupMenuItem(_('About') + ' WMM Manager');
+        aboutItem.connect('activate', () =>
+            this._sendActionToEngine({ action: 'open_about' }));
+        this._contextMenu.addMenuItem(aboutItem);
 
         let exitItem = new PopupMenu.PopupMenuItem(_('Exit') + ' WMM');
         exitItem.connect('activate', () => {
@@ -525,18 +1033,7 @@ export default class WMMExtension {
                 null
             );
         });
-        this._menu.addMenuItem(exitItem);
-
-        this._menuOpenSignalId = this._menu.connect('open-state-changed', (menu, open) => {
-            if (open) {
-                if (this._isForcedOpen) {
-                    this._isForcedOpen = false;
-                    this._refreshSettingsFromDisk(false);
-                } else {
-                    this._refreshSettingsFromDisk();
-                }
-            }
-        });
+        this._contextMenu.addMenuItem(exitItem);
     }
 
     _syncTimerUI(enabled) {
@@ -563,6 +1060,7 @@ export default class WMMExtension {
         let isSync = (config.slideshow_mode === 'sync');
         let isFavSlideshow = config.slideshow_bookmark || false;
         let isSpanned = config.spanned_enabled || false;
+        let isMetadataEnabled = config.exif_metadata_enabled || false;
 
         this._syncingUI = true;
 
@@ -572,6 +1070,7 @@ export default class WMMExtension {
             this.modeSwitch.label.set_text(isSync ? _('Displays') + ': ' + _('SYNC (All)') : _('Displays') + ': ' + _('ASYNC (One)'));
             this.favRotationSwitch.setToggleState(isFavSlideshow);
             this.spannedSwitch.setToggleState(isSpanned);
+            this.metadataSwitch.setToggleState(isMetadataEnabled);
         } finally {
             this._syncingUI = false;
         }
@@ -640,7 +1139,6 @@ export default class WMMExtension {
             nameBtn.set_child(nameLabel);
 
             nameBtn.connect('clicked', () => {
-                this._keepMenuOpen = true;
                 this._syncTimerUI(false);
                 this._sendActionToEngine({
                     action: 'load_bookmark',
@@ -674,11 +1172,8 @@ export default class WMMExtension {
             });
 
             deleteBtn.set_child(deleteIcon);
-
             deleteBtn.connect('clicked', () => {
-                this._keepMenuOpen = false;
-                this._button.menu.close();
-                this._confirmDeleteBookmark(name);
+                this._confirmDeleteBookmark(name, deleteBtn);
             });
 
             row.add_child(nameBtn);
@@ -743,7 +1238,8 @@ export default class WMMExtension {
                         cached.slideshow_interval !== config.slideshow_interval ||
                         cached.slideshow_mode !== config.slideshow_mode ||
                         cached.slideshow_bookmark !== config.slideshow_bookmark ||
-                        cached.spanned_enabled !== config.spanned_enabled
+                        cached.spanned_enabled !== config.spanned_enabled ||
+                        cached.exif_metadata_enabled !== config.exif_metadata_enabled
                     ) {
                         this._applySettingsToUI(config);
                         this._cachedSettings = config;
@@ -795,21 +1291,133 @@ export default class WMMExtension {
         });
     }
 
-    _confirmDeleteBookmark(name) {
-        let args = ['--question', '--title=' + _('Delete favorite'), '--text=' + _('Delete') + ' "' + name + '"?', '--width=200'];
-        try {
-            let proc = new Gio.Subprocess({ argv: ['zenity'].concat(args), flags: Gio.SubprocessFlags.NONE });
-            proc.init(null);
-            proc.wait_async(null, (proc, result) => {
-                try {
-                    proc.wait_finish(result);
-                    if (proc.get_exit_status() === 0)
-                        this._sendActionToEngine({ action: 'delete_bookmark', name: name });
-                } catch (e) { log('WMM zenity: ' + e.message); }
-            });
-        } catch (e) {
-            log('WMM zenity launch: ' + e.message);
+    _destroyDeleteConfirmMenu() {
+        if (!this._deleteConfirmMenu)
+            return;
+
+        const menu = this._deleteConfirmMenu;
+        this._deleteConfirmMenu = null;
+
+        if (this._contextMenuManager)
+            this._contextMenuManager.removeMenu(menu);
+
+        menu.destroy();
+    }
+
+    _confirmDeleteBookmark(name, sourceActor) {
+        this._destroyDeleteConfirmMenu();
+
+        const monitor = Main.layoutManager.findMonitorForActor(sourceActor);
+        const [sourceX] = sourceActor.get_transformed_position();
+        const [sourceWidth] = sourceActor.get_transformed_size();
+
+        let arrowSide = St.Side.LEFT;
+
+        // La confirmación se abre hacia el interior del monitor para no
+        // invadir el monitor contiguo cuando la papelera está junto al borde.
+        if (monitor &&
+                sourceX + sourceWidth / 2 >
+                monitor.x + monitor.width / 2) {
+            arrowSide = St.Side.RIGHT;
         }
+
+        const menu = new PopupMenu.PopupMenu(
+            sourceActor, 0.5, arrowSide
+        );
+
+        menu.actor.add_style_class_name('panel-menu');
+        Main.uiGroup.add_child(menu.actor);
+        menu.actor.hide();
+
+        this._deleteConfirmMenu = menu;
+        this._contextMenuManager.addMenu(menu);
+
+        /*
+         * PopupMenu proporciona únicamente el contenedor flotante y su anclaje.
+         * El contenido no utiliza PopupMenuItem para evitar su semántica visual
+         * de lista: esta confirmación necesita composición de diálogo compacta.
+         */
+        const content = new St.BoxLayout({
+            style_class: 'wmm-delete-confirm'
+        });
+        content.get_layout_manager().set_orientation(
+            Clutter.Orientation.VERTICAL
+        );
+
+        const title = new St.Label({
+            text: _('Delete preset'),
+            style_class: 'wmm-delete-confirm-title',
+            x_expand: true,
+            x_align: Clutter.ActorAlign.CENTER
+        });
+
+        const body = new St.Label({
+            text: _('Delete') + ' "' + name + '"?',
+            style_class: 'wmm-delete-confirm-body'
+        });
+
+        const buttons = new St.BoxLayout({
+            style_class: 'wmm-delete-confirm-buttons',
+            x_expand: true,
+            x_align: Clutter.ActorAlign.END
+        });
+        buttons.get_layout_manager().set_orientation(
+            Clutter.Orientation.HORIZONTAL
+        );
+
+        const cancelButton = new St.Button({
+            label: _('Cancel'),
+            style_class: 'button',
+            reactive: true,
+            can_focus: true,
+            track_hover: true
+        });
+
+        const deleteButton = new St.Button({
+            label: _('Delete'),
+            style_class: 'button',
+            reactive: true,
+            can_focus: true,
+            track_hover: true
+        });
+
+        buttons.add_child(cancelButton);
+        buttons.add_child(deleteButton);
+
+        content.add_child(title);
+        content.add_child(body);
+        content.add_child(buttons);
+
+        menu.box.add_child(content);
+
+        cancelButton.connect('clicked', () => {
+            menu.close();
+        });
+
+        deleteButton.connect('clicked', () => {
+            menu.close();
+
+            this._sendActionToEngine({
+                action: 'delete_bookmark',
+                name: name
+            });
+        });
+
+        menu.connect('open-state-changed', (currentMenu, open) => {
+            if (open)
+                return;
+
+            // La destrucción se difiere al siguiente ciclo para no desmontar
+            // el popup mientras procesa su propia señal de cierre.
+            GLib.idle_add(GLib.PRIORITY_DEFAULT_IDLE, () => {
+                if (this._deleteConfirmMenu === currentMenu)
+                    this._destroyDeleteConfirmMenu();
+
+                return GLib.SOURCE_REMOVE;
+            });
+        });
+
+        menu.open();
     }
 
     _updateTimerSettings() {
@@ -832,7 +1440,6 @@ export default class WMMExtension {
     }
 
     _launchTool(path) {
-        this._keepMenuOpen = false;
         this._menu.close();
 
         try {
@@ -859,6 +1466,21 @@ export default class WMMExtension {
 
     _destroyUI() {
 
+        this._cancelTooltipTimeout();
+
+        if (this._button && this._tooltipHoverSignalId) {
+            this._button.disconnect(this._tooltipHoverSignalId);
+            this._tooltipHoverSignalId = 0;
+        }
+
+        if (this._tooltip) {
+            this._tooltip.destroy();
+            this._tooltip = null;
+        }
+
+        this._tooltipTitle = null;
+        this._tooltipText = null;
+
         // Desconectar señal del menú
         if (this._menu && this._menuOpenSignalId) {
             this._menu.disconnect(this._menuOpenSignalId);
@@ -882,6 +1504,10 @@ export default class WMMExtension {
             this.spannedSwitch.destroy();
             this.spannedSwitch = null;
         }
+        if (this.metadataSwitch) {
+            this.metadataSwitch.destroy();
+            this.metadataSwitch = null;
+        }
 
         // Destruir submenús
         if (this.menuBookmarks) {
@@ -891,10 +1517,6 @@ export default class WMMExtension {
         if (this.menuTimer) {
             this.menuTimer.destroy();
             this.menuTimer = null;
-        }
-        if (this.menuTools) {
-            this.menuTools.destroy();
-            this.menuTools = null;
         }
 
         // Destruir etiquetas y otros widgets
@@ -917,9 +1539,24 @@ export default class WMMExtension {
         this.favItems = [];
 
         // Destruir menú si no se hizo ya
+        this._destroyDeleteConfirmMenu();
+
         if (this._menu) {
+            // El menú contextual no pertenece al PanelMenu.Button nativo:
+            // retirarlo de su manager antes de destruir su actor.
+            if (this._contextMenuManager && this._contextMenu)
+                this._contextMenuManager.removeMenu(this._contextMenu);
+
+            if (this._contextMenu) {
+                this._contextMenu.destroy();
+                this._contextMenu = null;
+            }
+
+            this._contextMenuManager = null;
             this._menu.destroy();
             this._menu = null;
+            // La etiqueta pertenece al menú y ya ha sido destruida con él.
+            this.nextBackgroundHotkeyLabel = null;
         }
     }
 }

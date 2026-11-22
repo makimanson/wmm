@@ -12,8 +12,8 @@ Graphical tool to analyze, compare and update
 the project's wmm.pot file.
 
 Uses xgettext to extract strings from .py and .js files,
-generates a temporary .pot in ~/.cache/wmm/pot_manager/ and
-allows comparing it with the current .pot before applying changes.
+generates a temporary .pot in WMM's platform cache under pot_manager/
+and allows comparing it with the current .pot before applying changes.
 """
 
 import ast
@@ -23,6 +23,7 @@ import sys
 import subprocess
 import re
 import shutil
+import tempfile
 import gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk, GLib, Gdk, Pango
@@ -48,7 +49,7 @@ i18n.initialize(platform)
 PROJECT_ROOT = platform.app_dir  # Root of the installed project
 POT_OFFICIAL = os.path.join(PROJECT_ROOT, "wmm_platform", "shell", "po", "wmm.pot")
 PO_DIR = os.path.dirname(POT_OFFICIAL)
-CACHE_DIR = os.path.join(GLib.get_user_cache_dir(), "wmm", "pot_manager")
+CACHE_DIR = os.path.join(platform.cache_dir, "pot_manager")
 POT_TEMP = os.path.join(CACHE_DIR, "wmm_temp.pot")
 
 SOURCE_DIRS = [
@@ -297,6 +298,27 @@ class POTManagerWindow(Gtk.Window):
     def __init__(self):
         super().__init__(title="WMM - " + i18n._("Translation Manager"))
 
+        if hasattr(platform, "prepare_gtk_color_scheme"):
+            platform.prepare_gtk_color_scheme()
+
+        # ----------------------------------------------------------
+        # CSS COMPARTIDO DE WMM
+        # ----------------------------------------------------------
+        # El Translation Manager es autónomo: carga el recurso común
+        # en su propio proceso antes de construir los indicadores.
+        css_path = os.path.join(
+            PROJECT_ROOT, "wmm_platform", "shell", "common", "wmm.css")
+
+        if os.path.isfile(css_path):
+            css_provider = Gtk.CssProvider()
+            css_provider.load_from_path(css_path)
+            Gtk.StyleContext.add_provider_for_screen(
+                Gdk.Screen.get_default(), css_provider,
+                Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
+        else:
+            print(f"[WMM POT] CSS compartido no disponible: {css_path}",
+                file=sys.stderr)
+
         # El Translation Manager es autónomo: sólo persiste su estado visual
         # directamente en settings.json, sin depender de ConfigHandler ni Engine.
         self._settings_path = os.path.join(platform.data_dir, "settings.json")
@@ -307,32 +329,50 @@ class POTManagerWindow(Gtk.Window):
         self.connect("delete-event", self._on_delete_event)
         self.connect("destroy", Gtk.main_quit)
 
-        # Main container
-        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
-        main_box.set_border_width(12)
+        # El pie ocupa todo el ancho; los márgenes pertenecen
+        # únicamente al contenido principal del formulario.
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.add(main_box)
 
         # El manager separa el flujo secuencial del POT del mantenimiento
         # puntual de traducciones, compartiendo únicamente el estado global.
         notebook = Gtk.Notebook()
+        notebook.set_margin_start(12)
+        notebook.set_margin_end(12)
+        notebook.set_margin_top(12)
+        notebook.set_margin_bottom(6)
         main_box.pack_start(notebook, True, True, 0)
 
         pot_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
         search_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
 
-        notebook.append_page(pot_box, Gtk.Label(label="POT"))
-        notebook.append_page(search_box, Gtk.Label(label=i18n._("Search")))
+        # Cabeceras destacadas y con espacio lateral propio.
+        # La traducción de Search se escapa antes de aplicar Pango markup.
+        pot_tab = Gtk.Label()
+        pot_tab.set_markup("<b>POT</b>")
+
+        search_tab = Gtk.Label()
+        search_tab.set_markup(
+            "<b>" + GLib.markup_escape_text(i18n._("Search")) + "</b>")
+
+        for tab in (pot_tab, search_tab):
+            tab.set_margin_start(12)
+            tab.set_margin_end(12)
+
+        notebook.append_page(pot_box, pot_tab)
+        notebook.append_page(search_box, search_tab)
 
         # Search usa un desplegable transitorio: mientras se escribe, los resultados
         # aparecen bajo el campo y desaparecen al escoger la cadena deseada.
         search_toolbar = Gtk.Box(
-            orientation=Gtk.Orientation.HORIZONTAL,
-            spacing=6)
-
+            orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        search_toolbar.set_margin_top(8)
+        search_toolbar.set_border_width(12)
         search_label = Gtk.Label(label=i18n._("Search"))
         search_label.set_xalign(0)
 
         self.search_entry = Gtk.Entry()
+        self.search_entry.get_style_context().add_class("wmm-entry-border")
         self.search_entry.set_placeholder_text(i18n._("Filter by text") + "...")
         self.search_entry.connect("changed", self._on_search_changed)
         self.search_entry.connect("key-press-event", self._on_search_key_press)
@@ -363,14 +403,12 @@ class POTManagerWindow(Gtk.Window):
 
         # Location permanece visible como sección propia y puede plegarse cuando
         # interesa dedicar todo el espacio disponible al editor de traducciones.
-        self.search_location_header = Gtk.Label()
-        self.search_location_header.set_markup(
-            "<b>▼ " + GLib.markup_escape_text(i18n._("Location")) + "</b>")
-        self.search_location_header.set_xalign(0)
+        location_header_box, self.search_location_arrow, self.search_location_header = (
+            self._create_fold_header(i18n._("Location")))
 
         search_location_event = Gtk.EventBox()
         search_location_event.set_visible_window(False)
-        search_location_event.add(self.search_location_header)
+        search_location_event.add(location_header_box)
         search_location_event.connect(
             "button-press-event", self._on_search_location_toggle)
         search_box.pack_start(search_location_event, False, False, 4)
@@ -458,15 +496,13 @@ class POTManagerWindow(Gtk.Window):
             spacing=4)
 
         # La cabecera permite plegar la lista sin alterar su selección funcional.
-        self.new_strings_header = Gtk.Label()
-        self.new_strings_header.set_markup(
-            "<b>▼ " + GLib.markup_escape_text(i18n._("New strings")) + "</b>")
-        self.new_strings_header.set_xalign(0)
+        new_header_box, self.new_strings_arrow, self.new_strings_header = (
+            self._create_fold_header(i18n._("New strings")))
 
         new_strings_header_box = Gtk.EventBox()
         new_strings_header_box.set_visible_window(False)
         new_strings_header_box.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
-        new_strings_header_box.add(self.new_strings_header)
+        new_strings_header_box.add(new_header_box)
         new_strings_header_box.connect(
             "button-press-event", self._on_strings_section_toggle, "new")
         strings_box.pack_start(new_strings_header_box, False, False, 0)
@@ -492,15 +528,13 @@ class POTManagerWindow(Gtk.Window):
 
         # Pending comparte el mismo plegado visual, pero conserva su ListBox
         # independiente y la selección coordinada con New.
-        self.pending_strings_header = Gtk.Label()
-        self.pending_strings_header.set_markup(
-            "<b>▼ " + GLib.markup_escape_text(i18n._("Pending strings")) + "</b>")
-        self.pending_strings_header.set_xalign(0)
+        pending_header_box_content, self.pending_strings_arrow, self.pending_strings_header = (
+            self._create_fold_header(i18n._("Pending strings")))
 
         pending_header_box = Gtk.EventBox()
         pending_header_box.set_visible_window(False)
         pending_header_box.add_events(Gdk.EventMask.BUTTON_PRESS_MASK)
-        pending_header_box.add(self.pending_strings_header)
+        pending_header_box.add(pending_header_box_content)
         pending_header_box.connect(
             "button-press-event", self._on_strings_section_toggle, "pending")
         strings_box.pack_start(pending_header_box, False, False, 0)
@@ -550,6 +584,9 @@ class POTManagerWindow(Gtk.Window):
 
         # --- Toolbar ---
         toolbar = Gtk.Box(spacing=6)
+        toolbar.set_margin_top(12)
+        toolbar.set_margin_start(12)
+        toolbar.set_margin_end(12)
         pot_top_box.pack_start(toolbar, False, False, 0)
 
         self.btn_generate = Gtk.Button.new_with_label(i18n._("Generate temporary .pot"))
@@ -563,7 +600,7 @@ class POTManagerWindow(Gtk.Window):
 
         # --- Statistics panel ---
         stats_box = Gtk.Box(spacing=20)
-        stats_box.set_margin_start(8)
+        stats_box.set_margin_start(12)
         pot_top_box.pack_start(stats_box, False, False, 6)
 
         self.lbl_current = Gtk.Label()
@@ -622,6 +659,7 @@ class POTManagerWindow(Gtk.Window):
         # mantienen las divisiones verticales y el marco delimita también la fase
         # de comparación respecto a las estadísticas mostradas encima.
         header_frame = Gtk.Frame()
+        header_frame.get_style_context().add_class("wmm-pot-header-frame")
         header_frame.set_shadow_type(Gtk.ShadowType.IN)
         header_frame.add(header)
 
@@ -638,8 +676,16 @@ class POTManagerWindow(Gtk.Window):
         scroll.add(self.difference_list)
 
         # --- Status bar ---
+        # El contenedor define la superficie del pie completo;
+        # el Statusbar conserva únicamente los mensajes de estado.
+        footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+        footer.get_style_context().add_class("wmm-pot-footer")
+
         self.statusbar = Gtk.Statusbar()
-        main_box.pack_start(self.statusbar, False, False, 0)
+        self.statusbar.get_style_context().add_class("wmm-pot-statusbar")
+
+        footer.pack_start(self.statusbar, True, True, 0)
+        main_box.pack_start(footer, False, False, 0)
         self.statusbar.push(0, i18n._("Ready."))
 
         # Conserva las cadenas detectadas en la comparación actual hasta
@@ -655,6 +701,26 @@ class POTManagerWindow(Gtk.Window):
 
         # Load initial statistics
         self.update_stats()
+
+    def _create_fold_header(self, title):
+        """Construye una cabecera con indicador Adwaita independiente del texto."""
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+
+        arrow = Gtk.Image.new_from_icon_name(
+            "media-playback-start-symbolic", Gtk.IconSize.BUTTON)
+        arrow.set_pixel_size(12)
+        arrow.set_valign(Gtk.Align.CENTER)
+
+        style = arrow.get_style_context()
+        style.add_class("wmm-pot-arrow-down")
+        box.pack_start(arrow, False, False, 0)
+
+        label = Gtk.Label()
+        label.set_markup("<b>" + GLib.markup_escape_text(title) + "</b>")
+        label.set_xalign(0)
+        box.pack_start(label, False, False, 0)
+
+        return box, arrow, label
 
     # ==========================================================
     # PLEGADO DE NEW / PENDING
@@ -677,19 +743,21 @@ class POTManagerWindow(Gtk.Window):
         """Aplica el plegado visual sin persistirlo entre sesiones."""
         if section == "new":
             scroll = self.new_strings_scroll
-            header = self.new_strings_header
-            title = i18n._("New strings")
+            arrow = self.new_strings_arrow
         else:
             scroll = self.pending_strings_scroll
-            header = self.pending_strings_header
-            title = i18n._("Pending strings")
+            arrow = self.pending_strings_arrow
 
         # Ocultar sólo el área desplazable conserva la cabecera y permite que
         # la otra lista reciba automáticamente el espacio vertical liberado.
         scroll.set_visible(expanded)
-        arrow = "▼ " if expanded else "▶ "
-        header.set_markup(
-            "<b>" + arrow + GLib.markup_escape_text(title) + "</b>")
+
+        # Sólo cambia la orientación del indicador, no el texto de la cabecera.
+        style = arrow.get_style_context()
+        if expanded:
+            style.add_class("wmm-pot-arrow-down")
+        else:
+            style.remove_class("wmm-pot-arrow-down")
 
         self.translations_paned.queue_resize()
 
@@ -725,10 +793,15 @@ class POTManagerWindow(Gtk.Window):
             editor_stack.set_hexpand(True)
 
             translation_entry = Gtk.Entry()
+            translation_entry.get_style_context().add_class("wmm-entry-border")
             translation_entry.set_sensitive(False)
             editor_stack.add_named(translation_entry, "single")
 
             multiline_scroll = Gtk.ScrolledWindow()
+
+            # El borde pertenece al contenedor desplazable, no al editor interno.
+            multiline_scroll.get_style_context().add_class("wmm-entry-border")
+
             multiline_scroll.set_overlay_scrolling(False)
             multiline_scroll.set_policy(
                 Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
@@ -802,10 +875,15 @@ class POTManagerWindow(Gtk.Window):
             editor_stack.set_hexpand(True)
 
             translation_entry = Gtk.Entry()
+            translation_entry.get_style_context().add_class("wmm-entry-border")
             translation_entry.set_sensitive(False)
             editor_stack.add_named(translation_entry, "single")
 
             multiline_scroll = Gtk.ScrolledWindow()
+
+            # El borde pertenece al contenedor desplazable, no al editor interno.
+            multiline_scroll.get_style_context().add_class("wmm-entry-border")
+
             multiline_scroll.set_overlay_scrolling(False)
             multiline_scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
             multiline_scroll.set_min_content_height(72)
@@ -1120,21 +1198,35 @@ class POTManagerWindow(Gtk.Window):
         """Aplica el estado visual de la sección Location sin persistirlo."""
         self.search_location_box.set_visible(expanded)
 
-        arrow = "▼ " if expanded else "▶ "
-        self.search_location_header.set_markup(
-            "<b>" + arrow + GLib.markup_escape_text(i18n._("Location")) + "</b>")
+        # Conservamos el texto y modificamos únicamente el indicador.
+        style = self.search_location_arrow.get_style_context()
+        if expanded:
+            style.add_class("wmm-pot-arrow-down")
+        else:
+            style.remove_class("wmm-pot-arrow-down")
 
-    def _sync_po_catalogs(self):
-        """Sincroniza los catálogos existentes con el POT ya aplicado."""
-        for language, po_path in self.po_catalogs:
+    def _sync_po_catalogs(self, catalogs, pot_path):
+        """Sincroniza los catálogos indicados contra el POT suministrado."""
+        msgmerge = (platform.resolve_gettext_tool("msgmerge")
+            if hasattr(platform, "resolve_gettext_tool")
+            else "msgmerge")
+
+        if not msgmerge:
+            self.statusbar.push(
+                0, i18n._("Error updating") + ": msgmerge not found.")
+            return False
+
+        for language, po_path in catalogs:
             try:
                 subprocess.run(
-                    ["msgmerge", "--update", "--backup=none", "--no-fuzzy-matching",
-                     po_path, POT_OFFICIAL], check=True)
+                    [msgmerge, "--update", "--backup=none", "--no-fuzzy-matching",
+                     po_path, pot_path], check=True)
             except (OSError, subprocess.CalledProcessError) as error:
                 detail = getattr(error, "stderr", "") or str(error)
-                self.statusbar.push(0, i18n._("Error updating") + f" {language}.po: {detail}")
+                self.statusbar.push(
+                    0, i18n._("Error updating") + f" {language}.po: {detail}")
                 return False
+
         return True
 
     def _clear_pending_text_selection(self):
@@ -1776,6 +1868,15 @@ class POTManagerWindow(Gtk.Window):
                     source_files[language].append(
                         os.path.relpath(os.path.join(root, filename), PROJECT_ROOT))
 
+        xgettext = (platform.resolve_gettext_tool("xgettext")
+            if hasattr(platform, "resolve_gettext_tool")
+            else "xgettext")
+
+        if not xgettext:
+            self.statusbar.push(
+                0, i18n._("Error generating temporary .pot: ") + "xgettext not found.")
+            return False
+
         try:
             first_pass = True
 
@@ -1784,7 +1885,7 @@ class POTManagerWindow(Gtk.Window):
                     continue
 
                 cmd = [
-                    "xgettext",
+                    xgettext,
                     f"--language={language}",
                     "--keyword=_",
                     "--keyword=N_",
@@ -1846,23 +1947,92 @@ class POTManagerWindow(Gtk.Window):
         return False
 
     def on_apply_changes(self, widget):
-        """Applies changes: renames official and copies temporary."""
+        """Valida y aplica el POT y sus catálogos como una única operación lógica."""
         if not os.path.exists(POT_TEMP):
             self.statusbar.push(0, i18n._("No temporary .pot to apply."))
             return
 
-        # Backup official if it exists
-        if os.path.exists(POT_OFFICIAL):
-            backup = POT_OFFICIAL + ".bak"
-            shutil.copy2(POT_OFFICIAL, backup)
-            self.statusbar.push(0, i18n._("Backup") + ": " + backup)
+        os.makedirs(CACHE_DIR, exist_ok=True)
 
-        # Replace official with temporary
-        shutil.copy2(POT_TEMP, POT_OFFICIAL)
+        try:
+            with tempfile.TemporaryDirectory(prefix="apply_", dir=CACHE_DIR) as staging_dir:
 
-        # El POT aplicado pasa a ser inmediatamente la autoridad de los
-        # catálogos: msgmerge incorpora entradas y actualiza referencias.
-        if not self._sync_po_catalogs():
+                merged_dir = os.path.join(staging_dir, "merged")
+                backup_dir = os.path.join(staging_dir, "backup")
+                os.makedirs(merged_dir)
+                os.makedirs(backup_dir)
+
+                # msgmerge trabaja primero sobre copias: ningún catálogo real se
+                # modifica hasta que todos hayan sido procesados correctamente.
+                staged_catalogs = []
+
+                for language, po_path in self.po_catalogs:
+                    staged_path = os.path.join(merged_dir, os.path.basename(po_path))
+                    shutil.copy2(po_path, staged_path)
+                    staged_catalogs.append((language, po_path, staged_path))
+
+                catalogs_to_sync = [(language, staged_path)
+                    for language, _, staged_path in staged_catalogs]
+
+                if not self._sync_po_catalogs(catalogs_to_sync, POT_TEMP):
+                    self.update_stats()
+                    self.btn_apply.set_sensitive(False)
+                    return
+
+                # Conservamos una fotografía interna de todos los originales
+                # para poder deshacer también un fallo durante la fase de copia.
+                pot_snapshot = None
+
+                if os.path.exists(POT_OFFICIAL):
+                    pot_snapshot = os.path.join(backup_dir, os.path.basename(POT_OFFICIAL))
+                    shutil.copy2(POT_OFFICIAL, pot_snapshot)
+
+                po_snapshots = []
+
+                for _, po_path, _ in staged_catalogs:
+                    snapshot_path = os.path.join(backup_dir, os.path.basename(po_path))
+                    shutil.copy2(po_path, snapshot_path)
+                    po_snapshots.append((po_path, snapshot_path))
+
+                # El .bak visible conserva la semántica histórica: contiene el
+                # POT oficial inmediatamente anterior a la aplicación.
+                if pot_snapshot is not None:
+                    backup = POT_OFFICIAL + ".bak"
+                    shutil.copy2(pot_snapshot, backup)
+                    self.statusbar.push(0, i18n._("Backup") + ": " + backup)
+
+                try:
+                    shutil.copy2(POT_TEMP, POT_OFFICIAL)
+
+                    for _, po_path, staged_path in staged_catalogs:
+                        shutil.copy2(staged_path, po_path)
+
+                except OSError as error:
+                    rollback_error = None
+
+                    try:
+                        if pot_snapshot is not None:
+                            shutil.copy2(pot_snapshot, POT_OFFICIAL)
+                        elif os.path.exists(POT_OFFICIAL):
+                            os.remove(POT_OFFICIAL)
+
+                        for po_path, snapshot_path in po_snapshots:
+                            shutil.copy2(snapshot_path, po_path)
+
+                    except OSError as restore_error:
+                        rollback_error = restore_error
+
+                    detail = str(error)
+                    if rollback_error is not None:
+                        detail += f"; rollback: {rollback_error}"
+
+                    self.statusbar.push(0, i18n._("Error updating") + ": " + detail)
+                    self.update_stats()
+                    self.btn_apply.set_sensitive(False)
+                    return
+
+        except OSError as error:
+            self.statusbar.push(0, i18n._("Error updating") + ": " + str(error))
             self.update_stats()
             self.btn_apply.set_sensitive(False)
             return
@@ -1873,9 +2043,9 @@ class POTManagerWindow(Gtk.Window):
         # en memoria para incorporar inmediatamente las nuevas cadenas y referencias.
         self._build_search_index()
 
-        self.statusbar.push(0, i18n._("Changes applied successfully."))
+        self.statusbar.push(
+            0, i18n._("Changes applied successfully."))
 
-        # Update interface
         self.update_stats()
         self.btn_apply.set_sensitive(False)
 
@@ -1887,4 +2057,6 @@ if __name__ == "__main__":
     _set_process_identity()
     window = POTManagerWindow()
     window.show_all()
+    if hasattr(platform, "present_window"):
+        platform.present_window(window)
     Gtk.main()

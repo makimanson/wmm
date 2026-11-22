@@ -15,13 +15,13 @@ Este módulo se encarga de:
     - Seleccionar la mejor estrategia de detección disponible.
     - Devolver un diccionario de monitores con geometría e identificadores.
 
-No depende de GTK, ni de la plataforma directamente. Solo usa los módulos
-de plataforma (linux, gnome, etc.) para obtener la información.
+Centraliza directamente las estrategias de detección específicas de cada
+entorno y devuelve sus resultados mediante el contrato común de WMM.
 
 Flujo típico:
     1. main.py llama a monitor_detection.detect_monitors().
-    2. El módulo decide qué estrategia usar (X11, GNOME D-Bus, GDK fallback).
-    3. Devuelve el diccionario de monitores (mismo formato que get_x11_monitors).
+    2. El módulo selecciona la estrategia de detección adecuada al entorno.
+    3. Devuelve el diccionario de monitores usando el contrato común de WMM.
 """
 
 import os
@@ -32,13 +32,11 @@ import subprocess
 import hashlib
 import ctypes
 import ctypes.util
-import fcntl
 import gi
 
 gi.require_version('Gdk', '3.0')
-gi.require_version('GdkX11', '3.0')
 
-from gi.repository import Gdk, GdkX11
+from gi.repository import Gdk
 from monitor_manager import calculate_inches
 from debug_logger import log_event
 
@@ -208,7 +206,7 @@ def get_x11_randr_api():
     return _libX11, _libXrandr
 
 # ==========================================================
-# 1. Estrategia para X11 (copiada de linux.get_x11_monitors)
+# 1. Estrategia para X11
 # ==========================================================
 def get_x11_monitors():
     """
@@ -372,6 +370,9 @@ def get_monitor_hash_from_xid(xid, monitors_map):
         return None
 
     try:
+        gi.require_version('GdkX11', '3.0')
+        from gi.repository import GdkX11
+
         display = Gdk.Display.get_default()
         window = GdkX11.X11Window.foreign_new_for_display(display, int(xid))
         success, x, y = window.get_origin()
@@ -381,16 +382,18 @@ def get_monitor_hash_from_xid(xid, monitors_map):
 
         m_hash = get_monitor_hash_from_position(x, y, monitors_map)
         if m_hash:
-            log_event(f"XID {xid} -> posición {x},{y} -> monitor {m_hash}", origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
+            log_event(f"XID {xid} -> posición {x},{y} -> monitor {m_hash}",
+                origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
             return m_hash
 
     except Exception as e:
-        log_event(f"No se pudo resolver el XID {xid}: {e}", origin="MON_DETECT", level="WARN", reason="HARDWARE")
+        log_event(f"No se pudo resolver el XID {xid}: {e}",
+            origin="MON_DETECT", level="WARN", reason="HARDWARE")
 
     return None
 
 # ==========================================================
-# 2. Estrategia para GNOME Wayland (copiada de gnome.get_monitors_from_dbus)
+# 2. Estrategia para GNOME Wayland
 # ==========================================================
 def get_gnome_wayland_monitors():
     """
@@ -402,10 +405,7 @@ def get_gnome_wayland_monitors():
         from monitor_manager import calculate_inches
 
         bus = dbus.SessionBus()
-        display_config = bus.get_object(
-            "org.gnome.Mutter.DisplayConfig",
-            "/org/gnome/Mutter/DisplayConfig"
-        )
+        display_config = bus.get_object("org.gnome.Mutter.DisplayConfig", "/org/gnome/Mutter/DisplayConfig")
 
         # GetCurrentState para posición y modos activos
         state = display_config.GetCurrentState(dbus_interface="org.gnome.Mutter.DisplayConfig")
@@ -438,11 +438,7 @@ def get_gnome_wayland_monitors():
             current_crtc = output[2]
             name = output[4] if len(output) > 4 else "Unknown"
             props = output[7] if len(output) > 7 else {}
-            output_by_connector[name] = {
-                'id': output_id,
-                'current_crtc': current_crtc,
-                'props': props,
-            }
+            output_by_connector[name] = { 'id': output_id, 'current_crtc': current_crtc, 'props': props, }
 
         # Construir mapa de posición -> conector desde logical_monitors
         pos_to_connector = {}
@@ -510,21 +506,23 @@ def get_gnome_wayland_monitors():
                 "primary": is_primary,
             }
 
-        log_event(f"Monitores obtenidos desde D-Bus: {len(monitors)}", origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
+        log_event(f"Monitores obtenidos desde D-Bus: {len(monitors)}",
+            origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
         return monitors
 
     except Exception as e:
-        log_event(f"Error en GNOME D-Bus: {e}", origin="MON_DETECT", level="ERROR", reason="HARDWARE")
+        log_event(f"Error en GNOME D-Bus: {e}",
+            origin="MON_DETECT", level="ERROR", reason="HARDWARE")
         return {}
 
 
 # ==========================================================
-# 3. Estrategia de fallback para Wayland (copiada del bloque GDK en linux.get_monitors)
+# 3. Estrategia de fallback para Wayland
 # ==========================================================
 def get_gdk_wayland_monitors():
     """
-    Obtiene monitores usando Gdk (fallback genérico para Wayland).
-    Proporciona geometría básica pero sin orientación ni dimensiones físicas.
+    Obtiene monitores usando Gdk como fallback genérico para Wayland.
+    Proporciona geometría, dimensiones físicas y orientación básica.
     """
     display = Gdk.Display.get_default()
     if not display:
@@ -567,7 +565,7 @@ def get_gdk_wayland_monitors():
 # ------------------------------------------------------------
 
 def _parse_edid_base(edid_bytes):
-    """Extrae fabricante, modelo y serial del EDID base."""
+    """Extrae identidad y dimensiones físicas del EDID base."""
     if len(edid_bytes) < 128:
         return None
 
@@ -581,24 +579,44 @@ def _parse_edid_base(edid_bytes):
 
     model_name = None
     serial_number = None
+    width_mm = 0
+    height_mm = 0
 
-    # Descriptores de texto (offsets 54, 72, 90, 108)
+    # Los DTD proporcionan medidas físicas más precisas que los cm del bloque base.
     for offset in [54, 72, 90, 108]:
         desc = edid_bytes[offset:offset+18]
-        if desc[0] == 0 and desc[1] == 0:
-            tag = desc[3]
-            raw_text = desc[5:].decode('ascii', errors='ignore').replace('\r', '').replace('\n', '').strip()
-            if tag == 0xFF and raw_text:  # Serial number (ASCII)
-                serial_number = raw_text
-            elif tag == 0xFC and raw_text:  # Model name
-                model_name = raw_text
-            elif tag == 0xFE and raw_text and not serial_number:  # Free text
-                if any(c.isdigit() for c in raw_text) and len(raw_text) >= 4:
-                    serial_number = raw_text
 
-    # Fallback: serial binario de 32 bits
+        if desc[0] != 0 or desc[1] != 0:
+            if width_mm == 0 or height_mm == 0:
+                dtd_width = desc[12] | ((desc[14] & 0xF0) << 4)
+                dtd_height = desc[13] | ((desc[14] & 0x0F) << 8)
+                if dtd_width > 0 and dtd_height > 0:
+                    width_mm = dtd_width
+                    height_mm = dtd_height
+            continue
+
+        tag = desc[3]
+        raw_text = desc[5:].decode(
+            'ascii', errors='ignore').replace(
+            '\r', '').replace('\n', '').strip()
+
+        if tag == 0xFF and raw_text:
+            serial_number = raw_text
+        elif tag == 0xFC and raw_text:
+            model_name = raw_text
+        elif tag == 0xFE and raw_text and not serial_number:
+            if any(c.isdigit() for c in raw_text) and len(raw_text) >= 4:
+                serial_number = raw_text
+
+    # Algunos EDID sólo publican el tamaño físico en centímetros.
+    if width_mm == 0 or height_mm == 0:
+        width_mm = int(edid_bytes[21]) * 10
+        height_mm = int(edid_bytes[22]) * 10
+
+    # El descriptor ASCII prevalece; el serial binario es sólo fallback.
     if not serial_number:
-        serial_raw = int.from_bytes(edid_bytes[12:16], byteorder='little')
+        serial_raw = int.from_bytes(
+            edid_bytes[12:16], byteorder='little')
         if serial_raw != 0:
             serial_number = str(serial_raw)
         else:
@@ -607,7 +625,9 @@ def _parse_edid_base(edid_bytes):
     return {
         "manufacturer": manufacturer,
         "model": model_name,
-        "serial_number": serial_number
+        "serial_number": serial_number,
+        "width_mm": width_mm,
+        "height_mm": height_mm,
     }
 
 def _get_edids_from_sysfs():
@@ -626,19 +646,23 @@ def _get_edids_from_sysfs():
                         edid_map[connector_name] = parsed
             except Exception:
                 # Si no se puede leer, loguear WARN y continuar
-                log_event(f"No se pudo leer EDID para {connector_name}", origin="MON_DETECT", level="WARN", reason="HARDWARE")
+                log_event(f"No se pudo leer EDID para {connector_name}",
+                    origin="MON_DETECT", level="WARN", reason="HARDWARE")
                 continue
     return edid_map
 
 def _get_kscreen_info():
     """Ejecuta kscreen-doctor -j y extrae geometría, posición, mm y prioridad."""
     try:
-        log_event("Ejecutando kscreen-doctor -j", origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
+        log_event("Ejecutando kscreen-doctor -j",
+            origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
         result = subprocess.run(['kscreen-doctor', '-j'], capture_output=True, text=True, check=True)
         data = json.loads(result.stdout)
     except Exception as e:
-        log_event(f"Error al ejecutar kscreen-doctor: {e}", origin="MON_DETECT", level="ERROR", reason="HARDWARE")
-        log_event(f"Excepción en kscreen-doctor: {e}", origin="MON_DETECT", level="ERROR", reason="HARDWARE")
+        log_event(f"Error al ejecutar kscreen-doctor: {e}",
+            origin="MON_DETECT", level="ERROR", reason="HARDWARE")
+        log_event(f"Excepción en kscreen-doctor: {e}",
+            origin="MON_DETECT", level="ERROR", reason="HARDWARE")
         return {}
 
     outputs = data.get("outputs", [])
@@ -688,7 +712,8 @@ def get_kde_monitors():
 
     # 2. Obtener información de KScreen
     kscreen_map = _get_kscreen_info()
-    log_event(f"kscreen_map tiene {len(kscreen_map)} monitores", origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
+    log_event(f"kscreen_map tiene {len(kscreen_map)} monitores",
+        origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
     if not kscreen_map:
         return {}
 
@@ -738,50 +763,610 @@ def get_kde_monitors():
             "primary": display["primary"],
         }
 
-    log_event(f"Monitores obtenidos con kscreen-doctor + EDID: {len(monitors)}", origin="MON_DETECT", level="INFO", reason="HARDWARE")
-    log_event(f"monitores finales: {len(monitors)}", origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
+    log_event(f"Monitores obtenidos con kscreen-doctor + EDID: {len(monitors)}",
+        origin="MON_DETECT", level="INFO", reason="HARDWARE")
+    log_event(f"monitores finales: {len(monitors)}",
+        origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
     return monitors
 
 # ==========================================================
-# 5. Orquestador principal
+# INFRAESTRUCTURA NATIVA WIN32
+# ==========================================================
+# Igual que en XRandR, los tipos ctypes deben existir una sola vez a nivel
+# de módulo. Redefinir estructuras en cada detección generaría nuevos tipos
+# y volvería a alimentar la caché interna de POINTER().
+if sys.platform == 'win32':
+    from ctypes import wintypes
+
+    class _MONITORINFOEXW(ctypes.Structure):
+        _fields_ = [
+            ("cbSize", wintypes.DWORD),
+            ("rcMonitor", wintypes.RECT),
+            ("rcWork", wintypes.RECT),
+            ("dwFlags", wintypes.DWORD),
+            ("szDevice", wintypes.WCHAR * 32),
+        ]
+
+
+    class _DISPLAY_DEVICEW(ctypes.Structure):
+        _fields_ = [
+            ("cb", wintypes.DWORD),
+            ("DeviceName", wintypes.WCHAR * 32),
+            ("DeviceString", wintypes.WCHAR * 128),
+            ("StateFlags", wintypes.DWORD),
+            ("DeviceID", wintypes.WCHAR * 128),
+            ("DeviceKey", wintypes.WCHAR * 128),
+        ]
+
+
+    class _GUID(ctypes.Structure):
+        _fields_ = [
+            ("Data1", wintypes.DWORD),
+            ("Data2", wintypes.WORD),
+            ("Data3", wintypes.WORD),
+            ("Data4", ctypes.c_ubyte * 8),
+        ]
+
+
+    class _SP_DEVICE_INTERFACE_DATA(ctypes.Structure):
+        _fields_ = [
+            ("cbSize", wintypes.DWORD),
+            ("InterfaceClassGuid", _GUID),
+            ("Flags", wintypes.DWORD),
+            ("Reserved", ctypes.c_size_t),
+        ]
+
+
+    class _SP_DEVINFO_DATA(ctypes.Structure):
+        _fields_ = [
+            ("cbSize", wintypes.DWORD),
+            ("ClassGuid", _GUID),
+            ("DevInst", wintypes.DWORD),
+            ("Reserved", ctypes.c_size_t),
+        ]
+
+
+    _MONITORENUMPROC = ctypes.WINFUNCTYPE(
+        wintypes.BOOL,
+        wintypes.HANDLE,
+        wintypes.HDC,
+        ctypes.POINTER(wintypes.RECT),
+        wintypes.LPARAM,
+    )
+
+    # Infraestructura de mensajes utilizada por monitor_events.
+    _WNDPROC = ctypes.WINFUNCTYPE(
+        ctypes.c_ssize_t,
+        wintypes.HWND,
+        wintypes.UINT,
+        wintypes.WPARAM,
+        wintypes.LPARAM,
+    )
+
+
+    class _WNDCLASSW(ctypes.Structure):
+        _fields_ = [
+            ("style", wintypes.UINT),
+            ("lpfnWndProc", _WNDPROC),
+            ("cbClsExtra", ctypes.c_int),
+            ("cbWndExtra", ctypes.c_int),
+            ("hInstance", wintypes.HINSTANCE),
+            ("hIcon", wintypes.HICON),
+            ("hCursor", wintypes.HCURSOR),
+            ("hbrBackground", wintypes.HBRUSH),
+            ("lpszMenuName", wintypes.LPCWSTR),
+            ("lpszClassName", wintypes.LPCWSTR),
+        ]
+
+
+    class _MSG(ctypes.Structure):
+        _fields_ = [
+            ("hwnd", wintypes.HWND),
+            ("message", wintypes.UINT),
+            ("wParam", wintypes.WPARAM),
+            ("lParam", wintypes.LPARAM),
+            ("time", wintypes.DWORD),
+            ("pt", wintypes.POINT),
+            ("lPrivate", wintypes.DWORD),
+        ]
+
+_user32 = None
+_setupapi = None
+_advapi32 = None
+_kernel32 = None
+
+
+def get_windows_display_api():
+    """
+    Devuelve la API Win32 común utilizada por detección y eventos.
+
+    Las DLL y sus firmas ctypes se inicializan una sola vez. Los recursos
+    obtenidos mediante estas APIs pertenecen a cada consumidor y deben
+    liberarse allí.
+    """
+    global _user32, _setupapi, _advapi32, _kernel32
+
+    if sys.platform != 'win32':
+        raise RuntimeError(
+            "La API de display Win32 sólo está disponible en Windows")
+
+    if (_user32 is not None
+            and _setupapi is not None
+            and _advapi32 is not None
+            and _kernel32 is not None):
+        return _user32, _setupapi, _advapi32, _kernel32
+
+    user32 = ctypes.WinDLL("user32", use_last_error=True)
+    setupapi = ctypes.WinDLL("setupapi", use_last_error=True)
+    advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+    # User32: enumeración y geometría efectiva de los monitores.
+    user32.EnumDisplayMonitors.argtypes = [
+        wintypes.HDC,
+        ctypes.POINTER(wintypes.RECT),
+        _MONITORENUMPROC,
+        wintypes.LPARAM,
+    ]
+    user32.EnumDisplayMonitors.restype = wintypes.BOOL
+
+    user32.GetMonitorInfoW.argtypes = [ wintypes.HANDLE, ctypes.POINTER(_MONITORINFOEXW), ]
+    user32.GetMonitorInfoW.restype = wintypes.BOOL
+
+    user32.EnumDisplayDevicesW.argtypes = [
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        ctypes.POINTER(_DISPLAY_DEVICEW),
+        wintypes.DWORD,
+    ]
+    user32.EnumDisplayDevicesW.restype = wintypes.BOOL
+
+    # User32: ventana oculta y message loop utilizados por monitor_events.
+    user32.RegisterClassW.argtypes = [
+        ctypes.POINTER(_WNDCLASSW),
+    ]
+    user32.RegisterClassW.restype = wintypes.WORD
+
+    user32.CreateWindowExW.argtypes = [
+        wintypes.DWORD,
+        wintypes.LPCWSTR,
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        wintypes.HWND,
+        wintypes.HMENU,
+        wintypes.HINSTANCE,
+        ctypes.c_void_p,
+    ]
+    user32.CreateWindowExW.restype = wintypes.HWND
+
+    user32.DefWindowProcW.argtypes = [
+        wintypes.HWND,
+        wintypes.UINT,
+        wintypes.WPARAM,
+        wintypes.LPARAM,
+    ]
+    user32.DefWindowProcW.restype = ctypes.c_ssize_t
+
+    # GetMessage puede devolver -1, 0 o un valor positivo; no se trata
+    # como un simple booleano para no ocultar la condición de error.
+    user32.GetMessageW.argtypes = [
+        ctypes.POINTER(_MSG),
+        wintypes.HWND,
+        wintypes.UINT,
+        wintypes.UINT,
+    ]
+    user32.GetMessageW.restype = ctypes.c_int
+
+    user32.DispatchMessageW.argtypes = [ ctypes.POINTER(_MSG), ]
+    user32.DispatchMessageW.restype = ctypes.c_ssize_t
+
+    user32.DestroyWindow.argtypes = [ wintypes.HWND, ]
+    user32.DestroyWindow.restype = wintypes.BOOL
+
+    user32.PostQuitMessage.argtypes = [ ctypes.c_int, ]
+    user32.PostQuitMessage.restype = None
+
+    user32.UnregisterClassW.argtypes = [ wintypes.LPCWSTR, wintypes.HINSTANCE, ]
+    user32.UnregisterClassW.restype = wintypes.BOOL
+
+    # La clase de ventana pertenece al ejecutable que hospeda WMM.
+    kernel32.GetModuleHandleW.argtypes = [ wintypes.LPCWSTR, ]
+    kernel32.GetModuleHandleW.restype = wintypes.HMODULE
+
+    # SetupAPI: asociación con la interfaz física y acceso al dispositivo.
+    setupapi.SetupDiGetClassDevsW.argtypes = [
+        ctypes.POINTER(_GUID),
+        wintypes.LPCWSTR,
+        wintypes.HANDLE,
+        wintypes.DWORD,
+    ]
+    setupapi.SetupDiGetClassDevsW.restype = wintypes.HANDLE
+
+    setupapi.SetupDiOpenDeviceInterfaceW.argtypes = [
+        wintypes.HANDLE,
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        ctypes.POINTER(_SP_DEVICE_INTERFACE_DATA),
+    ]
+    setupapi.SetupDiOpenDeviceInterfaceW.restype = wintypes.BOOL
+
+    setupapi.SetupDiGetDeviceInterfaceDetailW.argtypes = [
+        wintypes.HANDLE,
+        ctypes.POINTER(_SP_DEVICE_INTERFACE_DATA),
+        ctypes.c_void_p,
+        wintypes.DWORD,
+        ctypes.POINTER(wintypes.DWORD),
+        ctypes.POINTER(_SP_DEVINFO_DATA),
+    ]
+    setupapi.SetupDiGetDeviceInterfaceDetailW.restype = wintypes.BOOL
+
+    setupapi.SetupDiOpenDevRegKey.argtypes = [
+        wintypes.HANDLE,
+        ctypes.POINTER(_SP_DEVINFO_DATA),
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.DWORD,
+    ]
+    setupapi.SetupDiOpenDevRegKey.restype = wintypes.HANDLE
+
+    setupapi.SetupDiDestroyDeviceInfoList.argtypes = [ wintypes.HANDLE, ]
+    setupapi.SetupDiDestroyDeviceInfoList.restype = wintypes.BOOL
+
+    # Advapi32: lectura y cierre de la clave de dispositivo que contiene EDID.
+    advapi32.RegQueryValueExW.argtypes = [
+        wintypes.HANDLE,
+        wintypes.LPCWSTR,
+        ctypes.c_void_p,
+        ctypes.POINTER(wintypes.DWORD),
+        ctypes.c_void_p,
+        ctypes.POINTER(wintypes.DWORD),
+    ]
+    advapi32.RegQueryValueExW.restype = wintypes.LONG
+
+    advapi32.RegCloseKey.argtypes = [ wintypes.HANDLE, ]
+    advapi32.RegCloseKey.restype = wintypes.LONG
+
+    _user32 = user32
+    _setupapi = setupapi
+    _advapi32 = advapi32
+    _kernel32 = kernel32
+
+    return _user32, _setupapi, _advapi32, _kernel32
+
+# ==========================================================
+# 5. Estrategia para Windows
+# ==========================================================
+
+def get_windows_monitors():
+    """
+    Obtiene los monitores activos mediante Win32 y devuelve el contrato WMM.
+
+    GetMonitorInfo aporta la geometría efectiva del escritorio.
+    EnumDisplayDevices enlaza cada DISPLAYx con su interfaz física y
+    SetupAPI permite recuperar el EDID asociado a ese dispositivo.
+    """
+    user32, setupapi, advapi32, _kernel32 = get_windows_display_api()
+
+    MONITORINFOF_PRIMARY = 0x00000001
+    DISPLAY_DEVICE_ACTIVE = 0x00000001
+    EDD_GET_DEVICE_INTERFACE_NAME = 0x00000001
+
+    DIGCF_PRESENT = 0x00000002
+    DIGCF_DEVICEINTERFACE = 0x00000010
+    DICS_FLAG_GLOBAL = 0x00000001
+    DIREG_DEV = 0x00000001
+    KEY_READ = 0x00020019
+
+    ERROR_SUCCESS = 0
+    ERROR_INSUFFICIENT_BUFFER = 122
+    REG_BINARY = 3
+    INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
+
+    guid_monitor = _GUID(
+        0xE6F07B5F,
+        0xEE97,
+        0x4A90,
+        (ctypes.c_ubyte * 8)(
+            0xB0, 0x76, 0x33, 0xF5,
+            0x7B, 0xF4, 0xEA, 0xA7),
+    )
+
+    def get_interface_path(device):
+        """
+        Obtiene la interfaz SetupAPI asociada a un dispositivo DISPLAYx.
+        """
+        fallback = None
+        index = 0
+
+        while True:
+            display_device = _DISPLAY_DEVICEW()
+            display_device.cb = ctypes.sizeof(display_device)
+
+            if not user32.EnumDisplayDevicesW(
+                    device,
+                    index,
+                    ctypes.byref(display_device),
+                    EDD_GET_DEVICE_INTERFACE_NAME):
+                break
+
+            if display_device.DeviceID:
+                if fallback is None:
+                    fallback = display_device.DeviceID
+
+                if display_device.StateFlags & DISPLAY_DEVICE_ACTIVE:
+                    return display_device.DeviceID
+
+            index += 1
+
+        return fallback
+
+    def read_edid(device_info_set, interface_path):
+        """
+        Obtiene el EDID desde la clave de dispositivo de la interfaz física.
+        """
+        if device_info_set is None or not interface_path:
+            return None
+
+        interface_data = _SP_DEVICE_INTERFACE_DATA()
+        interface_data.cbSize = ctypes.sizeof(interface_data)
+
+        if not setupapi.SetupDiOpenDeviceInterfaceW(
+                device_info_set,
+                interface_path,
+                0,
+                ctypes.byref(interface_data)):
+            return None
+
+        device_info = _SP_DEVINFO_DATA()
+        device_info.cbSize = ctypes.sizeof(device_info)
+        required_size = wintypes.DWORD()
+
+        # Sólo necesitamos SP_DEVINFO_DATA. Con el buffer de detalle a NULL,
+        # SetupAPI lo rellena y señala ERROR_INSUFFICIENT_BUFFER por diseño.
+        ctypes.set_last_error(0)
+        result = setupapi.SetupDiGetDeviceInterfaceDetailW(
+            device_info_set,
+            ctypes.byref(interface_data),
+            None,
+            0,
+            ctypes.byref(required_size),
+            ctypes.byref(device_info),
+        )
+
+        if (not result
+                and ctypes.get_last_error() != ERROR_INSUFFICIENT_BUFFER):
+            return None
+
+        registry_key = setupapi.SetupDiOpenDevRegKey(
+            device_info_set,
+            ctypes.byref(device_info),
+            DICS_FLAG_GLOBAL,
+            0,
+            DIREG_DEV,
+            KEY_READ,
+        )
+
+        if registry_key in (None, INVALID_HANDLE_VALUE):
+            return None
+
+        try:
+            value_type = wintypes.DWORD()
+            value_size = wintypes.DWORD()
+
+            result = advapi32.RegQueryValueExW(
+                registry_key,
+                "EDID",
+                None,
+                ctypes.byref(value_type),
+                None,
+                ctypes.byref(value_size),
+            )
+
+            if (result != ERROR_SUCCESS
+                    or value_type.value != REG_BINARY
+                    or value_size.value < 128):
+                return None
+
+            buffer = (ctypes.c_ubyte * value_size.value)()
+
+            result = advapi32.RegQueryValueExW(
+                registry_key,
+                "EDID",
+                None,
+                ctypes.byref(value_type),
+                ctypes.cast(buffer, ctypes.c_void_p),
+                ctypes.byref(value_size),
+            )
+
+            if result != ERROR_SUCCESS:
+                return None
+
+            return bytes(buffer[:value_size.value])
+
+        finally:
+            advapi32.RegCloseKey(registry_key)
+
+    raw_monitors = []
+
+    @_MONITORENUMPROC
+    def monitor_callback(hmonitor, _hdc, _rect, _data):
+        info = _MONITORINFOEXW()
+        info.cbSize = ctypes.sizeof(info)
+
+        if user32.GetMonitorInfoW(hmonitor, ctypes.byref(info)):
+            rect = info.rcMonitor
+
+            raw_monitors.append({
+                "device": info.szDevice,
+                "x": rect.left,
+                "y": rect.top,
+                "width": rect.right - rect.left,
+                "height": rect.bottom - rect.top,
+                "primary": bool(
+                    info.dwFlags & MONITORINFOF_PRIMARY),
+            })
+
+        return True
+
+    if not user32.EnumDisplayMonitors(
+            None, None, monitor_callback, 0):
+        log_event("Windows no pudo enumerar los monitores activos",
+            origin="MON_DETECT", level="ERROR", reason="HARDWARE")
+        return {}
+
+    if not raw_monitors:
+        log_event(
+            "Enumeración Win32 completada sin monitores válidos",
+            origin="MON_DETECT", level="ERROR", reason="HARDWARE")
+        return {}
+
+    device_info_set = setupapi.SetupDiGetClassDevsW(
+        ctypes.byref(guid_monitor),
+        None,
+        None,
+        DIGCF_PRESENT | DIGCF_DEVICEINTERFACE,
+    )
+
+    if device_info_set == INVALID_HANDLE_VALUE:
+        device_info_set = None
+        log_event(
+            "SetupAPI no pudo acceder a las interfaces de monitor; "
+            "se usará identidad por conector",
+            origin="MON_DETECT", level="WARN", reason="HARDWARE")
+
+    min_x = min(display["x"] for display in raw_monitors)
+    min_y = min(display["y"] for display in raw_monitors)
+
+    monitors = {}
+
+    try:
+        for display in raw_monitors:
+            device = display["device"]
+            connector = (
+                device[4:]
+                if device.startswith("\\\\.\\")
+                else device)
+
+            interface_path = get_interface_path(device)
+            edid = read_edid(device_info_set, interface_path)
+
+            edid_info = _parse_edid_base(edid) if edid else None
+            if not edid_info:
+                edid_info = {
+                    "manufacturer": "Unknown",
+                    "model": None,
+                    "serial_number": "Unknown",
+                    "width_mm": 0,
+                    "height_mm": 0,
+                }
+
+            manufacturer = edid_info["manufacturer"]
+            model = edid_info["model"]
+            serial = edid_info["serial_number"]
+            width_mm = edid_info["width_mm"]
+            height_mm = edid_info["height_mm"]
+
+            # Hash
+            if serial != "Unknown":
+                hash_base = f"{manufacturer}_{model}_{serial}"
+            else:
+                hash_base = f"{manufacturer}_{model}_{connector}"
+
+            monitor_hash = hashlib.shake_128(
+                hash_base.encode()).hexdigest(4)
+
+            # Orientación
+            width = display["width"]
+            height = display["height"]
+            orientation = ("horizontal" if width >= height else "vertical")
+
+            # Pulgadas
+            if width_mm > 0 and height_mm > 0:
+                inches = calculate_inches(width_mm, height_mm)
+            else:
+                inches = 0
+
+            monitors[monitor_hash] = {
+                "connector": connector,
+                "manufacturer": manufacturer,
+                "model": model,
+                "x": display["x"] - min_x,
+                "y": display["y"] - min_y,
+                "width": width,
+                "height": height,
+                "width_mm": width_mm,
+                "height_mm": height_mm,
+                "inches": inches,
+                "orientation": orientation,
+                "primary": display["primary"],
+            }
+
+    finally:
+        if device_info_set is not None:
+            setupapi.SetupDiDestroyDeviceInfoList(device_info_set)
+
+    log_event(
+        f"Monitores obtenidos mediante Win32 + EDID: {len(monitors)}",
+        origin="MON_DETECT", level="INFO", reason="HARDWARE")
+    return monitors
+
+# ==========================================================
+# 6. Orquestador principal
 # ==========================================================
 def detect_monitors():
     """
-    Devuelve el diccionario de monitores usando la mejor estrategia disponible.
-    Estrategias (por orden de prioridad):
-        1. X11 → get_x11_monitors()
-        2. Wayland + GNOME → get_gnome_wayland_monitors()
-        3. Wayland + otros → get_gdk_wayland_monitors()
-        4. Fallback → {}
+    Devuelve el diccionario de monitores según el entorno activo.
+    Estrategias:
+        - Windows → get_windows_monitors()
+        - X11 → get_x11_monitors()
+        - Wayland + GNOME → get_gnome_wayland_monitors()
+        - Wayland + KDE → get_kde_monitors()
+        - Wayland + otros → get_gdk_wayland_monitors()
     """
     from wmm_platform.core import PlatformManager
     pm = PlatformManager()
     desktop = getattr(pm, 'desktop', None)
     graphics_engine = getattr(pm, 'graphics_engine', 'x11')
 
+    # Windows utiliza la estrategia nativa Win32, que ya devuelve
+    # directamente el contrato común de monitores de WMM.
+    if graphics_engine == 'win32' and desktop == 'windows':
+        return get_windows_monitors()
+
     # 1. X11
     if graphics_engine == 'x11':
-        log_event("Detección X11 usando libXrandr", origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
+        log_event("Detección X11 usando libXrandr",
+            origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
         return get_x11_monitors()
 
     # 2. GNOME Wayland
     if graphics_engine == 'wayland' and desktop == 'gnome':
-        log_event("Detección GNOME Wayland usando D-Bus", origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
+        log_event("Detección GNOME Wayland usando D-Bus",
+            origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
         monitors = get_gnome_wayland_monitors()
         if monitors:
             return monitors
         else:
-            log_event("D-Bus falló, usando fallback GDK", origin="MON_DETECT", level="WARN", reason="HARDWARE")
+            log_event("D-Bus falló, usando fallback GDK",
+                origin="MON_DETECT", level="WARN", reason="HARDWARE")
 
     # 3. KDE Wayland
     if graphics_engine == 'wayland' and desktop == 'kde':
-        log_event("Detección KDE Wayland usando kscreen-doctor + EDID", origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
+        log_event("Detección KDE Wayland usando kscreen-doctor + EDID",
+            origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
         monitors = get_kde_monitors()
         if monitors:
             return monitors
         else:
-            log_event("kscreen-doctor falló, usando fallback GDK", origin="MON_DETECT", level="WARN", reason="HARDWARE")
+            log_event("kscreen-doctor falló, usando fallback GDK",
+                origin="MON_DETECT", level="WARN", reason="HARDWARE")
 
     # 4. Fallback GDK para cualquier otro caso
-    log_event("Detección genérica Wayland usando GDK", origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
+    log_event("Detección genérica Wayland usando GDK",
+        origin="MON_DETECT", level="DEBUG", reason="HARDWARE")
     return get_gdk_wayland_monitors()

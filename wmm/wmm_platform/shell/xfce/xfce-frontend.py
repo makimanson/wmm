@@ -23,6 +23,7 @@ import gettext
 import json
 import os
 import signal
+import subprocess
 import sys
 import gi
 
@@ -35,7 +36,6 @@ from gi.repository import Gdk, Gio, GLib, Gtk, Wnck
 # ==========================================================
 # IDENTIDAD, RUTAS Y CONSTANTES
 # ==========================================================
-
 BUS_NAME = "org.maki.wmm.XfceFrontend"
 OBJECT_PATH = "/StatusNotifierItem"
 MENU_PATH = "/MenuBar"
@@ -54,7 +54,6 @@ SEND_COMMAND_PATH = os.path.join(APP_DIR, "python", "send_command.py")
 INSTALL_MANAGER_PATH = os.path.join(
     APP_DIR, "wmm_platform", "shell", "installer", "wmm-install_manager.py")
 DEBUG_LOG_VIEWER_PATH = os.path.join(APP_DIR, "python", "debug_log_viewer.py")
-
 CSS_PATH = os.path.join(FRONTEND_DIR, "xfce-frontend.css")
 
 FAVORITES_VISIBLE_ROWS = 4
@@ -62,7 +61,6 @@ FAVORITES_VISIBLE_ROWS = 4
 # ==========================================================
 # TRADUCCIONES
 # ==========================================================
-
 APP_DOMAIN = "wmm@maki"
 LOCALE_DIR = os.path.join(GLib.get_user_data_dir(), "locale")
 
@@ -75,7 +73,6 @@ def _(text):
 # ==========================================================
 # ESTILOS GTK
 # ==========================================================
-
 wmm_css_provider = None
 
 def _load_wmm_css():
@@ -104,7 +101,6 @@ def _load_wmm_css():
 # ==========================================================
 # STATUSNOTIFIERITEM: CONTRATO D-BUS
 # ==========================================================
-
 INTROSPECTION_XML = """
 <node>
   <interface name="org.kde.StatusNotifierItem">
@@ -150,11 +146,11 @@ INTROSPECTION_XML = """
 PROPERTIES = {
     "Category": GLib.Variant("s", "ApplicationStatus"),
     "Id": GLib.Variant("s", "wmm"),
-    "Title": GLib.Variant("s", "WMM - Wallpaper Multi-Monitor Manager"),
+    "Title": GLib.Variant("s", "Wallpaper Multi-Monitor Manager"),
     "Status": GLib.Variant("s", "Active"),
     "IconName": GLib.Variant("s", "video-display"),
     "ToolTip": GLib.Variant("(sa(iiay)ss)",
-        ("video-display", [], "WMM - Wallpaper Multi-Monitor Manager", "")),
+        ("video-display", [], "Wallpaper Multi-Monitor Manager", "")),
     "ItemIsMenu": GLib.Variant("b", False),
     "Menu": GLib.Variant("o", MENU_PATH),
 }
@@ -162,7 +158,6 @@ PROPERTIES = {
 # ==========================================================
 # MENÚ CONTEXTUAL DBUSMENU
 # ==========================================================
-
 DBUSMENU_XML = """
 <node>
   <interface name="com.canonical.dbusmenu">
@@ -278,12 +273,10 @@ def _context_menu_properties(item_id):
         "enabled": GLib.Variant("b", True),
         "visible": GLib.Variant("b", True),}
 
-
 def _context_menu_child(item_id):
     """Construye un hijo terminal del layout DBusMenu."""
     return GLib.Variant("(ia{sv}av)",
         (item_id, _context_menu_properties(item_id), []),)
-
 
 def _context_menu_layout(item_id):
     """Devuelve el layout plano del menú contextual WMM."""
@@ -299,7 +292,6 @@ def _context_menu_layout(item_id):
 # ==========================================================
 # IDENTIDAD DEL PROCESO
 # ==========================================================
-
 def _set_frontend_identity():
     """Asigna nombre e icono propios al proceso frontend XFCE."""
     GLib.set_prgname("WMM Frontend")
@@ -315,7 +307,6 @@ def _set_frontend_identity():
 # ==========================================================
 # ENGINE: ACTIVACIÓN Y ENVÍO DE COMANDOS
 # ==========================================================
-
 def _spawn_send_command(command):
     """Envía un comando normal al engine mediante el canal común de WMM."""
     if not os.path.isfile(SEND_COMMAND_PATH):
@@ -340,7 +331,6 @@ def _on_busy_reply(connection, result, _user_data):
         _set_sni_icon(connection, "view-refresh" if busy else "video-display")
     except GLib.Error:
         pass
-
 
 def _refresh_busy_state(connection):
     """Consulta una vez el estado busy actual del engine."""
@@ -368,13 +358,10 @@ def _initialize_translated_ui(connection):
     tooltip_text = (
         _("Click action") + ": " + _("Main Menu") + "\n" +
         _("Middle Click") + ": " + _("Next Background") + "\n" +
-        _("Secondary Click") + ": " + _("Context Menu")
-    )
+        _("Secondary Click") + ": " + _("Context Menu"))
 
-    PROPERTIES["ToolTip"] = GLib.Variant(
-        "(sa(iiay)ss)",
-        ("video-display", [], "WMM - Wallpaper Multi-Monitor Manager",
-         tooltip_text))
+    PROPERTIES["ToolTip"] = GLib.Variant("(sa(iiay)ss)",
+        ("video-display", [], "Wallpaper Multi-Monitor Manager", tooltip_text))
 
     wmm_menu = _build_menu(connection)
     context_menu_revision += 1
@@ -445,7 +432,6 @@ def _send_action_to_engine(connection, command):
 # ==========================================================
 # HERRAMIENTAS INDEPENDIENTES Y CIERRE GLOBAL
 # ==========================================================
-
 def _launch_independent_tool(path):
     """Lanza una herramienta que no depende del estado del engine."""
     if not os.path.isfile(path):
@@ -473,7 +459,6 @@ def _on_shutdown_finished(connection, result, user_data):
 
     _quit_frontend()
 
-
 def _shutdown_wmm(connection):
     """Solicita el cierre del engine sin arrancarlo y termina el frontend."""
     connection.call(
@@ -487,36 +472,27 @@ def _shutdown_wmm(connection):
 # ==========================================================
 # MENÚ CONTEXTUAL DBUSMENU: CALLBACKS
 # ==========================================================
-
 def _activate_context_menu_item(connection, item_id):
     """Ejecuta la acción seleccionada en el menú contextual WMM."""
     if item_id == 1:
         _send_action_to_engine(connection, {"action": "open_panel"})
-
     elif item_id == 2:
         _send_action_to_engine(connection, {"action": "sync_library"})
-
     elif item_id == 3:
         _launch_independent_tool(INSTALL_MANAGER_PATH)
-
     elif item_id == 4:
         _launch_independent_tool(DEBUG_LOG_VIEWER_PATH)
-
     elif item_id == 5:
         _send_action_to_engine(connection, {"action": "open_help"})
-
     elif item_id == 7:
         _send_action_to_engine(connection, {"action": "open_about"})
-
     elif item_id == 8:
         _shutdown_wmm(connection)
-
 
 def _on_context_menu_get_property(connection, sender,
     object_path, interface_name, property_name):
     """Entrega las propiedades públicas de com.canonical.dbusmenu."""
     return DBUSMENU_PROPERTIES.get(property_name)
-
 
 def _on_context_menu_method_call(connection, sender, object_path,
     interface_name, method_name, parameters, invocation):
@@ -612,25 +588,30 @@ slideshow_scale_dragging = False
 slideshow_interval = 15
 slideshow_max_interval = 60
 displays_item = None
+displays_label = None
+displays_switch = None
 spanned_item = None
+spanned_switch = None
+metadata_item = None
+metadata_switch = None
 next_background_item = None
+next_background_tooltip = None
+next_background_hotkey_label = None
+next_background_tooltip_timeout = None
 menu_syncing_state = False
 menu_anchor_edge = None
 menu_anchor_coordinate = None
 
-
 # ==========================================================
 # MENÚ PRINCIPAL: SINCRONIZACIÓN CON EL ENGINE
 # ==========================================================
-
 def _update_displays_label():
     """Refleja SYNC/ASYNC en la etiqueta visible de Displays."""
-    if displays_item is None:
+    if displays_switch is None or displays_label is None:
         return
 
-    mode = _("SYNC (All)") if displays_item.get_active() else _("ASYNC (One)")
-    displays_item.set_label(_("Displays") + ": " + mode)
-
+    mode = _("SYNC (All)") if displays_switch.get_active() else _("ASYNC (One)")
+    displays_label.set_text(_("Displays") + ": " + mode)
 
 def _apply_menu_settings(data):
     """Sincroniza el estado visible del menú desde los settings del engine."""
@@ -645,9 +626,9 @@ def _apply_menu_settings(data):
     if not isinstance(config, dict):
         return
 
-    if (displays_item is None or spanned_item is None
-        or slideshow_switch is None or slideshow_scale is None
-        or favorites_only_switch is None):
+    if (displays_switch is None or spanned_switch is None
+        or metadata_switch is None or slideshow_switch is None
+        or slideshow_scale is None or favorites_only_switch is None):
         return
 
     slideshow_max_interval = max(
@@ -663,15 +644,14 @@ def _apply_menu_settings(data):
     menu_syncing_state = True
 
     try:
-        displays_item.set_active(
+        displays_switch.set_active(
             config.get("slideshow_mode", "async") == "sync")
-        spanned_item.set_active(
-            bool(config.get("spanned_enabled", False)))
+        spanned_switch.set_active(bool(config.get("spanned_enabled", False)))
+        metadata_switch.set_active(bool(config.get("exif_metadata_enabled", False)))
         slideshow_switch.set_active(enabled)
         slideshow_scale.set_range(1, slideshow_max_interval)
         slideshow_scale.set_value(slideshow_interval)
-        favorites_only_switch.set_active(
-            bool(config.get("slideshow_bookmark", False)))
+        favorites_only_switch.set_active(bool(config.get("slideshow_bookmark", False)))
     finally:
         menu_syncing_state = False
 
@@ -681,7 +661,6 @@ def _apply_menu_settings(data):
     slideshow_interval_label.set_text(
         str(slideshow_interval) + " " + _("minutes"))
 
-
 def _on_menu_settings_reply(connection, result, user_data):
     """Decodifica GetSettings y actualiza el estado visible del menú."""
     try:
@@ -690,7 +669,6 @@ def _on_menu_settings_reply(connection, result, user_data):
         _apply_menu_settings(json.loads(raw) if raw else {})
     except (GLib.Error, json.JSONDecodeError, TypeError, ValueError):
         pass
-
 
 def _refresh_menu_settings(connection):
     """Consulta al engine el estado actual necesario para el menú principal."""
@@ -714,7 +692,6 @@ def _refresh_menu_bookmarks(connection):
         GLib.VariantType.new("(s)"),
         Gio.DBusCallFlags.NO_AUTO_START,
         1500, None, _on_menu_bookmarks_reply, None,)
-
 
 def _on_menu_bookmarks_reply(connection, result, user_data):
     """Decodifica GetBookmarks y reconstruye la lista inline."""
@@ -759,12 +736,10 @@ def _on_settings_changed(connection, sender_name, object_path,
     except (json.JSONDecodeError, TypeError, ValueError):
         pass
 
-
 # ==========================================================
 # DISPLAYS / SPANNED
 # ==========================================================
-
-def _on_displays_toggled(item, connection):
+def _on_displays_switch_changed(switch, pspec, connection):
     """Alterna ASYNC/SYNC sin modificar el resto de ajustes del slideshow."""
     if menu_syncing_state:
         return
@@ -772,24 +747,29 @@ def _on_displays_toggled(item, connection):
     _update_displays_label()
     _send_action_to_engine(connection, {
         "action": "update_timer_settings",
-        "mode": "sync" if item.get_active() else "async",
-    })
+        "mode": "sync" if switch.get_active() else "async", })
 
-
-def _on_spanned_toggled(item, connection):
+def _on_spanned_switch_changed(switch, pspec, connection):
     """Propaga únicamente el estado de Spanned al engine."""
     if menu_syncing_state:
         return
 
     _send_action_to_engine(connection, {
         "action": "update_timer_settings",
-        "spanned_enabled": item.get_active(),
-    })
+        "spanned_enabled": switch.get_active(), })
+
+def _on_metadata_switch_changed(switch, pspec, connection):
+    """Propaga el estado de metadatos sin modificar el slideshow."""
+    if menu_syncing_state:
+        return
+
+    _send_action_to_engine(connection, {
+        "action": "set_metadata_enabled",
+        "enabled": switch.get_active(), })
 
 # ==========================================================
 # SLIDESHOW
 # ==========================================================
-
 def _sync_slideshow_ui(enabled):
     """Refleja el estado de Slideshow sin generar un comando recursivo."""
     global menu_syncing_state
@@ -805,7 +785,6 @@ def _sync_slideshow_ui(enabled):
     slideshow_switch_label.set_text(_("Enabled") if enabled else _("Disabled"))
     slideshow_scale.set_sensitive(enabled)
 
-
 def _on_slideshow_switch_changed(switch, pspec, connection):
     """Propaga únicamente el estado ON/OFF de Slideshow al engine."""
     if menu_syncing_state:
@@ -814,9 +793,7 @@ def _on_slideshow_switch_changed(switch, pspec, connection):
     _sync_slideshow_ui(switch.get_active())
     _send_action_to_engine(connection, {
         "action": "update_timer_settings",
-        "enabled": switch.get_active(),
-    })
-
+        "enabled": switch.get_active(), })
 
 def _on_slideshow_scale_changed(scale):
     """Actualiza en vivo el intervalo mostrado mientras se mueve el slider."""
@@ -894,15 +871,134 @@ def _on_menu_button_press(menu, event):
     slideshow_scale_dragging = True
     return True
 
-
 def _on_menu_motion(menu, event):
-    """Actualiza slider o hover manual de Favorites."""
+    """Actualiza slider, hover de Favorites y tooltip contextual."""
     if slideshow_scale_dragging:
+        _hide_next_background_tooltip()
         _set_slideshow_scale_from_event(menu, event)
         return True
 
     _update_favorites_hover(menu, event)
+
+    if menu.get_selected_item() is next_background_item:
+        _schedule_next_background_tooltip(menu)
+    else:
+        _hide_next_background_tooltip()
+
     return False
+
+def _ensure_next_background_tooltip():
+    """Crea una sola vez el tooltip lateral de Next Background."""
+    global next_background_tooltip
+
+    if next_background_tooltip is not None:
+        return next_background_tooltip
+
+    tooltip = Gtk.Window(type=Gtk.WindowType.POPUP)
+    tooltip.set_decorated(False)
+    tooltip.set_resizable(False)
+    tooltip.set_accept_focus(False)
+    tooltip.set_skip_taskbar_hint(True)
+    tooltip.set_skip_pager_hint(True)
+    tooltip.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
+    tooltip.get_style_context().add_class("tooltip")
+    tooltip.get_style_context().add_class("wmm-tooltip")
+    label = Gtk.Label(label=_("Secondary click: assign a keyboard shortcut"))
+    tooltip.add(label)
+
+    # El hijo debe ser visible antes de medir el Gtk.Window; mantener sólo
+    # la ventana oculta evita que el primer cálculo use un tamaño incompleto.
+    label.show()
+
+    next_background_tooltip = tooltip
+    return tooltip
+
+def _show_next_background_tooltip(menu):
+    """Muestra el tooltip a un costado dentro del workarea del monitor."""
+    global next_background_tooltip_timeout
+    next_background_tooltip_timeout = None
+
+    if (not menu.get_visible()
+        or menu.get_selected_item() is not next_background_item):
+        return GLib.SOURCE_REMOVE
+
+    menu_window = menu.get_window()
+    display = Gdk.Display.get_default()
+
+    if menu_window is None or display is None:
+        return GLib.SOURCE_REMOVE
+
+    translated = next_background_item.translate_coordinates(menu, 0, 0)
+    if translated is None:
+        return GLib.SOURCE_REMOVE
+
+    _, origin_x, origin_y = menu_window.get_origin()
+
+    source_x = origin_x + translated[0]
+    source_y = origin_y + translated[1]
+    source_width = next_background_item.get_allocated_width()
+    source_height = next_background_item.get_allocated_height()
+
+    monitor = display.get_monitor_at_point(
+        source_x + source_width // 2,
+        source_y + source_height // 2)
+
+    if monitor is None:
+        return GLib.SOURCE_REMOVE
+
+    workarea = monitor.get_workarea()
+
+    tooltip = _ensure_next_background_tooltip()
+    _, natural = tooltip.get_preferred_size()
+
+    tooltip_width = natural.width
+    tooltip_height = natural.height
+    margin = 8
+
+    left = workarea.x + margin
+    right = workarea.x + workarea.width - margin
+    top = workarea.y + margin
+    bottom = workarea.y + workarea.height - margin
+
+    right_x = source_x + source_width + margin
+    left_x = source_x - tooltip_width - margin
+
+    if right_x + tooltip_width <= right:
+        x = right_x
+    elif left_x >= left:
+        x = left_x
+    else:
+        return GLib.SOURCE_REMOVE
+
+    y = source_y + (source_height - tooltip_height) // 2
+    y = max(top, min(y, bottom - tooltip_height))
+
+    tooltip.move(int(x), int(y))
+    tooltip.show_all()
+
+    return GLib.SOURCE_REMOVE
+
+def _schedule_next_background_tooltip(menu):
+    """Programa el tooltip sin reiniciar el retardo en cada movimiento."""
+    global next_background_tooltip_timeout
+
+    if (next_background_tooltip_timeout is not None
+        or (next_background_tooltip is not None
+            and next_background_tooltip.get_visible())):
+        return
+
+    next_background_tooltip_timeout = GLib.timeout_add(400, _show_next_background_tooltip, menu)
+
+def _hide_next_background_tooltip():
+    """Cancela cualquier aparición pendiente y oculta el tooltip."""
+    global next_background_tooltip_timeout
+
+    if next_background_tooltip_timeout is not None:
+        GLib.source_remove(next_background_tooltip_timeout)
+        next_background_tooltip_timeout = None
+
+    if next_background_tooltip is not None:
+        next_background_tooltip.hide()
 
 def _on_menu_scroll(menu, event):
     """Desplaza Favorites con la rueda sin mostrar scrollbar."""
@@ -925,14 +1021,11 @@ def _on_menu_scroll(menu, event):
         return True
 
     lower = adjustment.get_lower()
-    upper = max(
-        lower, adjustment.get_upper() - adjustment.get_page_size())
+    upper = max(lower, adjustment.get_upper() - adjustment.get_page_size())
 
-    adjustment.set_value(max(
-        lower, min(upper, adjustment.get_value() + delta)))
+    adjustment.set_value(max(lower, min(upper, adjustment.get_value() + delta)))
 
     return True
-
 
 def _event_inside_widget(menu, event, widget):
     """Comprueba si un evento del Gtk.Menu cae realmente en un widget."""
@@ -956,7 +1049,6 @@ def _event_inside_widget(menu, event, widget):
     height = widget.get_allocated_height()
 
     return 0 <= x < width and 0 <= y < height
-
 
 def _update_favorites_hover(menu, event):
     """Aplica PRELIGHT al nombre o papelera bajo el puntero."""
@@ -991,7 +1083,6 @@ def _update_favorites_hover(menu, event):
 # ==========================================================
 # FAVORITOS
 # ==========================================================
-
 def _on_favorites_only_switch_changed(switch, pspec, connection):
     """Actualiza Favorites Only y activa Slideshow si resulta necesario."""
     if menu_syncing_state:
@@ -1046,18 +1137,15 @@ def _paint_inline_bookmarks():
             row.wmm_name = name
             row.get_style_context().add_class("wmm-favorite-row")
 
-            row_box = Gtk.Box(
-                orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
-            row_box.get_style_context().add_class(
-                "wmm-favorite-row-box")
+            row_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+            row_box.get_style_context().add_class("wmm-favorite-row-box")
 
             name_button = Gtk.Button()
             name_button.set_relief(Gtk.ReliefStyle.NONE)
             name_button.set_can_focus(False)
             name_button.set_focus_on_click(False)
             name_button.set_hexpand(True)
-            name_button.get_style_context().add_class(
-                "wmm-favorite-button")
+            name_button.get_style_context().add_class("wmm-favorite-button")
 
             name_label = Gtk.Label(label=name, xalign=0)
             name_label.set_ellipsize(3)
@@ -1067,11 +1155,9 @@ def _paint_inline_bookmarks():
             delete_button.set_relief(Gtk.ReliefStyle.NONE)
             delete_button.set_can_focus(False)
             delete_button.set_focus_on_click(False)
-            delete_button.get_style_context().add_class(
-                "wmm-favorite-button")
+            delete_button.get_style_context().add_class("wmm-favorite-button")
 
-            delete_icon = Gtk.Image.new_from_icon_name(
-                "user-trash-symbolic", Gtk.IconSize.MENU)
+            delete_icon = Gtk.Image.new_from_icon_name("user-trash-symbolic", Gtk.IconSize.MENU)
             delete_button.add(delete_icon)
 
             # Gtk.Menu posee los eventos: guardamos las zonas reales
@@ -1086,7 +1172,6 @@ def _paint_inline_bookmarks():
 
     favorites_inline_list.show_all()
     _update_favorites_scroll_height()
-
 
 def _update_favorites_scroll_height():
     """Limita Favorites a cuatro filas reales según las métricas del tema."""
@@ -1130,31 +1215,55 @@ def _load_favorite(name, connection):
         "timer_force_off": True,
     })
 
+def _position_window_at_point(window, x, y):
+    """Centra una ventana sobre un punto sin salir del workarea."""
+    display = Gdk.Display.get_default()
+    if display is None:
+        return
 
-def _confirm_delete_favorite(name, connection):
+    monitor = display.get_monitor_at_point(int(x), int(y))
+    if monitor is None:
+        return
+
+    workarea = monitor.get_workarea()
+    _, natural = window.get_preferred_size()
+
+    width = natural.width
+    height = natural.height
+
+    target_x = int(x - width / 2)
+    target_y = int(y - height / 2)
+
+    target_x = max(workarea.x,
+        min(target_x, workarea.x + workarea.width - width))
+
+    target_y = max(workarea.y,
+        min(target_y, workarea.y + workarea.height - height))
+
+    window.set_position(Gtk.WindowPosition.NONE)
+    window.move(target_x, target_y)
+
+def _confirm_delete_favorite(name, connection, x, y):
     """Solicita confirmación antes de borrar un favorito."""
     dialog = Gtk.MessageDialog(
         transient_for=None,
         modal=True,
         message_type=Gtk.MessageType.QUESTION,
         buttons=Gtk.ButtonsType.YES_NO,
-        text=_("Delete") + ' "' + name + '"?',
-    )
-    dialog.set_title(_("Delete favorite"))
+        text=_("Delete") + ' "' + name + '"?', )
 
+    dialog.set_title(_("Delete favorite"))
+    dialog.show_all()
+    _position_window_at_point(dialog, x, y)
     response = dialog.run()
     dialog.destroy()
 
     if response == Gtk.ResponseType.YES:
-        _send_action_to_engine(connection, {
-            "action": "delete_bookmark",
-            "name": name,
-        })
+        _send_action_to_engine(connection, { "action": "delete_bookmark", "name": name, })
 
 # ==========================================================
 # CONSTRUCCIÓN DEL MENÚ PRINCIPAL
 # ==========================================================
-
 def _build_menu(connection):
     """Construye la estructura base del menú principal WMM para XFCE."""
     global favorites_header_item
@@ -1165,8 +1274,14 @@ def _build_menu(connection):
     global favorites_scrolled
     global favorites_inline_list
     global displays_item
+    global displays_label
+    global displays_switch
     global spanned_item
+    global spanned_switch
+    global metadata_item
+    global metadata_switch
     global next_background_item
+    global next_background_hotkey_label
     global slideshow_header_item
     global slideshow_switch_item
     global slideshow_switch
@@ -1283,23 +1398,59 @@ def _build_menu(connection):
     slideshow_interval_item.add(slideshow_interval_box)
     menu.append(slideshow_interval_item)
 
-    displays_item = Gtk.CheckMenuItem(
-        label=_("Displays") + ": " + _("ASYNC (One)"))
-    displays_item.connect("toggled", _on_displays_toggled, connection)
+    # Cada Gtk.MenuItem conserva la interacción centralizada: los Gtk.Switch
+    # muestran estado, pero no gestionan por su cuenta el clic del popup.
+    displays_item = Gtk.MenuItem()
+    displays_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+    displays_label = Gtk.Label(label=_("Displays") + ": " + _("ASYNC (One)"), xalign=0)
+    displays_switch = Gtk.Switch()
+    displays_switch.connect("notify::active", _on_displays_switch_changed, connection)
+    displays_box.pack_start(displays_label, True, True, 0)
+    displays_box.pack_end(displays_switch, False, False, 0)
+    displays_item.add(displays_box)
     menu.append(displays_item)
 
-    spanned_item = Gtk.CheckMenuItem(label=_("Spanned Mode"))
-    spanned_item.connect("toggled", _on_spanned_toggled, connection)
+    spanned_item = Gtk.MenuItem()
+    spanned_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+    spanned_label = Gtk.Label(label=_("Spanned Mode"), xalign=0)
+    spanned_switch = Gtk.Switch()
+    spanned_switch.connect("notify::active", _on_spanned_switch_changed, connection)
+    spanned_box.pack_start(spanned_label, True, True, 0)
+    spanned_box.pack_end(spanned_switch, False, False, 0)
+    spanned_item.add(spanned_box)
     menu.append(spanned_item)
+
+    metadata_item = Gtk.MenuItem()
+    metadata_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+    metadata_label = Gtk.Label(label=_("Image Metadata"), xalign=0)
+    metadata_switch = Gtk.Switch()
+    metadata_switch.connect("notify::active", _on_metadata_switch_changed, connection)
+    metadata_box.pack_start(metadata_label, True, True, 0)
+    metadata_box.pack_end(metadata_switch, False, False, 0)
+    metadata_item.add(metadata_box)
+    menu.append(metadata_item)
 
     menu.append(Gtk.SeparatorMenuItem())
 
-    # Next Background conserva la columna nativa reservada al icono sin usar
-    # Gtk.ImageMenuItem; la acción sigue siendo momentánea y no un toggle.
-    next_background_item = Gtk.CheckMenuItem(label=_("Next Background"))
+    # Next Background conserva la columna de iconos mediante CheckMenuItem.
+    # Dos etiquetas independientes evitan la reserva adicional de espacio
+    # de Gtk.AccelLabel, sin alterar la interacción centralizada del menú.
+    next_background_item = Gtk.CheckMenuItem()
     next_background_item.get_style_context().add_class("wmm-menu-icon")
     next_background_item.get_style_context().add_class("wmm-next-background")
     next_background_item.set_active(False)
+
+    next_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+    next_label = Gtk.Label(label=_("Next Background"), xalign=0)
+
+    next_background_hotkey_label = Gtk.Label(xalign=1)
+    next_background_hotkey_label.get_style_context().add_class(
+        "wmm-hotkey-label")
+
+    next_box.pack_start(next_label, True, True, 0)
+    next_box.pack_end(next_background_hotkey_label, False, False, 0)
+    next_background_item.add(next_box)
+
     menu.append(next_background_item)
 
     # El grab propio de Gtk.Menu obliga a centralizar estos eventos. No sustituir
@@ -1336,7 +1487,6 @@ def _build_menu(connection):
 # ==========================================================
 # POPUP: REDIMENSIONADO Y DESPACHO DE INTERACCIÓN
 # ==========================================================
-
 def _resize_menu_native_window():
     """Redimensiona el popup conservando tamaño nativo y anclaje al panel.
 
@@ -1367,13 +1517,10 @@ def _resize_menu_native_window():
 
     if menu_anchor_edge == "bottom":
         y = menu_anchor_coordinate - height
-
     elif menu_anchor_edge == "top":
         y = menu_anchor_coordinate
-
     elif menu_anchor_edge == "right":
         x = menu_anchor_coordinate - width
-
     elif menu_anchor_edge == "left":
         x = menu_anchor_coordinate
 
@@ -1387,6 +1534,33 @@ def _on_menu_button_release(menu, event, connection):
     global slideshow_expanded
     global slideshow_scale_dragging
 
+    if event.button not in (1, 3):
+        return False
+
+    selected_item = menu.get_selected_item()
+
+    # El izquierdo rota sin cerrar el popup; el secundario abre el gestor
+    # común y cierra primero el menú para liberar su grab de GTK.
+    if selected_item is next_background_item:
+        if event.button == 1:
+            _send_action_to_engine(connection, {"action": "force_rotation"})
+            return True
+
+        # Conservar el centro del popup antes de liberar el grab de GTK.
+        native_window = menu.get_toplevel().get_window()
+        if native_window is not None:
+            _, x, y = native_window.get_origin()
+            geometry = native_window.get_geometry()
+            x += geometry.width // 2
+            y += geometry.height // 2
+        else:
+            x, y = int(event.x_root), int(event.y_root)
+
+        menu.popdown()
+        _send_action_to_engine(connection, {
+            "action": "open_keybinding", "x": int(x), "y": int(y), })
+        return True
+
     if event.button != 1:
         return False
 
@@ -1399,8 +1573,6 @@ def _on_menu_button_release(menu, event, connection):
             "interval": slideshow_interval,
         })
         return True
-
-    selected_item = menu.get_selected_item()
 
     if selected_item is favorites_header_item:
         favorites_expanded = not favorites_expanded
@@ -1422,10 +1594,13 @@ def _on_menu_button_release(menu, event, connection):
             not favorites_only_switch.get_active())
         return True
 
-    # El formulario de alta es externo: cerramos el popup.
+    # El formulario externo nace donde se ha producido la interacción.
     if selected_item is favorites_add_item:
+        x = int(event.x_root)
+        y = int(event.y_root)
+
         menu.popdown()
-        _send_action_to_engine(connection, {"action": "add_bookmark"})
+        _send_action_to_engine(connection, { "action": "add_bookmark", "x": x, "y": y, })
         return True
 
     # El nombre carga y mantiene abierto; la papelera abre confirmación.
@@ -1437,8 +1612,11 @@ def _on_menu_button_release(menu, event, connection):
 
             if _event_inside_widget(
                 menu, event, getattr(row, "wmm_delete_widget", None)):
+                x = int(event.x_root)
+                y = int(event.y_root)
+
                 menu.popdown()
-                _confirm_delete_favorite(name, connection)
+                _confirm_delete_favorite(name, connection, x, y)
                 return True
 
             if _event_inside_widget(
@@ -1450,29 +1628,30 @@ def _on_menu_button_release(menu, event, connection):
 
     if selected_item is slideshow_header_item:
         slideshow_expanded = not slideshow_expanded
-
         slideshow_switch_item.set_visible(slideshow_expanded)
         slideshow_interval_item.set_visible(slideshow_expanded)
-
         slideshow_header_item.set_active(slideshow_expanded)
-
         _resize_menu_native_window()
         return True
 
     if selected_item is slideshow_switch_item:
-        slideshow_switch.set_active(
-            not slideshow_switch.get_active())
+        slideshow_switch.set_active(not slideshow_switch.get_active())
         return True
 
     if selected_item is slideshow_interval_item:
         return True
 
-    if selected_item is next_background_item:
-        # Se despacha aquí, no mediante "activate": devolver True mantiene el
-        # popup abierto para permitir varias rotaciones consecutivas.
-        _send_action_to_engine(connection, {"action": "force_rotation"})
+    if selected_item is displays_item:
+        displays_switch.set_active(not displays_switch.get_active())
         return True
 
+    if selected_item is spanned_item:
+        spanned_switch.set_active(not spanned_switch.get_active())
+        return True
+
+    if selected_item is metadata_item:
+        metadata_switch.set_active(not metadata_switch.get_active())
+        return True
     return False
 
 def _on_menu_toplevel_unmap(widget):
@@ -1499,11 +1678,51 @@ def _on_menu_toplevel_unmap(widget):
     slideshow_interval_item.hide()
 
     slideshow_header_item.set_active(False)
+    _hide_next_background_tooltip()
+
+def _refresh_next_background_accelerator():
+    """Actualiza el atajo XFCE sin utilizar la columna nativa de aceleradores."""
+    if next_background_hotkey_label is None:
+        return
+
+    # Xfconf sigue siendo la autoridad. Limpiar antes de consultar
+    # evita conservar un atajo eliminado o una lectura anterior.
+    next_background_hotkey_label.set_text("")
+
+    try:
+        result = subprocess.run(
+            ["xfconf-query", "-c", "xfce4-keyboard-shortcuts",
+             "-p", "/commands/custom", "-lv"],
+            capture_output=True, text=True, check=False, timeout=2)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        print(f"[WMM XFCE] No se pudo leer el atajo: {error}", flush=True)
+        return
+
+    if result.returncode != 0:
+        print(f"[WMM XFCE] Error consultando el atajo: {result.stderr.strip()}",
+              flush=True)
+        return
+
+    # La propiedad se identifica por el comando WMM, nunca por
+    # una combinación fija ni por su posición dentro de Xfconf.
+    prefix = "/commands/custom/"
+    for line in result.stdout.splitlines():
+        parts = line.split(None, 1)
+        if (len(parts) != 2 or parts[1].strip() != "wmm-next.sh"
+                or not parts[0].startswith(prefix)):
+            continue
+
+        binding = parts[0][len(prefix):]
+        if binding != "___":
+            keyval, modifiers = Gtk.accelerator_parse(binding)
+            if keyval:
+                next_background_hotkey_label.set_text(
+                    Gtk.accelerator_get_label(keyval, modifiers))
+        break
 
 # ==========================================================
 # POPUP: ANCLAJE CONTRA EL PANEL XFCE
 # ==========================================================
-
 def _get_panel_geometry_at_point(x, y):
     """Devuelve geometría y borde del panel XFCE que contiene el punto."""
     display = Gdk.Display.get_default()
@@ -1538,8 +1757,7 @@ def _get_panel_geometry_at_point(x, y):
 
         else:
             left_distance = abs(panel_x - monitor_geometry.x)
-            right_distance = abs(
-                monitor_geometry.x + monitor_geometry.width
+            right_distance = abs(monitor_geometry.x + monitor_geometry.width
                 - panel_x - panel_width)
             edge = "left" if left_distance <= right_distance else "right"
 
@@ -1599,6 +1817,10 @@ def _show_wmm_menu(x, y):
 
     menu_anchor_edge = edge
 
+    # Actualizar antes del popup para calcular la anchura definitiva
+    # sin redimensionar el menú mientras permanece visible.
+    _refresh_next_background_accelerator()
+
     # StatusNotifierItem sólo entrega Activate(x, y) por D-Bus; el Gdk.Event
     # original ya no existe. Pasar None es deliberado: GTK3 intenta usar el
     # evento actual y avisa "no trigger event for menu popup" al no encontrarlo.
@@ -1615,7 +1837,6 @@ def _show_wmm_menu(x, y):
 # ==========================================================
 # STATUSNOTIFIERITEM: CALLBACKS
 # ==========================================================
-
 def _on_method_call(connection, sender, object_path, interface_name,
                     method_name, parameters, invocation):
     """Recibe los eventos enviados por el StatusNotifier de XFCE."""
@@ -1684,7 +1905,6 @@ def _on_watcher_vanished(_connection, _name):
 # ==========================================================
 # CICLO DE VIDA DEL FRONTEND
 # ==========================================================
-
 def main():
     """Registra WMM como StatusNotifierItem y mantiene vivo el frontend."""
     global wmm_menu

@@ -22,6 +22,7 @@ El applet actúa únicamente como cliente del engine común:
 import gettext
 import json
 import os
+import shlex
 import sys
 import gi
 import dbus
@@ -127,7 +128,6 @@ def _(text):
     """Traduce una cadena usando el dominio gettext propio de WMM."""
     return gettext.dgettext("wmm@maki", text)
 
-
 class WMMMateAppletDBus(dbus.service.Object):
     """Health endpoint D-Bus del proceso de la factoría MATE de WMM."""
 
@@ -160,7 +160,8 @@ class WMMMateApplet:
 
         self.panel_settings = Gio.Settings.new("org.mate.panel")
         self.panel_object_id = self._find_panel_object_id()
-        self._panel_objects_signal_id = self.panel_settings.connect("changed::object-id-list", self._on_panel_objects_changed)
+        self._panel_objects_signal_id = self.panel_settings.connect(
+            "changed::object-id-list", self._on_panel_objects_changed)
         self._panel_removal_shutdown = False
 
         self._destroyed = False
@@ -176,6 +177,11 @@ class WMMMateApplet:
         self._settings_signal_id = 0
         self._bookmarks_signal_id = 0
         self._ui_ready = False
+
+        # Tooltip propio de Next Background: Gtk.Menu conserva el grab y el
+        # tooltip nativo no permite controlar en qué lateral aparece.
+        self._next_background_tooltip = None
+        self._next_background_tooltip_timeout = None
 
         # El lifecycle existe desde que MATE crea la instancia, aunque la UI
         # permanezca oculta mientras el engine prepara sus traducciones.
@@ -206,7 +212,6 @@ class WMMMateApplet:
     # ==========================================================
     # APPLET
     # ==========================================================
-
     def _build_applet(self):
         """Construye el icono del panel, tooltip y eventos propios del applet."""
         self.icon = Gtk.Image.new_from_icon_name("video-display", Gtk.IconSize.MENU)
@@ -214,25 +219,30 @@ class WMMMateApplet:
         self._update_icon_margins(self.applet.get_orient())
         self.applet.add(self.icon)
 
-        tooltip = ("WMM: " + _("Wallpaper Multi-Monitor Manager") + "\n" +
-            _("Click action") + ": " + _("Next Background") + "\n" +
-            _("Secondary Click") + ": " + _("Context Menu"))
-        self.applet.set_tooltip_text(tooltip)
+        tooltip = ("<b>" +
+            GLib.markup_escape_text("Wallpaper Multi-Monitor Manager") + "</b>\n" +
+            GLib.markup_escape_text(_("Click action")) + ": " +
+            GLib.markup_escape_text(_("Main Menu")) + "\n" +
+            GLib.markup_escape_text(_("Middle Click")) + ": " +
+            GLib.markup_escape_text(_("Next Background")) + "\n" +
+            GLib.markup_escape_text(_("Secondary Click")) + ": " +
+            GLib.markup_escape_text(_("Context Menu"))
+        )
+        self.applet.set_tooltip_markup(tooltip)
 
         self.applet.connect("button-press-event", self._on_button_press)
         self.applet.connect("change-size", self._on_change_size)
         self.applet.connect("change-orient", self._on_change_orient)
 
     def _on_button_press(self, widget, event):
-        """Procesa clic izquierdo para rotación y deja el derecho al menú nativo."""
+        """Distribuye los tres botones entre menú, rotación y contexto nativo."""
         if event.button == 1:
-            if self._motor_busy:
-                self._set_icon("view-refresh")
-                return True
+            self._refresh_all()
+            self._popup_main_menu(event)
+            return True
 
-            self._set_icon("view-refresh")
-            self._ignore_next_busy = True
-            self._send_action_to_engine({"action": "force_rotation"})
+        if event.button == 2:
+            self._request_next_background()
             return True
 
         if event.button == 3:
@@ -240,6 +250,70 @@ class WMMMateApplet:
             return False
 
         return False
+
+    def _request_next_background(self):
+        """Solicita una rotación manual respetando el estado busy del engine."""
+        if self._motor_busy:
+            self._set_icon("view-refresh")
+            return
+
+        self._set_icon("view-refresh")
+        self._ignore_next_busy = True
+        self._send_action_to_engine({"action": "force_rotation"})
+
+    def _refresh_next_background_accelerator(self):
+        """Muestra el atajo que MATE tiene registrado para Next Background."""
+        # GSettings conserva la autoridad; GTK sólo formatea su representación.
+        hotkey_label = self.next_background_hotkey_label
+        hotkey_label.set_text("")
+        schema = "org.mate.control-center.keybinding"
+        base_path = "/org/mate/desktop/keybindings/"
+
+        # En MATE customN no posee una lista maestra. Identificar el comando
+        # WMM igual que mate.py, nunca un índice ni un nombre traducido.
+        for index in range(100):
+            try:
+                custom = Gio.Settings.new_with_path(
+                    schema, f"{base_path}custom{index}/")
+                arguments = shlex.split(custom.get_string("action"))
+
+                if (len(arguments) != 4
+                        or os.path.abspath(arguments[1]) != send_command_path
+                        or arguments[3] != "HOTKEY"
+                        or json.loads(arguments[2]) != {"action": "force_rotation"}):
+                    continue
+
+                keyval, modifiers = Gtk.accelerator_parse(custom.get_string("binding"))
+                hotkey_label.set_text(Gtk.accelerator_get_label(keyval, modifiers) if keyval else "")
+                break
+
+            except (GLib.Error, ValueError):
+                continue
+
+    def _popup_main_menu(self, event):
+        """Abre el menú principal hacia el interior del escritorio."""
+        # Actualizar el acelerador antes del popup para que GTK calcule
+        # la anchura definitiva y no reajuste el menú estando visible.
+        self._refresh_next_background_accelerator()
+
+        orient = self.applet.get_orient()
+
+        anchors = {
+            MatePanelApplet.AppletOrient.UP:
+                (Gdk.Gravity.NORTH, Gdk.Gravity.SOUTH),
+            MatePanelApplet.AppletOrient.DOWN:
+                (Gdk.Gravity.SOUTH, Gdk.Gravity.NORTH),
+            MatePanelApplet.AppletOrient.LEFT:
+                (Gdk.Gravity.WEST, Gdk.Gravity.EAST),
+            MatePanelApplet.AppletOrient.RIGHT:
+                (Gdk.Gravity.EAST, Gdk.Gravity.WEST),
+        }
+
+        widget_anchor, menu_anchor = anchors.get(orient,
+            (Gdk.Gravity.SOUTH, Gdk.Gravity.NORTH))
+
+        self.main_menu.popup_at_widget(self.applet, widget_anchor,
+            menu_anchor, event)
 
     def _update_icon_margins(self, orient):
         """Separa el icono entre applets sin aumentar el grosor del panel."""
@@ -276,47 +350,39 @@ class WMMMateApplet:
         self.icon.set_pixel_size(max(1, int(self.applet.get_size())))
 
     # ==========================================================
-    # MENÚ NATIVO DE MATE
+    # MENÚS DE MATE
     # ==========================================================
-
     def _build_menu(self):
-        """Construye el menú nativo y añade las secciones inline de WMM.
+        """Construye el menú principal WMM y el contexto nativo de MATE.
 
-        setup_menu() crea los Gtk.MenuItem nativos de MATE a partir del XML.
-        Favorites y Slideshow se declaran como cabeceras normales y después se
-        amplían con widgets GTK insertados directamente bajo cada cabecera.
+        El menú principal pertenece a WMM y contiene los controles de fondos.
+        setup_menu() queda reservado al botón secundario y conserva las
+        herramientas de WMM junto a las acciones propias de MATE Panel.
 
-        MATE sigue exponiendo setup_menu() mediante Gtk.ActionGroup; por eso
-        Gtk.Action/Gtk.ToggleAction se mantienen solo para los items nativos.
-        Sus DeprecationWarning no se silencian: documentan una limitación
-        estructural de la API pública de MATE, no un fallo de WMM.
+        Gtk.Action se conserva para setup_menu() y las cabeceras del menú.
+        Los controles de estado utilizan Gtk.Switch dentro de Gtk.MenuItem.
         """
         self.actions = Gtk.ActionGroup(name="WMMActions")
 
-        # Acciones visibles gestionadas por el menú nativo de MATE.
+        # Controles del menú principal WMM.
         self.favorites_menu_action = self._add_action("FavoritesMenu", _("Favorites"))
         self.slideshow_menu_action = self._add_action("SlideshowMenu", _("Slideshow"))
-        self.sync_action = self._add_toggle_action(
-            "DisplaysSync", _("Displays") + ": " + _("ASYNC (One)"), self._on_sync_mode)
-        self.spanned_action = self._add_toggle_action("Spanned", _("Spanned Mode"), self._on_spanned)
-        self.tools_menu_action = self._add_action("ToolsMenu", _("Tools"))
-        self.settings_action = self._add_action("Settings", _("Settings"), self._on_settings, "preferences-system")
-        self.sync_library_action = self._add_action(
-            "SyncLibrary", _("Sync Library"), self._on_sync_library, "emblem-synchronizing")
-        self.install_manager_action = self._add_action(
-            "InstallManager", _("Install Manager"), self._on_install_manager, "system-software-install")
-        self.debug_log_viewer_action = self._add_action(
-            "DebugLogViewer", _("Debug Log Viewer"), self._on_debug_log_viewer, "edit-find")
-        self.help_action = self._add_action("Help", _("Help"), self._on_help, "help-faq")
-        self.about_action = self._add_action("AboutWMM", _("About") + " WMM Manager", self._on_about, "user-info")
 
-        menu_xml = """
-        <menuitem name="WMMFavorites" action="FavoritesMenu"/>
-        <menuitem name="WMMSlideshow" action="SlideshowMenu"/>
-        <menuitem name="WMMDisplaysSync" action="DisplaysSync"/>
-        <menuitem name="WMMSpanned" action="Spanned"/>
-        <separator/>
-        <menuitem name="WMMTools" action="ToolsMenu"/>
+        # Herramientas del menú contextual nativo.
+        self.settings_action = self._add_action(
+            "Settings", _("Settings"), self._on_settings, "preferences-system")
+        self.sync_library_action = self._add_action("SyncLibrary", _("Sync Library"),
+            self._on_sync_library, "emblem-synchronizing")
+        self.install_manager_action = self._add_action("InstallManager",
+            _("Install Manager"), self._on_install_manager, "system-software-install")
+        self.debug_log_viewer_action = self._add_action( "DebugLogViewer",
+            _("Debug Log Viewer"), self._on_debug_log_viewer, "edit-find")
+        self.help_action = self._add_action("Help", _("Help"), self._on_help, "help-faq")
+        self.about_action = self._add_action("AboutWMM", _("About") + " WMM Manager",
+            self._on_about, "user-info")
+
+        # El contexto pertenece a MATE Panel y permanece ligado al botón derecho.
+        context_xml = """
         <menuitem name="WMMSettings" action="Settings"/>
         <menuitem name="WMMSyncLibrary" action="SyncLibrary"/>
         <menuitem name="WMMInstallManager" action="InstallManager"/>
@@ -326,12 +392,77 @@ class WMMMateApplet:
         <menuitem name="WMMAbout" action="AboutWMM"/>
         """
 
-        self.applet.setup_menu(menu_xml, self.actions)
+        self.applet.setup_menu(context_xml, self.actions)
 
-        # Estas tres secciones sustituyen los antiguos submenús/diálogos.
+        # El menú principal pertenece a WMM y se abre con el botón izquierdo.
+        self.main_menu = Gtk.Menu()
+        self.main_menu.append(self.favorites_menu_action.create_menu_item())
+        self.main_menu.append(self.slideshow_menu_action.create_menu_item())
+
+        # Displays: etiqueta dinámica SYNC/ASYNC.
+        self.sync_item = Gtk.MenuItem()
+        sync_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        self.sync_label = Gtk.Label(xalign=0)
+        self.sync_switch = Gtk.Switch()
+        self.sync_switch.connect("notify::active", self._on_sync_mode)
+
+        sync_box.pack_start(self.sync_label, True, True, 0)
+        sync_box.pack_end(self.sync_switch, False, False, 0)
+        self.sync_item.add(sync_box)
+        self.main_menu.append(self.sync_item)
+
+        # Spanned utiliza un Switch dentro de Gtk.MenuItem.
+        # El menú gobierna el clic para evitar que se cierre el popup.
+        self.spanned_item = Gtk.MenuItem()
+        spanned_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        spanned_label = Gtk.Label(label=_("Spanned Mode"), xalign=0)
+        self.spanned_switch = Gtk.Switch()
+        self.spanned_switch.connect("notify::active", self._on_spanned)
+
+        spanned_box.pack_start(spanned_label, True, True, 0)
+        spanned_box.pack_end(self.spanned_switch, False, False, 0)
+        self.spanned_item.add(spanned_box)
+        self.main_menu.append(self.spanned_item)
+
+        # Image Metadata.
+        self.metadata_item = Gtk.MenuItem()
+        metadata_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
+        metadata_label = Gtk.Label(label=_("Image Metadata"), xalign=0)
+        self.metadata_switch = Gtk.Switch()
+        self.metadata_switch.connect("notify::active", self._on_metadata)
+
+        metadata_box.pack_start(metadata_label, True, True, 0)
+        metadata_box.pack_end(self.metadata_switch, False, False, 0)
+        self.metadata_item.add(metadata_box)
+        self.main_menu.append(self.metadata_item)
+
+        # La fila contiene texto y acelerador sin reservar una columna
+        # global adicional que condicione la anchura de los switches.
+        self.next_background_item = Gtk.ImageMenuItem()
+        self.next_background_item.get_style_context().add_class("wmm-next-background")
+
+        next_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        next_label = Gtk.Label(label=_("Next Background"), xalign=0)
+
+        # Etiqueta independiente: evita la reserva de columna de Gtk.AccelLabel.
+        self.next_background_hotkey_label = Gtk.Label(xalign=1)
+        self.next_background_hotkey_label.get_style_context().add_class("wmm-hotkey-label")
+
+        next_box.pack_start(next_label, True, True, 0)
+        next_box.pack_end(self.next_background_hotkey_label, False, False, 0)
+        self.next_background_item.add(next_box)
+
+        next_icon = Gtk.Image.new_from_icon_name("view-refresh", Gtk.IconSize.MENU)
+        self.next_background_item.set_image(next_icon)
+        self.next_background_item.set_always_show_image(True)
+        self.main_menu.append(self.next_background_item)
+
+        # Materializar primero los proxies base; Favorites y Slideshow insertan
+        # después sus widgets inline y los dejan replegados.
+        self.main_menu.show_all()
+
         self._build_favorites_inline()
         self._build_slideshow_inline()
-        self._build_tools_inline()
 
     def _build_favorites_inline(self):
         """Construye Favorites inline bajo la cabecera nativa de MATE.
@@ -482,10 +613,11 @@ class WMMMateApplet:
         interval_box.set_margin_start(0)
         interval_box.set_margin_end(0)
 
-        self.slideshow_interval_label = Gtk.Label(label=str(self._current_interval) + " " + _("minutes"))
+        self.slideshow_interval_label = Gtk.Label(
+            label=str(self._current_interval) + " " + _("minutes"))
         self.slideshow_interval_label.set_halign(Gtk.Align.CENTER)
-
-        self.slideshow_scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 1, self._current_max_interval, 1)
+        self.slideshow_scale = Gtk.Scale.new_with_range(
+            Gtk.Orientation.HORIZONTAL, 1, self._current_max_interval, 1)
         self.slideshow_scale.set_draw_value(False)
         self.slideshow_scale.set_value(self._current_interval)
         self.slideshow_scale.set_hexpand(True)
@@ -504,39 +636,6 @@ class WMMMateApplet:
         self.slideshow_switch_item.hide()
         self.slideshow_interval_item.hide()
 
-    def _build_tools_inline(self):
-        """Convierte Tools en una sección desplegable inline del menú de MATE."""
-        header_item = next((proxy
-                for proxy in self.tools_menu_action.get_proxies()
-                if isinstance(proxy.get_parent(), Gtk.Menu)), None)
-
-        if not header_item:
-            return
-
-        self._tools_expanded = False
-        self.tools_header_item = header_item
-
-        self.tools_indicator = Gtk.Image.new_from_icon_name("pan-end-symbolic", Gtk.IconSize.MENU)
-        self.tools_header_item.set_image(self.tools_indicator)
-        self.tools_header_item.set_always_show_image(True)
-
-        self.tools_inline_items = []
-
-        for action in (
-            self.settings_action,
-            self.sync_library_action,
-            self.install_manager_action,
-            self.debug_log_viewer_action,
-            self.help_action,
-        ):
-            proxy = next((proxy
-                    for proxy in action.get_proxies()
-                    if isinstance(proxy.get_parent(), Gtk.Menu)),None)
-
-            if proxy:
-                self.tools_inline_items.append(proxy)
-                proxy.hide()
-
     # ==========================================================
     # MENÚ INLINE: CICLO DE VIDA Y GEOMETRÍA
     # ==========================================================
@@ -544,18 +643,14 @@ class WMMMateApplet:
     def _on_inline_menu_show(self, menu):
         """Expone temporalmente el tamaño máximo para el posicionamiento inicial."""
         self._update_favorites_scroll_height()
-
         self.favorites_switch_item.show()
         self.favorites_add_item.show()
         self.favorites_scroll_item.show()
-
         self.slideshow_switch_item.show()
         self.slideshow_interval_item.show()
 
-        for item in self.tools_inline_items:
-            item.show()
-
-    def _on_inline_menu_popped_up(self, menu, flipped_rect, final_rect, flipped_x, flipped_y):
+    def _on_inline_menu_popped_up(
+            self, menu, flipped_rect, final_rect, flipped_x, flipped_y):
         """Repliega el menú conservando el sentido vertical elegido por GTK."""
 
         # GTK ya ha decidido el lado usando el tamaño totalmente desplegado.
@@ -563,41 +658,27 @@ class WMMMateApplet:
         self.favorites_switch_item.hide()
         self.favorites_add_item.hide()
         self.favorites_scroll_item.hide()
-
         self.slideshow_switch_item.hide()
         self.slideshow_interval_item.hide()
-
-        for item in self.tools_inline_items:
-            item.hide()
-
         orient = self.applet.get_orient()
-
         self._inline_menu_grow_up = (orient in (
                 MatePanelApplet.AppletOrient.LEFT,
-                MatePanelApplet.AppletOrient.RIGHT, )
-            and bool(flipped_y))
-
+                MatePanelApplet.AppletOrient.RIGHT,
+            ) and bool(flipped_y))
         self._resize_inline_menu_native_window()
 
     def _on_inline_menu_toplevel_unmap(self, widget):
-        """Repliega las secciones inline para que cada nueva apertura empiece cerrada."""
+        """Repliega las secciones inline para cada nueva apertura."""
         self._favorites_expanded = False
         self._slideshow_expanded = False
-        self._tools_expanded = False
-
         self.favorites_switch_item.hide()
         self.favorites_add_item.hide()
         self.favorites_scroll_item.hide()
-
         self.slideshow_switch_item.hide()
         self.slideshow_interval_item.hide()
-
-        for item in self.tools_inline_items:
-            item.hide()
-
         self.favorites_indicator.set_from_icon_name("pan-end-symbolic", Gtk.IconSize.MENU)
         self.slideshow_indicator.set_from_icon_name("pan-end-symbolic", Gtk.IconSize.MENU)
-        self.tools_indicator.set_from_icon_name("pan-end-symbolic", Gtk.IconSize.MENU)
+        self._hide_next_background_tooltip()
 
     def _resize_inline_menu_native_window(self):
         """Adapta el popup manteniendo fijo el borde unido al panel.
@@ -700,13 +781,133 @@ class WMMMateApplet:
         return True
 
     def _on_inline_menu_motion(self, menu, event):
-        """Actualiza el slider durante drag o el hover manual de los favoritos."""
+        """Actualiza slider, hover de Favorites y tooltip contextual."""
         if self._slideshow_scale_dragging:
+            self._hide_next_background_tooltip()
             self._set_slideshow_scale_from_event(menu, event)
             return True
 
         self._update_favorites_hover(menu, event)
+
+        if menu.get_selected_item() is self.next_background_item:
+            self._schedule_next_background_tooltip()
+        else:
+            self._hide_next_background_tooltip()
+
         return False
+
+    def _ensure_next_background_tooltip(self):
+        """Crea una sola vez el tooltip lateral de Next Background."""
+        if self._next_background_tooltip is not None:
+            return self._next_background_tooltip
+
+        tooltip = Gtk.Window(type=Gtk.WindowType.POPUP)
+        tooltip.set_decorated(False)
+        tooltip.set_resizable(False)
+        tooltip.set_accept_focus(False)
+        tooltip.set_skip_taskbar_hint(True)
+        tooltip.set_skip_pager_hint(True)
+        tooltip.set_type_hint(Gdk.WindowTypeHint.TOOLTIP)
+        tooltip.get_style_context().add_class("tooltip")
+        tooltip.get_style_context().add_class("wmm-tooltip")
+
+        label = Gtk.Label(
+            label=_("Secondary click: assign a keyboard shortcut"))
+        tooltip.add(label)
+
+        # El hijo debe ser visible antes de medir el Gtk.Window; mantener sólo
+        # la ventana oculta evita que el primer cálculo use un tamaño incompleto.
+        label.show()
+
+        self._next_background_tooltip = tooltip
+        return tooltip
+
+    def _show_next_background_tooltip(self):
+        """Muestra el tooltip a un costado dentro del workarea del monitor."""
+        self._next_background_tooltip_timeout = None
+
+        menu = self.inline_menu
+
+        if (not menu.get_visible()
+            or menu.get_selected_item() is not self.next_background_item):
+            return GLib.SOURCE_REMOVE
+
+        menu_window = menu.get_window()
+        display = Gdk.Display.get_default()
+
+        if menu_window is None or display is None:
+            return GLib.SOURCE_REMOVE
+
+        translated = self.next_background_item.translate_coordinates(
+            menu, 0, 0)
+        if translated is None:
+            return GLib.SOURCE_REMOVE
+
+        _, origin_x, origin_y = menu_window.get_origin()
+
+        source_x = origin_x + translated[0]
+        source_y = origin_y + translated[1]
+        source_width = self.next_background_item.get_allocated_width()
+        source_height = self.next_background_item.get_allocated_height()
+
+        monitor = display.get_monitor_at_point(
+            source_x + source_width // 2,
+            source_y + source_height // 2)
+
+        if monitor is None:
+            return GLib.SOURCE_REMOVE
+
+        workarea = monitor.get_workarea()
+
+        tooltip = self._ensure_next_background_tooltip()
+        _, natural = tooltip.get_preferred_size()
+
+        tooltip_width = natural.width
+        tooltip_height = natural.height
+        margin = 8
+
+        left = workarea.x + margin
+        right = workarea.x + workarea.width - margin
+        top = workarea.y + margin
+        bottom = workarea.y + workarea.height - margin
+
+        right_x = source_x + source_width + margin
+        left_x = source_x - tooltip_width - margin
+
+        if right_x + tooltip_width <= right:
+            x = right_x
+        elif left_x >= left:
+            x = left_x
+        else:
+            return GLib.SOURCE_REMOVE
+
+        y = source_y + (source_height - tooltip_height) // 2
+        y = max(top, min(y, bottom - tooltip_height))
+
+        tooltip.move(int(x), int(y))
+        tooltip.show_all()
+
+        return GLib.SOURCE_REMOVE
+
+    def _schedule_next_background_tooltip(self):
+        """Programa el tooltip sin reiniciar el retardo en cada movimiento."""
+        if (self._next_background_tooltip_timeout is not None
+            or (self._next_background_tooltip is not None
+                and self._next_background_tooltip.get_visible())):
+            return
+
+        self._next_background_tooltip_timeout = GLib.timeout_add(
+            400, self._show_next_background_tooltip)
+
+    def _hide_next_background_tooltip(self):
+        """Cancela cualquier aparición pendiente y oculta el tooltip."""
+        if self._next_background_tooltip_timeout is not None:
+            GLib.source_remove(self._next_background_tooltip_timeout)
+            self._next_background_tooltip_timeout = None
+
+        if self._next_background_tooltip is not None:
+            self._next_background_tooltip.hide()
+
 
     def _on_inline_menu_scroll(self, menu, event):
         """Desplaza la lista de favoritos con la rueda sin mostrar scrollbar."""
@@ -789,9 +990,35 @@ class WMMMateApplet:
     def _on_inline_menu_button_release(self, menu, event):
         """Despacha controles inline sin cerrar el popup salvo cuando es necesario.
 
-        Al desplegar o replegar Favorites/Slideshow programa también el reajuste
-        de la ventana nativa para que el popup siga la nueva altura del contenido.
+        El botón secundario sólo tiene significado sobre Next Background;
+        el resto del menú conserva exclusivamente su interacción primaria.
         """
+        if event.button not in (1, 3):
+            return False
+
+        selected_item = menu.get_selected_item()
+
+        # El izquierdo rota sin cerrar el popup; el secundario abre el gestor
+        # común y cierra primero el menú para no conservar su grab de GTK.
+        if selected_item is self.next_background_item:
+            if event.button == 1:
+                self._request_next_background()
+                return True
+
+            # Anclar el formulario al centro del menú antes de cerrarlo.
+            native_window = self.inline_menu_toplevel.get_window()
+            if native_window is not None:
+                _, x, y = native_window.get_origin()
+                geometry = native_window.get_geometry()
+                x += geometry.width // 2
+                y += geometry.height // 2
+            else:
+                x, y = int(event.x_root), int(event.y_root)
+
+            menu.popdown()
+            self._send_action_to_engine({"action": "open_keybinding", "x": int(x), "y": int(y)})
+            return True
+
         if event.button != 1:
             return False
 
@@ -803,8 +1030,6 @@ class WMMMateApplet:
                 self._update_timer_settings()
 
             return True
-
-        selected_item = menu.get_selected_item()
 
         # Favorites: expandir/replegar.
         if selected_item is self.favorites_header_item:
@@ -824,10 +1049,13 @@ class WMMMateApplet:
             self.favorites_only_switch.set_active(not self.favorites_only_switch.get_active())
             return True
 
-        # Add abre un formulario externo: aquí sí cerramos el popup.
+        # El formulario externo nace donde se ha producido la interacción.
         if selected_item is self.favorites_add_item:
+            x = int(event.x_root)
+            y = int(event.y_root)
+
             menu.popdown()
-            self._send_action_to_engine({"action": "add_bookmark"})
+            self._send_action_to_engine({ "action": "add_bookmark", "x": x, "y": y, })
             return True
 
         # Lista inline: nombre carga y mantiene abierto; papelera abre confirmación.
@@ -837,9 +1065,13 @@ class WMMMateApplet:
                 if not name:
                     continue
 
-                if self._event_inside_widget(menu, event, getattr(row, "wmm_delete_widget", None)):
+                if self._event_inside_widget(
+                        menu, event, getattr(row, "wmm_delete_widget", None)):
+                    x = int(event.x_root)
+                    y = int(event.y_root)
+
                     menu.popdown()
-                    self._confirm_delete_favorite(name)
+                    self._confirm_delete_favorite(name, x, y)
                     return True
 
                 if self._event_inside_widget(menu, event, getattr(row, "wmm_name_widget", None)):
@@ -858,19 +1090,6 @@ class WMMMateApplet:
             GLib.idle_add(self._resize_inline_menu_native_window)
             return True
 
-        # Tools: expandir/replegar.
-        if selected_item is self.tools_header_item:
-            self._tools_expanded = not self._tools_expanded
-
-            for item in self.tools_inline_items:
-                item.set_visible(self._tools_expanded)
-
-            self.tools_indicator.set_from_icon_name("pan-down-symbolic"
-                if self._tools_expanded else "pan-end-symbolic", Gtk.IconSize.MENU)
-
-            GLib.idle_add(self._resize_inline_menu_native_window)
-            return True
-
         # Switch de Slideshow gobernado manualmente por el Gtk.Menu.
         if selected_item is self.slideshow_switch_item:
             self.slideshow_switch.set_active(not self.slideshow_switch.get_active())
@@ -878,6 +1097,19 @@ class WMMMateApplet:
 
         # Clic sobre la fila del slider: mantener el menú abierto.
         if selected_item is self.slideshow_interval_item:
+            return True
+
+        # Gtk.Menu mantiene el grab y gobierna los switches sin cerrar el popup.
+        if selected_item is self.sync_item:
+            self.sync_switch.set_active(not self.sync_switch.get_active())
+            return True
+
+        if selected_item is self.spanned_item:
+            self.spanned_switch.set_active(not self.spanned_switch.get_active())
+            return True
+
+        if selected_item is self.metadata_item:
+            self.metadata_switch.set_active(not self.metadata_switch.get_active())
             return True
 
         return False
@@ -900,11 +1132,11 @@ class WMMMateApplet:
         self.slideshow_interval_label.set_text(str(self._current_interval) + " " + _("minutes"))
 
     # ==========================================================
-    # MENÚ NATIVO: HELPERS GTK.ACTION
+    # MENÚS MATE: HELPERS GTK.ACTION
     # ==========================================================
 
     def _add_action(self, name, label, callback=None, icon_name=None):
-        """Crea y registra una Gtk.Action usada por setup_menu()."""
+        """Crea y registra una Gtk.Action reutilizable por los menús de MATE."""
         action = Gtk.Action(name=name, label=label, tooltip=None, stock_id=None)
 
         if icon_name:
@@ -917,17 +1149,9 @@ class WMMMateApplet:
         self.actions.add_action(action)
         return action
 
-    def _add_toggle_action(self, name, label, callback):
-        """Crea y registra una Gtk.ToggleAction usada por setup_menu()."""
-        action = Gtk.ToggleAction(name=name, label=label, tooltip=None, stock_id=None)
-        action.connect("toggled", callback)
-        self.actions.add_action(action)
-        return action
-
     # ==========================================================
     # ACCIONES DEL MENÚ
     # ==========================================================
-
     def _launch_independent_tool(self, path):
         """Lanza una herramienta independiente sin depender del engine."""
         if self._destroyed or not os.path.isfile(path):
@@ -939,11 +1163,9 @@ class WMMMateApplet:
         except GLib.Error as error:
             self._report_error("No se pudo lanzar la herramienta " + path, error)
 
-
     def _on_install_manager(self, action):
         """Abre WMM Install Manager directamente desde el applet."""
         self._launch_independent_tool(install_manager_path)
-
 
     def _on_debug_log_viewer(self, action):
         """Abre WMM Debug Log Viewer directamente desde el applet."""
@@ -963,18 +1185,26 @@ class WMMMateApplet:
 
         self._update_timer_settings()
 
-    def _on_sync_mode(self, action):
+    def _on_sync_mode(self, switch, pspec):
         """Actualiza modo SYNC/ASYNC y lo propaga al engine."""
         if self._syncing_ui:
             return
         self._update_sync_label()
         self._update_timer_settings()
 
-    def _on_spanned(self, action):
+    def _on_spanned(self, switch, pspec):
         """Propaga el cambio de Spanned al engine."""
         if self._syncing_ui:
             return
         self._update_timer_settings()
+
+    def _on_metadata(self, switch, pspec):
+        """Solicita al engine activar o desactivar los metadatos."""
+        if self._syncing_ui:
+            return
+
+        self._send_action_to_engine({ "action": "set_metadata_enabled",
+            "enabled": switch.get_active(), })
 
     def _on_sync_library(self, action):
         """Solicita al engine la sincronización de la biblioteca."""
@@ -991,7 +1221,6 @@ class WMMMateApplet:
     # ==========================================================
     # SETTINGS
     # ==========================================================
-
     def _apply_settings(self, data):
         """Aplica el bloque global recibido del engine a los controles del menú."""
         if not isinstance(data, dict):
@@ -1009,12 +1238,14 @@ class WMMMateApplet:
         is_sync = config.get("slideshow_mode", "async") == "sync"
         favorites_only = bool(config.get("slideshow_bookmark", False))
         spanned = bool(config.get("spanned_enabled", False))
+        metadata_enabled = bool(config.get("exif_metadata_enabled", False))
 
         self._syncing_ui = True
-        self.sync_action.set_active(is_sync)
+        self.sync_switch.set_active(is_sync)
         if hasattr(self, "favorites_only_switch"):
             self.favorites_only_switch.set_active(favorites_only)
-        self.spanned_action.set_active(spanned)
+        self.spanned_switch.set_active(spanned)
+        self.metadata_switch.set_active(metadata_enabled)
         self._syncing_ui = False
 
         self._sync_slideshow_ui(enabled)
@@ -1037,8 +1268,8 @@ class WMMMateApplet:
 
     def _update_sync_label(self):
         """Actualiza la etiqueta de Displays según SYNC/ASYNC."""
-        label = _("Displays") + ": " + (_("SYNC (All)") if self.sync_action.get_active() else _("ASYNC (One)"))
-        self.sync_action.set_label(label)
+        mode = _("SYNC (All)") if self.sync_switch.get_active() else _("ASYNC (One)")
+        self.sync_label.set_text(_("Displays") + ": " + mode)
 
     def _update_interval_label(self):
         """Actualiza rango, posición y texto del slider desde el estado actual."""
@@ -1055,15 +1286,14 @@ class WMMMateApplet:
             "action": "update_timer_settings",
             "enabled": self.slideshow_switch.get_active(),
             "interval": self._current_interval,
-            "mode": "sync" if self.sync_action.get_active() else "async",
+            "mode": "sync" if self.sync_switch.get_active() else "async",
             "slideshow_bookmark": self.favorites_only_switch.get_active(),
-            "spanned_enabled": self.spanned_action.get_active(),
+            "spanned_enabled": self.spanned_switch.get_active(),
         })
 
     # ==========================================================
     # FAVORITOS
     # ==========================================================
-
     def _paint_inline_bookmarks(self):
         """Reconstruye la lista inline de favoritos desde la caché recibida."""
         if not hasattr(self, "favorites_inline_list"):
@@ -1173,27 +1403,59 @@ class WMMMateApplet:
         self._sync_slideshow_ui(False)
         self._send_action_to_engine({"action": "load_bookmark", "name": name, "timer_force_off": True})
 
-    def _confirm_delete_favorite(self, name):
-        """Solicita confirmación antes de borrar un favorito."""
+    @staticmethod
+    def _position_window_at_point(window, x, y):
+        """Centra una ventana sobre un punto sin salir del workarea."""
+        display = Gdk.Display.get_default()
+        if display is None:
+            return
+
+        monitor = display.get_monitor_at_point(int(x), int(y))
+        if monitor is None:
+            return
+
+        workarea = monitor.get_workarea()
+        _, natural = window.get_preferred_size()
+
+        width = natural.width
+        height = natural.height
+
+        target_x = int(x - width / 2)
+        target_y = int(y - height / 2)
+
+        target_x = max(workarea.x,
+            min(target_x, workarea.x + workarea.width - width))
+
+        target_y = max(workarea.y,
+            min(target_y, workarea.y + workarea.height - height))
+
+        window.set_position(Gtk.WindowPosition.NONE)
+        window.move(target_x, target_y)
+
+    def _confirm_delete_favorite(self, name, x, y):
+        """Solicita confirmación junto al punto desde el que se pidió el borrado."""
         dialog = Gtk.MessageDialog(
             transient_for=None,
             flags=Gtk.DialogFlags.MODAL,
             message_type=Gtk.MessageType.QUESTION,
             buttons=Gtk.ButtonsType.YES_NO,
-            text=_("Delete") + ' "' + name + '"?'
-        )
+            text=_("Delete") + ' "' + name + '"?')
+
         dialog.set_title(_("Delete favorite"))
+
+        # El diálogo debe estar materializado antes de medirlo y recolocarlo.
+        dialog.show_all()
+        self._position_window_at_point(dialog, x, y)
 
         response = dialog.run()
         dialog.destroy()
 
         if response == Gtk.ResponseType.YES:
-            self._send_action_to_engine({"action": "delete_bookmark", "name": name})
+            self._send_action_to_engine({ "action": "delete_bookmark", "name": name, })
 
     # ==========================================================
     # D-BUS: ACTIVACIÓN, CONSULTAS Y SEÑALES
     # ==========================================================
-
     def _start_engine(self, callback=None):
         """Activa org.maki.wmm por D-Bus y ejecuta callback cuando está disponible."""
         if self._destroyed:
@@ -1207,11 +1469,9 @@ class WMMMateApplet:
             GLib.Variant("(su)", ("org.maki.wmm", 0)),
             GLib.VariantType.new("(u)"),
             Gio.DBusCallFlags.NONE,
-            5000,
-            None,
+            5000, None,
             self._on_engine_started,
-            callback
-        )
+            callback)
 
     def _on_engine_started(self, connection, result, callback):
         """Finaliza StartServiceByName y continúa la operación pendiente."""
@@ -1240,7 +1500,8 @@ class WMMMateApplet:
                 [sys.executable, send_command_path, json.dumps(command,
                 ensure_ascii=False, separators=(",", ":"))], Gio.SubprocessFlags.NONE)
         except GLib.Error as error:
-            self._report_error("No se pudo enviar el comando " + str(command.get("action", "unknown")), error)
+            self._report_error(
+                "No se pudo enviar el comando " + str(command.get("action", "unknown")), error)
 
     def _refresh_all(self):
         """Refresca settings, favoritos e icono de estado."""
@@ -1268,8 +1529,7 @@ class WMMMateApplet:
             method, None,
             GLib.VariantType.new("(s)"),
             Gio.DBusCallFlags.NO_AUTO_START,
-            1500, None, callback, None
-        )
+            1500, None, callback, None)
 
     def _on_settings_reply(self, connection, result, user_data):
         """Decodifica GetSettings y sincroniza la interfaz."""
@@ -1300,8 +1560,8 @@ class WMMMateApplet:
             "/org/maki/wmm",
             None,
             Gio.DBusSignalFlags.NONE,
-            self._on_settings_changed
-        )
+            self._on_settings_changed)
+
         self._bookmarks_signal_id = self.bus.signal_subscribe(
             "org.maki.wmm",
             "org.maki.wmm",
@@ -1309,8 +1569,7 @@ class WMMMateApplet:
             "/org/maki/wmm",
             None,
             Gio.DBusSignalFlags.NONE,
-            self._on_bookmarks_changed
-        )
+            self._on_bookmarks_changed)
 
     def _on_settings_changed(self, connection, sender_name, object_path, interface_name, signal_name, parameters):
         """Aplica una actualización push de settings recibida por D-Bus."""
@@ -1337,7 +1596,6 @@ class WMMMateApplet:
     # ==========================================================
     # ESTADO BUSY DEL ENGINE
     # ==========================================================
-
     def _start_status_monitor(self):
         """Monitoriza cambios de engine_status.json sin polling."""
         try:
@@ -1405,7 +1663,6 @@ class WMMMateApplet:
     # ==========================================================
     # LIFECYCLE
     # ==========================================================
-
     def _find_panel_object_id(self):
         """Obtiene el object-id exacto de esta instancia desde MATE Panel."""
         preferences_path = self.applet.get_preferences_path() or ""
@@ -1436,8 +1693,7 @@ class WMMMateApplet:
                 "Shutdown",
                 None, None,
                 Gio.DBusCallFlags.NO_AUTO_START,
-                1000, None
-            )
+                1000, None)
         except GLib.Error:
             pass
 
@@ -1466,6 +1722,14 @@ class WMMMateApplet:
                 pass
             self._status_monitor = None
 
+        # El tooltip es una Gtk.Window independiente del árbol del applet;
+        # destruirlo expresamente evita conservarla en la factoría MATE.
+        self._hide_next_background_tooltip()
+
+        if self._next_background_tooltip is not None:
+            self._next_background_tooltip.destroy()
+            self._next_background_tooltip = None
+
         if self._settings_signal_id:
             self.bus.signal_unsubscribe(self._settings_signal_id)
             self._settings_signal_id = 0
@@ -1482,7 +1746,6 @@ class WMMMateApplet:
 # ==========================================================
 # FACTORÍA MATE
 # ==========================================================
-
 def _remove_duplicate_panel_object(applet):
     """Retira del panel una instancia WMM duplicada ya materializada."""
     preferences_path = applet.get_preferences_path() or ""
@@ -1497,14 +1760,10 @@ def _remove_duplicate_panel_object(applet):
     if not object_id:
         return GLib.SOURCE_REMOVE
 
-    if (
-        _active_wmm_instance is not None
-        and object_id == _active_wmm_instance.panel_object_id
-    ):
-        print(
-            f"[WMM MATE] Se evitó retirar la instancia activa '{object_id}'.",
-            file=sys.stderr
-        )
+    if (_active_wmm_instance is not None
+        and object_id == _active_wmm_instance.panel_object_id):
+        print(f"[WMM MATE] Se evitó retirar la instancia activa '{object_id}'.",
+            file=sys.stderr)
         return GLib.SOURCE_REMOVE
 
     panel_settings = getattr(applet, "_wmm_duplicate_panel_settings", None)
@@ -1522,8 +1781,7 @@ def _remove_duplicate_panel_object(applet):
         panel_settings.disconnect(signal_id)
         applet._wmm_duplicate_signal_id = 0
 
-    panel_settings.set_strv(
-        "object-id-list",
+    panel_settings.set_strv("object-id-list",
         [
             current_id
             for current_id in object_ids
@@ -1531,13 +1789,9 @@ def _remove_duplicate_panel_object(applet):
         ]
     )
     Gio.Settings.sync()
-
     applet._wmm_duplicate_panel_settings = None
-
-    print(
-        f"[WMM MATE] Instancia duplicada '{object_id}' retirada del panel.",
-        file=sys.stderr
-    )
+    print(f"[WMM MATE] Instancia duplicada '{object_id}' retirada del panel.",
+        file=sys.stderr)
 
     return GLib.SOURCE_REMOVE
 
@@ -1553,22 +1807,13 @@ def applet_factory(applet, iid, user_data):
         return False
 
     if _active_wmm_instance is not None:
-        print(
-            "[WMM MATE] Segunda instancia detectada; se retirará del panel.",
-            file=sys.stderr
-        )
-
+        print("[WMM MATE] Segunda instancia detectada; se retirará del panel.",
+            file=sys.stderr)
         panel_settings = Gio.Settings.new("org.mate.panel")
-
         applet._wmm_duplicate_panel_settings = panel_settings
         applet._wmm_duplicate_signal_id = panel_settings.connect(
-            "changed::object-id-list",
-            _on_duplicate_panel_objects_changed,
-            applet
-        )
-
+            "changed::object-id-list", _on_duplicate_panel_objects_changed, applet)
         GLib.idle_add(_remove_duplicate_panel_object, applet)
-
         applet.show_all()
         return True
 
@@ -1583,13 +1828,11 @@ def applet_factory(applet, iid, user_data):
         print(f"[WMM MATE] Error creando el applet: {error}", file=sys.stderr)
         return False
 
-
 if __name__ == "__main__":
     health_service = WMMMateAppletDBus()
 
     raise SystemExit(
         MatePanelApplet.Applet.factory_main(
-            "WMMAppletFactory",
-            True,
+            "WMMAppletFactory", True,
             MatePanelApplet.Applet.__gtype__,
             applet_factory, None))

@@ -13,6 +13,7 @@ backend.py – Backend de lógica de datos para el panel de control.
   2. Backend usa ConfigHandler para leer/escribir JSON.
   3. Backend notifica al motor (main.py) mediante commands.json + SIGUSR1.
 """
+import sys
 from debug_logger import log_event
 
 class WMMBackend:
@@ -145,10 +146,12 @@ class WMMBackend:
         cmd = json.dumps(action)
         script = os.path.join(os.path.dirname(__file__), "send_command.py")
         try:
-            subprocess.run(["python3", script, cmd], check=True)
-            log_event(f"Comando enviado al motor: {action.get('action', 'unknown')}", origin="BACKEND", level="DEBUG", reason="COMMAND")
+            subprocess.run([sys.executable, script, cmd], check=True)
+            log_event(f"Comando enviado al motor: {action.get('action', 'unknown')}",
+                origin="BACKEND", level="DEBUG", reason="COMMAND")
         except Exception as e:
-            log_event(f"No se pudo enviar comando al motor: {e}", origin="BACKEND", level="ERROR", reason="COMMAND")
+            log_event(f"No se pudo enviar comando al motor: {e}",
+                origin="BACKEND", level="ERROR", reason="COMMAND")
 
     # --- MODO EDICIÓN ---
 
@@ -164,7 +167,8 @@ class WMMBackend:
         """
         bookmarks = self.ch.load_json("bookmarks")
         if preset_name not in bookmarks:
-            log_event(f"El preset '{preset_name}' no existe", origin="BACKEND", level="ERROR", reason="BOOKMARK")
+            log_event(f"El preset '{preset_name}' no existe",
+                origin="BACKEND", level="ERROR", reason="BOOKMARK")
             return None
 
         preset_data = bookmarks[preset_name].copy()  # no modificar el original
@@ -205,10 +209,12 @@ class WMMBackend:
                 self.edit_active_session[m_hash] = path
                 self.edit_active_states[m_hash] = active
         except Exception as e:
-            log_event(f"Fallo al procesar preset '{preset_name}': {e}", origin="BACKEND", level="ERROR", reason="BOOKMARK")
+            log_event(f"Fallo al procesar preset '{preset_name}': {e}",
+                origin="BACKEND", level="ERROR", reason="BOOKMARK")
             return None
 
-        log_event(f"Preset cargado para edición: {preset_name}", origin="BACKEND", level="DEBUG", reason="BOOKMARK")
+        log_event(f"Preset cargado para edición: {preset_name}",
+            origin="BACKEND", level="DEBUG", reason="BOOKMARK")
         return preset_data
 
     def apply_edit_and_save(self, fav_checkbox_active, preset_name, monitor_hashes, get_path_func, get_active_func):
@@ -230,9 +236,22 @@ class WMMBackend:
             edit_session = {h: get_path_func(h) for h in monitor_hashes}
             edit_states = {h: get_active_func(h) for h in monitor_hashes}
         except Exception as e:
-            log_event(f"Fallo al construir datos de edición: {e}", origin="BACKEND", level="ERROR", reason="BOOKMARK")
+            log_event(f"Fallo al construir datos de edición: {e}",
+                origin="BACKEND", level="ERROR", reason="BOOKMARK")
             return None, None, None
         self.apply_edit_changes(edit_session, edit_states)
+
+        # Al aceptar un preset en Edición, sus monitores ausentes también
+        # reciben la última asignación en el histórico del Vault.
+        spanned = self.edit_temp_spanned_enabled
+        if spanned is None:
+            spanned = self.load_settings().get("spanned_enabled", False)
+        if preset_name and not spanned:
+            absent_candidates = {h: {
+                    "path": path, "active": self.edit_active_states.get(h, True)}
+                for h, path in self.edit_active_session.items()}
+            self.ch.remember_absent_preset_images(absent_candidates, monitor_hashes)
+
         # Guardar únicamente los overrides impuestos por la composición aplicada.
         self.ch.set_active_composition(dict(self.edit_temp_composition))
 
@@ -242,6 +261,16 @@ class WMMBackend:
             path = edit_session.get(m_hash, "")
             active = edit_states.get(m_hash, True)
             bookmark_data[m_hash] = {"path": path, "active": active}
+
+        # Al actualizar un preset, conservar los monitores ausentes.
+        # No participan en la aplicación física, sólo en el guardado.
+        if fav_checkbox_active and preset_name:
+            for m_hash, path in self.edit_active_session.items():
+                if m_hash not in bookmark_data:
+                    bookmark_data[m_hash] = {
+                        "path": path,
+                        "active": self.edit_active_states.get(m_hash, True)}
+
         bookmark_data["__mode__"] = self.edit_temp_wp_mode
         bookmark_data["__spanned__"] = self.edit_temp_spanned_enabled
         bookmark_data["__effect__"] = self.edit_temp_image_effect
@@ -268,7 +297,8 @@ class WMMBackend:
         # La notificación se hace desde panel.py porque usa self._notify_engine
         # Así que devolvemos los temp_settings para que el panel los envíe.
 
-        log_event("Cambios de edición aplicados correctamente", origin="BACKEND", level="INFO", reason="BOOKMARK")
+        log_event("Cambios de edición aplicados correctamente",
+            origin="BACKEND", level="INFO", reason="BOOKMARK")
         return log_msg, temp_settings, preset_name
 
     def cancel_edit(self):
@@ -283,4 +313,5 @@ class WMMBackend:
             self.edit_temp_wp_scope = None
             self.edit_temp_composition.clear()
         except Exception as e:
-            log_event(f"Fallo al cancelar edición: {e}", origin="BACKEND", level="ERROR", reason="BOOKMARK")
+            log_event(f"Fallo al cancelar edición: {e}",
+                origin="BACKEND", level="ERROR", reason="BOOKMARK")
