@@ -247,12 +247,12 @@ Sus logotipos enlazan directamente a sus sitios web, y cada imagen conserva un e
 
 **WMM** agradece a **dr5hn y a los colaboradores de Countries States Cities Database** su trabajo en la recopilación y mantenimiento de los datos geográficos utilizados por el proyecto.
 
-**Fuente:** [Countries States Cities Database](https://github.com/dr5hn/countries-states-cities-database)
+**Fuente:** [Countries States Cities Database](https://github.com/dr5hn/countries-states-cities-database)\
 **Licencia de los datos:** [Open Database License (ODbL) v1.0](https://github.com/dr5hn/countries-states-cities-database/blob/master/LICENSE)
 
 ### Instalador de Windows
 
 **WMM** agradece a **Jordan Russell y Martijn Laan** el desarrollo y mantenimiento de **Inno Setup**, la herramienta utilizada para crear el instalador de la versión compilada de Windows.
 
-**Herramienta:** [Inno Setup](https://jrsoftware.org/isinfo.php)
+**Herramienta:** [Inno Setup](https://jrsoftware.org/isinfo.php)\
 **Licencia:** [Inno Setup License](https://github.com/jrsoftware/issrc/blob/main/license.txt)
