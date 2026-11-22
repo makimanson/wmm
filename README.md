@@ -252,12 +252,12 @@ Their logos link directly to their websites, and each image retains a link to it
 
 **WMM** thanks **dr5hn and the contributors to Countries States Cities Database** for their work compiling and maintaining the geographic data used by this project.
 
-**Source:** [Countries States Cities Database](https://github.com/dr5hn/countries-states-cities-database)
+**Source:** [Countries States Cities Database](https://github.com/dr5hn/countries-states-cities-database)\
 **Data license:** [Open Database License (ODbL) v1.0](https://github.com/dr5hn/countries-states-cities-database/blob/master/LICENSE)
 
 ### Windows Installer
 
 **WMM** thanks **Jordan Russell and Martijn Laan** for developing and maintaining **Inno Setup**, the tool used to create the installer for the compiled Windows version.
 
-**Tool:** [Inno Setup](https://jrsoftware.org/isinfo.php)
+**Tool:** [Inno Setup](https://jrsoftware.org/isinfo.php)\
 **License:** [Inno Setup License](https://github.com/jrsoftware/issrc/blob/main/license.txt)
