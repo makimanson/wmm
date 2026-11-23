@@ -513,8 +513,10 @@ class InstallManagerWindow(Gtk.ApplicationWindow):
             with changelog.open("r", encoding="utf-8") as file:
                 for line in file:
                     line = line.strip()
-                    if line.startswith("## v"):
-                        package_version = line[4:].split()[0].strip()
+                    # La cabecera oficial es '# vX.Y.Z'.
+                    # '## v' queda reservado a los gestores legacy.
+                    if line.startswith("# v"):
+                        package_version = line[3:].split()[0].strip()
                         break
 
             if package_version != expected_version:
@@ -545,7 +547,6 @@ class InstallManagerWindow(Gtk.ApplicationWindow):
             package_root / "CHANGELOG.md",
             package_root / "LICENSE",
             package_root / "wmm",
-            package_root / "wmm" / "data" / "about.json",
         ]
 
         if not all(path.exists() for path in required):

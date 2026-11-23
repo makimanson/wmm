@@ -5,9 +5,38 @@ SPDX-License-Identifier: GPL-3.0-or-later
 WMM - Wallpaper Multi-Monitor Manager
 
 Changelog
+
+Legacy release marker for Linux Install Manager v1.4.0/v1.5.0.
+Keep this marker synchronized with the first visible release heading.
+## v2.0.1
 -->
 
+# v2.0.1 - 2026-11-23
+
+## Fixed
+
+### Linux — Install Manager and Upgrade
+
+- Fixed release-version detection in the Linux Install Manager to recognize the official `# vX.Y.Z` heading in `CHANGELOG.md`.
+- Removed the obsolete `wmm/data/about.json` requirement from downloaded-package validation, leaving source integrity and desktop-specific checks to the installer included in the new package.
+- Added compatibility markers to support upgrades initiated by legacy Install Managers from v1.4.0 and v1.5.0.
+- Preserved the current installation topology by preventing the legacy metadata placeholder from being copied into the installed application tree.
+
+### Cross-platform packaging
+
+- Excluded the Linux legacy compatibility placeholder from the Windows Open Code application staging, without changing its installation or upgrade behavior.
+
 # v2.0.0 - 2026-11-20
+
+## A Special Thanks to Pauki
+
+This release marks a very important milestone for WMM, and I want to begin by giving a special thanks to **Pauki**.
+
+Thank you for your support, encouragement, and especially for all those crazy ideas that have kept me on my toes throughout the development of WMM for Windows.
+
+Some ideas lead to new features, others to unexpected challenges, but all of them have helped make this journey more interesting.
+
+**Thank you, Pauki, for being part of WMM's history and this new chapter.**
 
 ## HIGHLIGHTS
 

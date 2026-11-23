@@ -785,6 +785,13 @@ function New-WmmAppStaging {
             throw "Source copy failed (robocopy exit code: $LASTEXITCODE)"
         }
 
+        # data/ en la raíz del paquete sólo existe para compatibilidad
+        # con los gestores Linux v1.4.0/v1.5.0. No pertenece al core instalado.
+        $legacyData = Join-Path $stage 'data'
+        if (Test-Path -LiteralPath $legacyData -PathType Container) {
+            Remove-Item -LiteralPath $legacyData -Recurse -Force -ErrorAction Stop
+        }
+
         # DOCUMENTACIÓN
         # Al desaparecer /wmm durante la instalación, adaptar
         # las rutas de presentación y recursos comunes a la nueva raíz.

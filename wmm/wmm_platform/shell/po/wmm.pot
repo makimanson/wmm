@@ -8,1870 +8,1846 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-11-21 19:20+0100\n"
+"POT-Creation-Date: 2026-11-22 23:19+0100\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
 "Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: python\about.py:137 python\about.py:250 python\panel\online_section.py:867
-#: wmm_platform\shell\mate\mate-applet.py:381
-#: wmm_platform\shell\windows\windows-frontend.py:1865
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:847
-#: wmm_platform\shell\gnome\extension.gnome.js:1021
-msgid "About"
-msgstr ""
-
-#: python\about.py:194
-msgid "Version"
-msgstr ""
-
-#: python\about.py:210 python\about.py:224 python\panel\online_section.py:867
-msgid "License"
-msgstr ""
-
-#: python\about.py:222
-msgid "Changelog"
-msgstr ""
-
-#: python\about.py:223 wmm_platform\shell\mate\mate-applet.py:380
-#: wmm_platform\shell\windows\windows-frontend.py:1852
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:837
-#: wmm_platform\shell\gnome\extension.gnome.js:1012
-msgid "Help"
-msgstr ""
-
-#: python\add_bookmark.py:106
-msgid "Add Favorite Preset"
-msgstr ""
-
-#: python\add_bookmark.py:155
-msgid "Error loading data. Please restart panel"
-msgstr ""
-
-#: python\add_bookmark.py:170
-msgid "Preset name:"
-msgstr ""
-
-#: python\add_bookmark.py:190 python\keybinding_manager.py:206
-#: python\shell_send_to_monitor.py:99 python\panel\online_section.py:472
-#: python\panel\options_section.py:889 python\panel\sources_section.py:1042
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:538
-#: wmm_platform\shell\gnome\extension.gnome.js:1369
-msgid "Cancel"
-msgstr ""
-
-#: python\add_bookmark.py:196 python\keybinding_manager.py:208
-#: python\shell_send_to_monitor.py:100
-msgid "OK"
-msgstr ""
-
-#: python\add_bookmark.py:211
-msgid "The name cannot be empty."
-msgstr ""
-
-#: python\add_bookmark.py:242 python\panel\favorites_section.py:314
-msgid "A Preset with that name already exists!"
-msgstr ""
-
-#: python\add_bookmark.py:244 wmm_platform\shell\po\pot_manager.py:950
-#: wmm_platform\shell\po\pot_manager.py:1364
-msgid "Error saving"
-msgstr ""
-
-#: python\config_handler.py:58
+#: python/config_handler.py:58
 msgid "Scaled"
 msgstr ""
 
-#: python\config_handler.py:59
+#: python/config_handler.py:59
 msgid "Zoom"
 msgstr ""
 
-#: python\config_handler.py:60
+#: python/config_handler.py:60
 msgid "Stretched"
 msgstr ""
 
-#: python\config_handler.py:63
+#: python/config_handler.py:63
 msgid "Solid color"
 msgstr ""
 
-#: python\config_handler.py:64
+#: python/config_handler.py:64
 msgid "Gradient H"
 msgstr ""
 
-#: python\config_handler.py:65
+#: python/config_handler.py:65
 msgid "Gradient V"
 msgstr ""
 
-#: python\config_handler.py:68
+#: python/config_handler.py:68
 msgid "None"
 msgstr ""
 
-#: python\config_handler.py:69
+#: python/config_handler.py:69
 msgid "Sepia"
 msgstr ""
 
-#: python\config_handler.py:70
+#: python/config_handler.py:70
 msgid "Black and White"
 msgstr ""
 
-#: python\config_handler.py:72
+#: python/config_handler.py:72
 msgid "Blur effect"
 msgstr ""
 
-#: python\config_handler.py:72
+#: python/config_handler.py:72
 msgid "Color"
 msgstr ""
 
-#: python\config_handler.py:76
+#: python/config_handler.py:76
 msgid "Top-left corner"
 msgstr ""
 
-#: python\config_handler.py:77
+#: python/config_handler.py:77
 msgid "Bottom-left corner"
 msgstr ""
 
-#: python\config_handler.py:78
+#: python/config_handler.py:78
 msgid "Top-right corner"
 msgstr ""
 
-#: python\config_handler.py:79
+#: python/config_handler.py:79
 msgid "Bottom-right corner"
 msgstr ""
 
-#: python\config_handler.py:84
+#: python/config_handler.py:84
 msgid "Image"
 msgstr ""
 
-#: python\config_handler.py:85
+#: python/config_handler.py:85
 msgid "Filename without extension"
 msgstr ""
 
-#: python\config_handler.py:86
+#: python/config_handler.py:86
 msgid "Folder"
 msgstr ""
 
-#: python\config_handler.py:87
+#: python/config_handler.py:87
 msgid "Title"
 msgstr ""
 
-#: python\config_handler.py:88
+#: python/config_handler.py:88
 msgid "Description"
 msgstr ""
 
-#: python\config_handler.py:89
+#: python/config_handler.py:89
 msgid "Comment"
 msgstr ""
 
-#: python\config_handler.py:90
+#: python/config_handler.py:90
 msgid "Subject"
 msgstr ""
 
-#: python\config_handler.py:92 python\config_handler.py:93
+#: python/config_handler.py:92 python/config_handler.py:93
 msgid "Author"
 msgstr ""
 
-#: python\config_handler.py:94
+#: python/config_handler.py:94
 msgid "Copyright"
 msgstr ""
 
-#: python\config_handler.py:95
+#: python/config_handler.py:95
 msgid "Artist"
 msgstr ""
 
-#: python\config_handler.py:97 python\panel\sources_section.py:130
+#: python/config_handler.py:97 python/panel/sources_section.py:130
 msgid "Source"
 msgstr ""
 
-#: python\config_handler.py:98
+#: python/config_handler.py:98
 msgid "Manufacturer"
 msgstr ""
 
-#: python\config_handler.py:99
+#: python/config_handler.py:99
 msgid "Camera"
 msgstr ""
 
-#: python\config_handler.py:100
+#: python/config_handler.py:100
 msgid "Lens"
 msgstr ""
 
-#: python\config_handler.py:101
+#: python/config_handler.py:101
 msgid "Software"
 msgstr ""
 
-#: python\config_handler.py:103
+#: python/config_handler.py:103
 msgid "Dates"
 msgstr ""
 
-#: python\config_handler.py:104
+#: python/config_handler.py:104
 msgid "Date taken"
 msgstr ""
 
-#: python\config_handler.py:105
+#: python/config_handler.py:105
 msgid "Date digitized"
 msgstr ""
 
-#: python\config_handler.py:106
+#: python/config_handler.py:106
 msgid "EXIF modification date"
 msgstr ""
 
-#: python\config_handler.py:107
+#: python/config_handler.py:107
 msgid "GPS date"
 msgstr ""
 
-#: python\config_handler.py:109
+#: python/config_handler.py:109
 msgid "Geolocation"
 msgstr ""
 
-#: python\config_handler.py:110
+#: python/config_handler.py:110
 msgid "Country"
 msgstr ""
 
-#: python\config_handler.py:111
+#: python/config_handler.py:111
 msgid "Region"
 msgstr ""
 
-#: python\config_handler.py:112
+#: python/config_handler.py:112
 msgid "Locality"
 msgstr ""
 
-#: python\config_handler.py:113
+#: python/config_handler.py:113
 msgid "Distance"
 msgstr ""
 
-#: python\config_handler.py:114
+#: python/config_handler.py:114
 msgid "Altitude"
 msgstr ""
 
-#: python\config_handler.py:600 python\config_handler.py:628
-#: python\config_handler.py:631
+#: python/config_handler.py:600 python/config_handler.py:628
+#: python/config_handler.py:631
 msgid "Generic Monitor"
 msgstr ""
 
-#: python\config_handler.py:3129 wmm_platform\shell\po\pot_manager.py:614
-#: wmm_platform\shell\po\pot_manager.py:1923
-#: wmm_platform\shell\po\pot_manager.py:1935
-#: wmm_platform\shell\po\pot_manager.py:1941
+#: python/config_handler.py:3129 wmm_platform/shell/po/pot_manager.py:614
+#: wmm_platform/shell/po/pot_manager.py:1923
+#: wmm_platform/shell/po/pot_manager.py:1935
+#: wmm_platform/shell/po/pot_manager.py:1941
 msgid "New"
 msgstr ""
 
-#: python\config_handler.py:3136 wmm_platform\shell\po\pot_manager.py:615
-#: wmm_platform\shell\po\pot_manager.py:1924
-#: wmm_platform\shell\po\pot_manager.py:1938
-#: wmm_platform\shell\po\pot_manager.py:1942
+#: python/config_handler.py:3136 wmm_platform/shell/po/pot_manager.py:615
+#: wmm_platform/shell/po/pot_manager.py:1924
+#: wmm_platform/shell/po/pot_manager.py:1938
+#: wmm_platform/shell/po/pot_manager.py:1942
 msgid "Removed"
 msgstr ""
 
-#: python\config_handler.py:3141
+#: python/config_handler.py:3141
 msgid "Modified"
 msgstr ""
 
-#: python\config_handler.py:3147 python\main.py:680
+#: python/config_handler.py:3147 python/main.py:680
 msgid "Total library"
 msgstr ""
 
-#: python\config_handler.py:3174
+#: python/config_handler.py:3174
 msgid "Action"
 msgstr ""
 
-#: python\debug_log_viewer.py:58 wmm_platform\shell\mate\mate-applet.py:379
-#: wmm_platform\shell\windows\windows-frontend.py:1850
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:829
-#: wmm_platform\shell\gnome\extension.gnome.js:1007
+#: python/debug_log_viewer.py:58
+#: wmm_platform/shell/windows/windows-frontend.py:1850
+#: wmm_platform/shell/mate/mate-applet.py:379
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:829
+#: wmm_platform/shell/gnome/extension.gnome.js:1007
 msgid "Debug Log Viewer"
 msgstr ""
 
-#: python\debug_log_viewer.py:106
+#: python/debug_log_viewer.py:106
 msgid "Origin"
 msgstr ""
 
-#: python\debug_log_viewer.py:119
+#: python/debug_log_viewer.py:119
 msgid "Level"
 msgstr ""
 
-#: python\debug_log_viewer.py:132
+#: python/debug_log_viewer.py:132
 msgid "Reason"
 msgstr ""
 
-#: python\debug_log_viewer.py:145 python\panel\online_section.py:250
-#: python\panel\online_section.py:315 wmm_platform\shell\po\pot_manager.py:356
-#: wmm_platform\shell\po\pot_manager.py:371
+#: python/debug_log_viewer.py:145 python/panel/online_section.py:250
+#: python/panel/online_section.py:315 wmm_platform/shell/po/pot_manager.py:356
+#: wmm_platform/shell/po/pot_manager.py:371
 msgid "Search"
 msgstr ""
 
-#: python\debug_log_viewer.py:148 wmm_platform\shell\po\pot_manager.py:376
+#: python/debug_log_viewer.py:148 wmm_platform/shell/po/pot_manager.py:376
 msgid "Filter by text"
 msgstr ""
 
-#: python\debug_log_viewer.py:199
+#: python/debug_log_viewer.py:199
 msgid "Clear log"
 msgstr ""
 
-#: python\debug_log_viewer.py:207
+#: python/debug_log_viewer.py:207
 msgid "Auto-scroll"
 msgstr ""
 
-#: python\debug_log_viewer.py:220
+#: python/debug_log_viewer.py:220
 msgid "Reverse order"
 msgstr ""
 
-#: python\debug_log_viewer.py:245 python\docs_viewer.py:167
-#: python\panel\options_section.py:513 python\panel\options_section.py:640
+#: python/debug_log_viewer.py:245 python/docs_viewer.py:167
+#: python/panel/options_section.py:513 python/panel/options_section.py:640
 msgid "Font and size"
 msgstr ""
 
-#: python\debug_log_viewer.py:459
+#: python/debug_log_viewer.py:459
 msgid "Clear debug log?"
 msgstr ""
 
-#: python\debug_log_viewer.py:461
+#: python/debug_log_viewer.py:461
 msgid "All log entries will be permanently deleted."
 msgstr ""
 
-#: python\image_engine.py:128
-msgid "Alt."
-msgstr ""
-
-#: python\image_engine.py:130
-msgid "Dist."
-msgstr ""
-
-#: python\image_selection.py:555
+#: python/image_selection.py:555
 #, python-brace-format
 msgid "Image: '{image}' from preset: '{preset}' not found."
 msgstr ""
 
-#: python\image_selection.py:559
+#: python/image_selection.py:559
 msgid "PRESET image not found"
 msgstr ""
 
-#: python\image_selection.py:560
+#: python/image_selection.py:560
 msgid "Assigning a random one"
 msgstr ""
 
-#: python\keybinding_manager.py:101
-#: wmm_platform\shell\windows\windows-frontend.py:782
-#: wmm_platform\shell\gnome\extension.gnome.js:738
-msgid "Shift"
+#: python/about.py:137 python/about.py:250 python/panel/online_section.py:867
+#: wmm_platform/shell/windows/windows-frontend.py:1865
+#: wmm_platform/shell/mate/mate-applet.py:381
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:847
+#: wmm_platform/shell/gnome/extension.gnome.js:1021
+msgid "About"
 msgstr ""
 
-#: python\keybinding_manager.py:112
-msgid "Keyboard shortcut"
+#: python/about.py:194
+msgid "Version"
 msgstr ""
 
-#: python\keybinding_manager.py:160 python\keybinding_manager.py:187
-msgid "No shortcut assigned"
+#: python/about.py:210 python/about.py:224 python/panel/online_section.py:867
+msgid "License"
 msgstr ""
 
-#: python\keybinding_manager.py:162
-msgid "Current combination"
+#: python/about.py:222
+msgid "Changelog"
 msgstr ""
 
-#: python\keybinding_manager.py:175
-msgid "Press the desired key combination."
+#: python/about.py:223 wmm_platform/shell/windows/windows-frontend.py:1852
+#: wmm_platform/shell/mate/mate-applet.py:380
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:837
+#: wmm_platform/shell/gnome/extension.gnome.js:1012
+msgid "Help"
 msgstr ""
 
-#: python\keybinding_manager.py:194
-msgid "Clear"
-msgstr ""
-
-#: python\keybinding_manager.py:273
-msgid "Applying keyboard shortcut..."
-msgstr ""
-
-#: python\keybinding_manager.py:282 python\keybinding_manager.py:286
-#: python\keybinding_manager.py:296
-msgid "Could not apply the keyboard shortcut."
-msgstr ""
-
-#: python\keybinding_manager.py:340
-msgid "Complete the key combination."
-msgstr ""
-
-#: python\keybinding_manager.py:345
-msgid "This key combination is not supported."
-msgstr ""
-
-#: python\keybinding_manager.py:409
-msgid "This key combination is already in use."
-msgstr ""
-
-#: python\keybinding_manager.py:488 wmm_platform\shell\mate\mate-applet.py:227
-#: wmm_platform\shell\mate\mate-applet.py:445
-#: wmm_platform\shell\windows\windows-frontend.py:1737
-#: wmm_platform\shell\windows\windows-frontend.py:2225
-#: wmm_platform\shell\xfce\xfce-frontend.py:360
-#: wmm_platform\shell\xfce\xfce-frontend.py:1444
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:207
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:695
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:760
-#: wmm_platform\shell\gnome\extension.gnome.js:331
-#: wmm_platform\shell\gnome\extension.gnome.js:763
-msgid "Next Background"
-msgstr ""
-
-#: python\main.py:644
-msgid "Favorite deleted"
-msgstr ""
-
-#: python\main.py:645
-msgid "Preset"
-msgstr ""
-
-#: python\main.py:645
-msgid "deleted successfully."
-msgstr ""
-
-#: python\main.py:675
-msgid "Changes detected"
-msgstr ""
-
-#: python\main.py:677
-msgid "No changes"
-msgstr ""
-
-#: python\main.py:684
-msgid "Synchronization"
-msgstr ""
-
-#: python\main.py:795 python\main.py:806
-msgid "Unknown"
-msgstr ""
-
-#: python\main.py:799 python\main.py:810
-msgid "Favorite added"
-msgstr ""
-
-#: python\main.py:800 python\main.py:811
-msgid "added successfully."
-msgstr ""
-
-#: python\main.py:1092
-msgid "Cycle aborted: not enough images available to complete selection."
-msgstr ""
-
-#: python\main.py:1095
-msgid "No images available"
-msgstr ""
-
-#: python\main.py:1096
-msgid "Check status of Image Sources in Control Panel."
-msgstr ""
-
-#: python\panel.py:105
-msgid "Control Center"
-msgstr ""
-
-#: python\panel.py:580
-msgid "Expand side panel"
-msgstr ""
-
-#: python\panel.py:585 python\panel\options_section.py:154
-msgid "Open Help"
-msgstr ""
-
-#: python\panel.py:591 python\panel\options_section.py:160
-msgid "Open Debug Log Viewer"
-msgstr ""
-
-#: python\panel.py:596 python\panel\options_section.py:166
-msgid "Restart engine and panel"
-msgstr ""
-
-#: python\panel.py:1183
-msgid "Editing"
-msgstr ""
-
-#: python\restart_engine.py:81
-msgid "Engine restarted"
-msgstr ""
-
-#: python\restart_engine.py:82
-msgid "The engine has been restarted successfully."
-msgstr ""
-
-#: python\restart_engine.py:88
-msgid "Engine restart failed"
-msgstr ""
-
-#: python\restart_engine.py:89
-msgid "The engine could not be started. Check the debug log."
-msgstr ""
-
-#: python\shell_add_bookmark.py:74 python\shell_add_bookmark.py:99
+#: python/shell_add_bookmark.py:74 python/shell_add_bookmark.py:99
 msgid "Error adding to favorites"
 msgstr ""
 
-#: python\shell_add_bookmark.py:75
+#: python/shell_add_bookmark.py:75
 msgid "Could not process image:"
 msgstr ""
 
-#: python\shell_add_bookmark.py:87 python\panel\thumbnails_section.py:971
-#: wmm_platform\shell\file_manager\caja\wmm-desktop-actions.py:107
-#: wmm_platform\shell\file_manager\nautilus\wmm-nautilus.py:90
-#: wmm_platform\shell\file_manager\thunar\wmm-xfce-desktop.py:81
+#: python/shell_add_bookmark.py:87 python/panel/thumbnails_section.py:974
+#: wmm_platform/shell/file_manager/caja/wmm-desktop-actions.py:107
+#: wmm_platform/shell/file_manager/nautilus/wmm-nautilus.py:90
+#: wmm_platform/shell/file_manager/thunar/wmm-xfce-desktop.py:81
 msgid "Add to favorites"
 msgstr ""
 
-#: python\shell_add_bookmark.py:88
+#: python/shell_add_bookmark.py:88
 msgid "Image is already in favorites."
 msgstr ""
 
-#: python\shell_send_to_monitor.py:69
-#: wmm_platform\shell\file_manager\nautilus\wmm-nautilus.py:95
+#: python/panel.py:105
+msgid "Control Center"
+msgstr ""
+
+#: python/panel.py:580
+msgid "Expand side panel"
+msgstr ""
+
+#: python/panel.py:585 python/panel/options_section.py:154
+msgid "Open Help"
+msgstr ""
+
+#: python/panel.py:591 python/panel/options_section.py:160
+msgid "Open Debug Log Viewer"
+msgstr ""
+
+#: python/panel.py:596 python/panel/options_section.py:166
+msgid "Restart engine and panel"
+msgstr ""
+
+#: python/panel.py:1183
+msgid "Editing"
+msgstr ""
+
+#: python/restart_engine.py:81
+msgid "Engine restarted"
+msgstr ""
+
+#: python/restart_engine.py:82
+msgid "The engine has been restarted successfully."
+msgstr ""
+
+#: python/restart_engine.py:88
+msgid "Engine restart failed"
+msgstr ""
+
+#: python/restart_engine.py:89
+msgid "The engine could not be started. Check the debug log."
+msgstr ""
+
+#: python/add_bookmark.py:106
+msgid "Add Favorite Preset"
+msgstr ""
+
+#: python/add_bookmark.py:155
+msgid "Error loading data. Please restart panel"
+msgstr ""
+
+#: python/add_bookmark.py:170
+msgid "Preset name:"
+msgstr ""
+
+#: python/add_bookmark.py:190 python/shell_send_to_monitor.py:99
+#: python/keybinding_manager.py:206 python/panel/online_section.py:472
+#: python/panel/options_section.py:889 python/panel/sources_section.py:1042
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:538
+#: wmm_platform/shell/gnome/extension.gnome.js:1369
+msgid "Cancel"
+msgstr ""
+
+#: python/add_bookmark.py:196 python/shell_send_to_monitor.py:100
+#: python/keybinding_manager.py:208
+msgid "OK"
+msgstr ""
+
+#: python/add_bookmark.py:211
+msgid "The name cannot be empty."
+msgstr ""
+
+#: python/add_bookmark.py:242 python/panel/favorites_section.py:314
+msgid "A Preset with that name already exists!"
+msgstr ""
+
+#: python/add_bookmark.py:244 wmm_platform/shell/po/pot_manager.py:950
+#: wmm_platform/shell/po/pot_manager.py:1364
+msgid "Error saving"
+msgstr ""
+
+#: python/shell_send_to_monitor.py:69
+#: wmm_platform/shell/file_manager/nautilus/wmm-nautilus.py:95
 msgid "Send to Monitor"
 msgstr ""
 
-#: python\shell_send_to_monitor.py:87
+#: python/shell_send_to_monitor.py:87
 msgid "Select a monitor:"
 msgstr ""
 
-#: python\shell_send_to_monitor.py:215
+#: python/shell_send_to_monitor.py:215
 msgid "Primary"
 msgstr ""
 
-#: python\shell_send_to_monitor.py:223
+#: python/shell_send_to_monitor.py:223
 msgid "No monitors"
 msgstr ""
 
-#: python\shell_send_to_monitor.py:224
+#: python/shell_send_to_monitor.py:224
 msgid "No active monitors found"
 msgstr ""
 
-#: python\shell_send_to_monitor.py:271
+#: python/shell_send_to_monitor.py:271
 msgid "Image sent to monitor"
 msgstr ""
 
-#: python\shell_send_to_monitor.py:272
+#: python/shell_send_to_monitor.py:272
 #, python-brace-format
 msgid "Image '{name}' assigned to monitor {monitor}."
 msgstr ""
 
-#: python\panel\favorites_section.py:97 python\panel\favorites_section.py:161
-#: python\panel\options_section.py:1310 python\panel\thumbnails_section.py:176
-#: wmm_platform\shell\mate\mate-applet.py:368
-#: wmm_platform\shell\windows\windows-frontend.py:1634
-#: wmm_platform\shell\xfce\xfce-frontend.py:1299
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:314
-#: wmm_platform\shell\gnome\extension.gnome.js:822
-msgid "Favorites"
+#: python/keybinding_manager.py:101
+#: wmm_platform/shell/windows/windows-frontend.py:782
+#: wmm_platform/shell/gnome/extension.gnome.js:738
+msgid "Shift"
 msgstr ""
 
-#: python\panel\favorites_section.py:106
-msgid "Slideshow only among favorite images"
+#: python/keybinding_manager.py:112
+msgid "Keyboard shortcut"
 msgstr ""
 
-#: python\panel\favorites_section.py:122 python\panel\options_section.py:1307
-msgid "Presets"
+#: python/keybinding_manager.py:160 python/keybinding_manager.py:187
+msgid "No shortcut assigned"
 msgstr ""
 
-#: python\panel\favorites_section.py:131 python\panel\favorites_section.py:171
-msgid "Name"
+#: python/keybinding_manager.py:162
+msgid "Current combination"
 msgstr ""
 
-#: python\panel\favorites_section.py:149
-msgid "Delete selected preset/image"
+#: python/keybinding_manager.py:175
+msgid "Press the desired key combination."
 msgstr ""
 
-#: python\panel\favorites_section.py:188
-msgid "Delete selected image from favorites"
+#: python/keybinding_manager.py:194
+msgid "Clear"
 msgstr ""
 
-#: python\panel\favorites_section.py:272 python\panel\favorites_section.py:388
-msgid "empty"
+#: python/keybinding_manager.py:273
+msgid "Applying keyboard shortcut..."
 msgstr ""
 
-#: python\panel\favorites_section.py:338
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:520
-#: wmm_platform\shell\gnome\extension.gnome.js:1348
-msgid "Delete preset"
+#: python/keybinding_manager.py:282 python/keybinding_manager.py:286
+#: python/keybinding_manager.py:296
+msgid "Could not apply the keyboard shortcut."
 msgstr ""
 
-#: python\panel\favorites_section.py:340
-msgid "Load on screens"
+#: python/keybinding_manager.py:340
+msgid "Complete the key combination."
 msgstr ""
 
-#: python\panel\favorites_section.py:347
-msgid "Delete image"
+#: python/keybinding_manager.py:345
+msgid "This key combination is not supported."
 msgstr ""
 
-#: python\panel\favorites_section.py:468 python\panel\favorites_section.py:470
-#: wmm_platform\shell\mate\mate-applet.py:1442
-#: wmm_platform\shell\windows\windows-frontend.py:1461
-#: wmm_platform\shell\xfce\xfce-frontend.py:1253
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:525
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:548
-#: wmm_platform\shell\gnome\extension.gnome.js:1355
-#: wmm_platform\shell\gnome\extension.gnome.js:1377
-msgid "Delete"
+#: python/keybinding_manager.py:409
+msgid "This key combination is already in use."
 msgstr ""
 
-#: python\panel\favorites_section.py:470
-msgid "images"
+#: python/keybinding_manager.py:488
+#: wmm_platform/shell/windows/windows-frontend.py:1737
+#: wmm_platform/shell/windows/windows-frontend.py:2225
+#: wmm_platform/shell/xfce/xfce-frontend.py:360
+#: wmm_platform/shell/xfce/xfce-frontend.py:1444
+#: wmm_platform/shell/mate/mate-applet.py:227
+#: wmm_platform/shell/mate/mate-applet.py:445
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:207
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:695
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:760
+#: wmm_platform/shell/gnome/extension.gnome.js:331
+#: wmm_platform/shell/gnome/extension.gnome.js:763
+msgid "Next Background"
 msgstr ""
 
-#: python\panel\monitors_section.py:205
-#: wmm_platform\shell\mate\mate-applet.py:1272
-#: wmm_platform\shell\windows\windows-frontend.py:772
-#: wmm_platform\shell\xfce\xfce-frontend.py:614
-#: wmm_platform\shell\xfce\xfce-frontend.py:1405
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:655
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:673
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:674
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:892
-#: wmm_platform\shell\gnome\extension.gnome.js:937
-#: wmm_platform\shell\gnome\extension.gnome.js:941
-#: wmm_platform\shell\gnome\extension.gnome.js:1070
-msgid "Displays"
+#: python/main.py:644
+msgid "Favorite deleted"
 msgstr ""
 
-#: python\panel\monitors_section.py:211
-msgid "Side Left"
+#: python/main.py:645
+msgid "Preset"
 msgstr ""
 
-#: python\panel\monitors_section.py:215
-msgid "Center"
+#: python/main.py:645
+msgid "deleted successfully."
 msgstr ""
 
-#: python\panel\monitors_section.py:219
-msgid "Side Right"
+#: python/main.py:675
+msgid "Changes detected"
 msgstr ""
 
-#: python\panel\monitors_section.py:295
-msgid "Enable/disable screen editing mode"
+#: python/main.py:677
+msgid "No changes"
 msgstr ""
 
-#: python\panel\monitors_section.py:302
-msgid "Enable"
+#: python/main.py:684
+msgid "Synchronization"
 msgstr ""
 
-#: python\panel\monitors_section.py:302 python\panel\monitors_section.py:306
-msgid "Editing Mode"
+#: python/main.py:795 python/main.py:806
+msgid "Unknown"
 msgstr ""
 
-#: python\panel\monitors_section.py:306 python\panel\sources_section.py:443
-#: wmm_platform\shell\mate\mate-applet.py:1266
-#: wmm_platform\shell\windows\windows-frontend.py:836
-#: wmm_platform\shell\windows\windows-frontend.py:1233
-#: wmm_platform\shell\xfce\xfce-frontend.py:659
-#: wmm_platform\shell\xfce\xfce-frontend.py:785
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:637
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:647
-#: wmm_platform\shell\gnome\extension.gnome.js:896
-#: wmm_platform\shell\gnome\extension.gnome.js:1043
-msgid "Enabled"
+#: python/main.py:799 python/main.py:810
+msgid "Favorite added"
 msgstr ""
 
-#: python\panel\monitors_section.py:320
-#: wmm_platform\shell\file_manager\caja\wmm-desktop-actions.py:99
-#: wmm_platform\shell\file_manager\nautilus\wmm-nautilus.py:100
-msgid "Span image across all active screens"
+#: python/main.py:800 python/main.py:811
+msgid "added successfully."
 msgstr ""
 
-#: python\panel\monitors_section.py:327 python\panel\options_section.py:325
-#: python\panel\options_section.py:631
-msgid "Picture aspect"
+#: python/main.py:1092
+msgid "Cycle aborted: not enough images available to complete selection."
 msgstr ""
 
-#: python\panel\monitors_section.py:327
-msgid "for current composition"
+#: python/main.py:1095
+msgid "No images available"
 msgstr ""
 
-#: python\panel\monitors_section.py:341 python\panel\options_section.py:310
-msgid "Spanned"
+#: python/main.py:1096
+msgid "Check status of Image Sources in Control Panel."
 msgstr ""
 
-#: python\panel\monitors_section.py:350 python\panel\online_section.py:268
-msgid "Aspect ratio"
+#: python/panel/thumbnails_section.py:142
+#: python/panel/thumbnails_section.py:564
+#: python/panel/thumbnails_section.py:637
+msgid "Thumbnails"
 msgstr ""
 
-#: python\panel\monitors_section.py:357
-msgid "Effects"
-msgstr ""
-
-#: python\panel\monitors_section.py:814
-msgid "Primary monitor"
-msgstr ""
-
-#: python\panel\monitors_section.py:826
-msgid "Enable/disable image"
-msgstr ""
-
-#: python\panel\monitors_section.py:863 python\panel\monitors_section.py:1633
-msgid "Display"
-msgstr ""
-
-#: python\panel\monitors_section.py:890
-msgid "Refresh real display status"
-msgstr ""
-
-#: python\panel\monitors_section.py:909
-msgid "Update preset on accept"
-msgstr ""
-
-#: python\panel\monitors_section.py:909
-msgid "Create preset on accept"
-msgstr ""
-
-#: python\panel\monitors_section.py:912
-msgid "Save current composition as preset"
-msgstr ""
-
-#: python\panel\monitors_section.py:915
-msgid "Add images to library and create a preset"
-msgstr ""
-
-#: python\panel\monitors_section.py:916
-msgid "Add images to library"
-msgstr ""
-
-#: python\panel\monitors_section.py:919
-msgid "Update preset and apply to monitors"
-msgstr ""
-
-#: python\panel\monitors_section.py:920
-msgid "Apply to monitors without updating preset"
-msgstr ""
-
-#: python\panel\monitors_section.py:923
-msgid "Create preset and apply to monitors"
-msgstr ""
-
-#: python\panel\monitors_section.py:924
-msgid "Apply to monitors"
-msgstr ""
-
-#: python\panel\monitors_section.py:1388
-msgid "Could not incorporate Online images."
-msgstr ""
-
-#: python\panel\monitors_section.py:1636
-msgid "editing"
-msgstr ""
-
-#: python\panel\online_section.py:148
-msgid "Page"
-msgstr ""
-
-#: python\panel\online_section.py:213 python\panel\online_section.py:656
-msgid "Visit"
-msgstr ""
-
-#: python\panel\online_section.py:259
-msgid "Search wallpapers"
-msgstr ""
-
-#: python\panel\online_section.py:269 python\panel\online_section.py:285
-msgid "Any"
-msgstr ""
-
-#: python\panel\online_section.py:271 python\panel\thumbnails_section.py:156
+#: python/panel/thumbnails_section.py:156 python/panel/online_section.py:271
 msgid "Horizontal"
 msgstr ""
 
-#: python\panel\online_section.py:280 python\panel\thumbnails_section.py:166
+#: python/panel/thumbnails_section.py:166 python/panel/online_section.py:280
 msgid "Vertical"
 msgstr ""
 
-#: python\panel\online_section.py:284
-msgid "Provider"
+#: python/panel/thumbnails_section.py:176 python/panel/options_section.py:1310
+#: python/panel/favorites_section.py:97 python/panel/favorites_section.py:161
+#: wmm_platform/shell/windows/windows-frontend.py:1634
+#: wmm_platform/shell/xfce/xfce-frontend.py:1299
+#: wmm_platform/shell/mate/mate-applet.py:368
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:314
+#: wmm_platform/shell/gnome/extension.gnome.js:822
+msgid "Favorites"
 msgstr ""
 
-#: python\panel\online_section.py:326 python\panel\online_section.py:510
-msgid "API Keys"
+#: python/panel/thumbnails_section.py:186
+msgid "Online"
 msgstr ""
 
-#: python\panel\online_section.py:352
-msgid "Online wallpaper results will appear here."
+#: python/panel/thumbnails_section.py:201
+msgid "Reload thumbnails"
 msgstr ""
 
-#: python\panel\online_section.py:373 python\panel\online_section.py:1113
-msgid "Download"
+#: python/panel/thumbnails_section.py:479
+#: python/panel/thumbnails_section.py:690
+msgid "No images found."
 msgstr ""
 
-#: python\panel\online_section.py:374
-msgid "Download selected images"
+#: python/panel/thumbnails_section.py:721
+#: python/panel/thumbnails_section.py:747
+#: python/panel/thumbnails_section.py:792
+msgid "Website"
 msgstr ""
 
-#: python\panel\online_section.py:379
-msgid "Load more"
-msgstr ""
-
-#: python\panel\online_section.py:408
-msgid "Could not update API key."
-msgstr ""
-
-#: python\panel\online_section.py:418
-msgid "Invalid API key configuration."
-msgstr ""
-
-#: python\panel\online_section.py:432 python\panel\online_section.py:499
-msgid "Could not save settings.json."
-msgstr ""
-
-#: python\panel\online_section.py:449
-msgid "Select API key file"
-msgstr ""
-
-#: python\panel\online_section.py:473
-msgid "Open"
-msgstr ""
-
-#: python\panel\online_section.py:514
-#: wmm_platform\shell\installer\wmm-install_manager.py:345
-msgid "Close"
-msgstr ""
-
-#: python\panel\online_section.py:633
-msgid "Providers"
-msgstr ""
-
-#: python\panel\online_section.py:692
-msgid "Could not read API key"
-msgstr ""
-
-#: python\panel\online_section.py:699
-msgid "Browse"
-msgstr ""
-
-#: python\panel\online_section.py:700
-msgid "Unlink"
-msgstr ""
-
-#: python\panel\online_section.py:846
-msgid "Responsible use document unavailable."
-msgstr ""
-
-#: python\panel\online_section.py:856
-msgid "I have read and understood this document"
-msgstr ""
-
-#: python\panel\online_section.py:860
-msgid "Do not show again"
-msgstr ""
-
-#: python\panel\online_section.py:870
-msgid "You can consult this document at any time from:"
-msgstr ""
-
-#: python\panel\online_section.py:881
-msgid "Accept"
-msgstr ""
-
-#: python\panel\online_section.py:1002
-msgid "Provider not yet available."
-msgstr ""
-
-#: python\panel\online_section.py:1025
-msgid "Searching wallpapers"
-msgstr ""
-
-#: python\panel\online_section.py:1104 python\panel\online_section.py:1105
-#: python\panel\online_section.py:1332
-msgid "Downloaded"
-msgstr ""
-
-#: python\panel\online_section.py:1127
-msgid "Download the 5 selected images before selecting more."
-msgstr ""
-
-#: python\panel\online_section.py:1143
-msgid "Selected"
-msgstr ""
-
-#: python\panel\online_section.py:1143 python\panel\online_section.py:1491
-#: python\panel\online_section.py:1492 python\panel\options_section.py:505
-msgid "Select"
-msgstr ""
-
-#: python\panel\online_section.py:1159
-msgid "Configure a valid Online folder in Sources."
-msgstr ""
-
-#: python\panel\online_section.py:1167
-msgid "Downloading selected images"
-msgstr ""
-
-#: python\panel\online_section.py:1252
-msgid "Downloading"
-msgstr ""
-
-#: python\panel\online_section.py:1465 python\panel\thumbnails_section.py:788
+#: python/panel/thumbnails_section.py:791 python/panel/online_section.py:1468
 msgid "View on"
 msgstr ""
 
-#: python\panel\online_section.py:1589
+#: python/panel/thumbnails_section.py:939
+msgid "No favorite images."
+msgstr ""
+
+#: python/panel/thumbnails_section.py:971
+msgid "Remove from favorites"
+msgstr ""
+
+#: python/panel/online_section.py:213 python/panel/online_section.py:656
+msgid "Visit"
+msgstr ""
+
+#: python/panel/online_section.py:259
+msgid "Search wallpapers"
+msgstr ""
+
+#: python/panel/online_section.py:268 python/panel/monitors_section.py:350
+msgid "Aspect ratio"
+msgstr ""
+
+#: python/panel/online_section.py:269 python/panel/online_section.py:285
+msgid "Any"
+msgstr ""
+
+#: python/panel/online_section.py:284
+msgid "Provider"
+msgstr ""
+
+#: python/panel/online_section.py:326 python/panel/online_section.py:510
+msgid "API Keys"
+msgstr ""
+
+#: python/panel/online_section.py:352
+msgid "Online wallpaper results will appear here."
+msgstr ""
+
+#: python/panel/online_section.py:374
+msgid "Download selected images"
+msgstr ""
+
+#: python/panel/online_section.py:379
+msgid "Load more"
+msgstr ""
+
+#: python/panel/online_section.py:408
+msgid "Could not update API key."
+msgstr ""
+
+#: python/panel/online_section.py:418
+msgid "Invalid API key configuration."
+msgstr ""
+
+#: python/panel/online_section.py:432 python/panel/online_section.py:499
+msgid "Could not save settings.json."
+msgstr ""
+
+#: python/panel/online_section.py:449
+msgid "Select API key file"
+msgstr ""
+
+#: python/panel/online_section.py:473
+msgid "Open"
+msgstr ""
+
+#: python/panel/online_section.py:514
+#: wmm_platform/shell/installer/wmm-install_manager.py:345
+msgid "Close"
+msgstr ""
+
+#: python/panel/online_section.py:633
+msgid "Providers"
+msgstr ""
+
+#: python/panel/online_section.py:692
+msgid "Could not read API key"
+msgstr ""
+
+#: python/panel/online_section.py:699
+msgid "Browse"
+msgstr ""
+
+#: python/panel/online_section.py:700
+msgid "Unlink"
+msgstr ""
+
+#: python/panel/online_section.py:846
+msgid "Responsible use document unavailable."
+msgstr ""
+
+#: python/panel/online_section.py:856
+msgid "I have read and understood this document"
+msgstr ""
+
+#: python/panel/online_section.py:860
+msgid "Do not show again"
+msgstr ""
+
+#: python/panel/online_section.py:870
+msgid "You can consult this document at any time from:"
+msgstr ""
+
+#: python/panel/online_section.py:881
+msgid "Accept"
+msgstr ""
+
+#: python/panel/online_section.py:1002
+msgid "Provider not yet available."
+msgstr ""
+
+#: python/panel/online_section.py:1025
+msgid "Searching wallpapers"
+msgstr ""
+
+#: python/panel/online_section.py:1104 python/panel/online_section.py:1105
+msgid "Downloaded"
+msgstr ""
+
+#: python/panel/online_section.py:1127
+msgid "Download the 5 selected images before selecting more."
+msgstr ""
+
+#: python/panel/online_section.py:1143
+msgid "Selected"
+msgstr ""
+
+#: python/panel/online_section.py:1143 python/panel/online_section.py:1494
+#: python/panel/online_section.py:1495 python/panel/options_section.py:505
+msgid "Select"
+msgstr ""
+
+#: python/panel/online_section.py:1159
+msgid "Configure a valid Online folder in Sources."
+msgstr ""
+
+#: python/panel/online_section.py:1167
+msgid "Downloading selected images"
+msgstr ""
+
+#: python/panel/online_section.py:1592
 msgid "No wallpapers found."
 msgstr ""
 
-#: python\panel\online_section.py:1590
+#: python/panel/online_section.py:1593
 msgid "Could not load wallpaper thumbnails."
 msgstr ""
 
-#: python\panel\online_section.py:1613
+#: python/panel/online_section.py:1616
 msgid "Online search failed."
 msgstr ""
 
-#: python\panel\options_section.py:139
+#: python/panel/options_section.py:139
 msgid "Options"
 msgstr ""
 
-#: python\panel\options_section.py:177
+#: python/panel/options_section.py:177
 msgid "Collapse side panel"
 msgstr ""
 
-#: python\panel\options_section.py:201
+#: python/panel/options_section.py:201
 msgid ""
 "If enabled, the wallpaper is changed at startup; if disabled, the last "
 "wallpaper is kept."
 msgstr ""
 
-#: python\panel\options_section.py:216
+#: python/panel/options_section.py:216
 msgid "Change wallpaper on startup"
 msgstr ""
 
-#: python\panel\options_section.py:237
+#: python/panel/options_section.py:237
 msgid ""
 "Selects images matching the monitor's orientation. When disabled, images of "
 "any orientation can be used."
 msgstr ""
 
-#: python\panel\options_section.py:244 python\panel\options_section.py:627
+#: python/panel/options_section.py:244 python/panel/options_section.py:627
 msgid "Select by monitor orientation"
 msgstr ""
 
-#: python\panel\options_section.py:265 python\panel\options_section.py:628
+#: python/panel/options_section.py:265 python/panel/options_section.py:628
 msgid "Selective rotation"
 msgstr ""
 
-#: python\panel\options_section.py:273
+#: python/panel/options_section.py:273
 msgid "Sync: All Screens change at once"
 msgstr ""
 
-#: python\panel\options_section.py:273
+#: python/panel/options_section.py:273
 msgid "Async: Change by turns"
 msgstr ""
 
-#: python\panel\options_section.py:278 python\panel\options_section.py:629
+#: python/panel/options_section.py:278 python/panel/options_section.py:629
 msgid "Rotation"
 msgstr ""
 
-#: python\panel\options_section.py:293
+#: python/panel/options_section.py:293
 msgid "Span image across all active screens (Only if more than one)"
 msgstr ""
 
-#: python\panel\options_section.py:344 python\panel\options_section.py:632
+#: python/panel/options_section.py:310 python/panel/monitors_section.py:341
+msgid "Spanned"
+msgstr ""
+
+#: python/panel/options_section.py:325 python/panel/options_section.py:631
+#: python/panel/monitors_section.py:327
+msgid "Picture aspect"
+msgstr ""
+
+#: python/panel/options_section.py:344 python/panel/options_section.py:632
 msgid "Image Effect"
 msgstr ""
 
-#: python\panel\options_section.py:357 python\panel\options_section.py:633
+#: python/panel/options_section.py:357 python/panel/options_section.py:633
 msgid "Background Effect"
 msgstr ""
 
-#: python\panel\options_section.py:364 python\panel\options_section.py:376
-#: python\panel\options_section.py:634
+#: python/panel/options_section.py:364 python/panel/options_section.py:376
+#: python/panel/options_section.py:634
 msgid "Background color"
 msgstr ""
 
-#: python\panel\options_section.py:381
+#: python/panel/options_section.py:381
 msgid "Horizontal gradient start color"
 msgstr ""
 
-#: python\panel\options_section.py:384
+#: python/panel/options_section.py:384
 msgid "Horizontal gradient end color"
 msgstr ""
 
-#: python\panel\options_section.py:387
+#: python/panel/options_section.py:387
 msgid "Vertical gradient start color"
 msgstr ""
 
-#: python\panel\options_section.py:390
+#: python/panel/options_section.py:390
 msgid "Vertical gradient end color"
 msgstr ""
 
-#: python\panel\options_section.py:407
+#: python/panel/options_section.py:407
 msgid "Enable/Disable Timer"
 msgstr ""
 
-#: python\panel\options_section.py:423
-#: wmm_platform\shell\mate\mate-applet.py:369
-#: wmm_platform\shell\windows\windows-frontend.py:1667
-#: wmm_platform\shell\xfce\xfce-frontend.py:1352
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:594
-#: wmm_platform\shell\gnome\extension.gnome.js:878
+#: python/panel/options_section.py:423
+#: wmm_platform/shell/windows/windows-frontend.py:1667
+#: wmm_platform/shell/xfce/xfce-frontend.py:1352
+#: wmm_platform/shell/mate/mate-applet.py:369
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:594
+#: wmm_platform/shell/gnome/extension.gnome.js:878
 msgid "Slideshow"
 msgstr ""
 
-#: python\panel\options_section.py:440 python\panel\options_section.py:636
+#: python/panel/options_section.py:440 python/panel/options_section.py:636
 msgid "Max. Frequency"
 msgstr ""
 
-#: python\panel\options_section.py:440 python\panel\options_section.py:454
-#: wmm_platform\shell\mate\mate-applet.py:617
-#: wmm_platform\shell\mate\mate-applet.py:1132
-#: wmm_platform\shell\mate\mate-applet.py:1281
-#: wmm_platform\shell\windows\windows-frontend.py:838
-#: wmm_platform\shell\windows\windows-frontend.py:1252
-#: wmm_platform\shell\windows\windows-frontend.py:1298
-#: wmm_platform\shell\windows\windows-frontend.py:1685
-#: wmm_platform\shell\xfce\xfce-frontend.py:662
-#: wmm_platform\shell\xfce\xfce-frontend.py:804
-#: wmm_platform\shell\xfce\xfce-frontend.py:1382
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:629
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:898
-#: wmm_platform\shell\gnome\extension.gnome.js:915
-#: wmm_platform\shell\gnome\extension.gnome.js:925
-#: wmm_platform\shell\gnome\extension.gnome.js:1081
+#: python/panel/options_section.py:440 python/panel/options_section.py:454
+#: wmm_platform/shell/windows/windows-frontend.py:838
+#: wmm_platform/shell/windows/windows-frontend.py:1252
+#: wmm_platform/shell/windows/windows-frontend.py:1298
+#: wmm_platform/shell/windows/windows-frontend.py:1685
+#: wmm_platform/shell/xfce/xfce-frontend.py:662
+#: wmm_platform/shell/xfce/xfce-frontend.py:804
+#: wmm_platform/shell/xfce/xfce-frontend.py:1382
+#: wmm_platform/shell/mate/mate-applet.py:617
+#: wmm_platform/shell/mate/mate-applet.py:1132
+#: wmm_platform/shell/mate/mate-applet.py:1281
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:629
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:898
+#: wmm_platform/shell/gnome/extension.gnome.js:915
+#: wmm_platform/shell/gnome/extension.gnome.js:925
+#: wmm_platform/shell/gnome/extension.gnome.js:1081
 msgid "minutes"
 msgstr ""
 
-#: python\panel\options_section.py:454 python\panel\options_section.py:637
+#: python/panel/options_section.py:454 python/panel/options_section.py:637
 msgid "Slideshow every"
 msgstr ""
 
-#: python\panel\options_section.py:475
+#: python/panel/options_section.py:475
 msgid "Show/Hide image metadata"
 msgstr ""
 
-#: python\panel\options_section.py:489
-#: wmm_platform\shell\mate\mate-applet.py:430
-#: wmm_platform\shell\windows\windows-frontend.py:1728
-#: wmm_platform\shell\xfce\xfce-frontend.py:1425
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:664
-#: wmm_platform\shell\gnome\extension.gnome.js:965
+#: python/panel/options_section.py:489
+#: wmm_platform/shell/windows/windows-frontend.py:1728
+#: wmm_platform/shell/xfce/xfce-frontend.py:1425
+#: wmm_platform/shell/mate/mate-applet.py:430
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:664
+#: wmm_platform/shell/gnome/extension.gnome.js:965
 msgid "Image Metadata"
 msgstr ""
 
-#: python\panel\options_section.py:503 python\panel\options_section.py:639
-#: python\panel\options_section.py:886
+#: python/panel/options_section.py:503 python/panel/options_section.py:639
+#: python/panel/options_section.py:886
 msgid "Visible fields"
 msgstr ""
 
-#: python\panel\options_section.py:525 python\panel\options_section.py:641
+#: python/panel/options_section.py:525 python/panel/options_section.py:641
 msgid "Position"
 msgstr ""
 
-#: python\panel\options_section.py:543 python\panel\options_section.py:642
+#: python/panel/options_section.py:543 python/panel/options_section.py:642
 msgid "Horizontal margin"
 msgstr ""
 
-#: python\panel\options_section.py:572 python\panel\options_section.py:643
+#: python/panel/options_section.py:572 python/panel/options_section.py:643
 msgid "Vertical margin"
 msgstr ""
 
-#: python\panel\options_section.py:597 python\panel\options_section.py:644
+#: python/panel/options_section.py:597 python/panel/options_section.py:644
 msgid "Background opacity"
 msgstr ""
 
-#: python\panel\options_section.py:886
+#: python/panel/options_section.py:886
 msgid "Metadata"
 msgstr ""
 
-#: python\panel\options_section.py:890
+#: python/panel/options_section.py:890
 msgid "Apply"
 msgstr ""
 
-#: python\panel\options_section.py:891 wmm_platform\shell\po\pot_manager.py:823
-#: wmm_platform\shell\po\pot_manager.py:902
-#: wmm_platform\shell\po\pot_manager.py:928
-#: wmm_platform\shell\po\pot_manager.py:1155
-#: wmm_platform\shell\po\pot_manager.py:1316
+#: python/panel/options_section.py:891 wmm_platform/shell/po/pot_manager.py:823
+#: wmm_platform/shell/po/pot_manager.py:902
+#: wmm_platform/shell/po/pot_manager.py:928
+#: wmm_platform/shell/po/pot_manager.py:1155
+#: wmm_platform/shell/po/pot_manager.py:1316
 msgid "Save"
 msgstr ""
 
-#: python\panel\options_section.py:946
-msgid "Geographic reference data:"
-msgstr ""
-
-#: python\panel\options_section.py:1147
+#: python/panel/options_section.py:1147
 msgid "Enable selective rotation without changing folder selections"
 msgstr ""
 
-#: python\panel\options_section.py:1149
+#: python/panel/options_section.py:1149
 msgid ""
 "Select at least one active folder in Sources to enable selective rotation"
 msgstr ""
 
-#: python\panel\options_section.py:1306
+#: python/panel/options_section.py:1306
 msgid "Synchronized"
 msgstr ""
 
-#: python\panel\options_section.py:1307 python\panel\sources_section.py:281
+#: python/panel/options_section.py:1307 python/panel/favorites_section.py:122
+msgid "Presets"
+msgstr ""
+
+#: python/panel/options_section.py:1307 python/panel/sources_section.py:281
 msgid "All"
 msgstr ""
 
-#: python\panel\options_section.py:1309
+#: python/panel/options_section.py:1309
 msgid "Asynchronous"
 msgstr ""
 
-#: python\panel\options_section.py:1310
+#: python/panel/options_section.py:1310
 msgid "Single"
 msgstr ""
 
-#: python\panel\sources_section.py:96
+#: python/panel/monitors_section.py:205
+#: wmm_platform/shell/windows/windows-frontend.py:772
+#: wmm_platform/shell/xfce/xfce-frontend.py:614
+#: wmm_platform/shell/xfce/xfce-frontend.py:1405
+#: wmm_platform/shell/mate/mate-applet.py:1272
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:655
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:673
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:674
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:892
+#: wmm_platform/shell/gnome/extension.gnome.js:937
+#: wmm_platform/shell/gnome/extension.gnome.js:941
+#: wmm_platform/shell/gnome/extension.gnome.js:1070
+msgid "Displays"
+msgstr ""
+
+#: python/panel/monitors_section.py:211
+msgid "Side Left"
+msgstr ""
+
+#: python/panel/monitors_section.py:215
+msgid "Center"
+msgstr ""
+
+#: python/panel/monitors_section.py:219
+msgid "Side Right"
+msgstr ""
+
+#: python/panel/monitors_section.py:295
+msgid "Enable/disable screen editing mode"
+msgstr ""
+
+#: python/panel/monitors_section.py:302
+msgid "Enable"
+msgstr ""
+
+#: python/panel/monitors_section.py:302 python/panel/monitors_section.py:306
+msgid "Editing Mode"
+msgstr ""
+
+#: python/panel/monitors_section.py:306 python/panel/sources_section.py:443
+#: wmm_platform/shell/windows/windows-frontend.py:836
+#: wmm_platform/shell/windows/windows-frontend.py:1233
+#: wmm_platform/shell/xfce/xfce-frontend.py:659
+#: wmm_platform/shell/xfce/xfce-frontend.py:785
+#: wmm_platform/shell/mate/mate-applet.py:1266
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:637
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:647
+#: wmm_platform/shell/gnome/extension.gnome.js:896
+#: wmm_platform/shell/gnome/extension.gnome.js:1043
+msgid "Enabled"
+msgstr ""
+
+#: python/panel/monitors_section.py:320
+#: wmm_platform/shell/file_manager/caja/wmm-desktop-actions.py:99
+#: wmm_platform/shell/file_manager/nautilus/wmm-nautilus.py:100
+msgid "Span image across all active screens"
+msgstr ""
+
+#: python/panel/monitors_section.py:327
+msgid "for current composition"
+msgstr ""
+
+#: python/panel/monitors_section.py:357
+msgid "Effects"
+msgstr ""
+
+#: python/panel/monitors_section.py:814
+msgid "Primary monitor"
+msgstr ""
+
+#: python/panel/monitors_section.py:826
+msgid "Enable/disable image"
+msgstr ""
+
+#: python/panel/monitors_section.py:863 python/panel/monitors_section.py:1633
+msgid "Display"
+msgstr ""
+
+#: python/panel/monitors_section.py:890
+msgid "Refresh real display status"
+msgstr ""
+
+#: python/panel/monitors_section.py:909
+msgid "Update preset on accept"
+msgstr ""
+
+#: python/panel/monitors_section.py:909
+msgid "Create preset on accept"
+msgstr ""
+
+#: python/panel/monitors_section.py:912
+msgid "Save current composition as preset"
+msgstr ""
+
+#: python/panel/monitors_section.py:915
+msgid "Add images to library and create a preset"
+msgstr ""
+
+#: python/panel/monitors_section.py:916
+msgid "Add images to library"
+msgstr ""
+
+#: python/panel/monitors_section.py:919
+msgid "Update preset and apply to monitors"
+msgstr ""
+
+#: python/panel/monitors_section.py:920
+msgid "Apply to monitors without updating preset"
+msgstr ""
+
+#: python/panel/monitors_section.py:923
+msgid "Create preset and apply to monitors"
+msgstr ""
+
+#: python/panel/monitors_section.py:924
+msgid "Apply to monitors"
+msgstr ""
+
+#: python/panel/monitors_section.py:1388
+msgid "Could not incorporate Online images."
+msgstr ""
+
+#: python/panel/monitors_section.py:1636
+msgid "editing"
+msgstr ""
+
+#: python/panel/favorites_section.py:106
+msgid "Slideshow only among favorite images"
+msgstr ""
+
+#: python/panel/favorites_section.py:131 python/panel/favorites_section.py:171
+msgid "Name"
+msgstr ""
+
+#: python/panel/favorites_section.py:149
+msgid "Delete selected preset/image"
+msgstr ""
+
+#: python/panel/favorites_section.py:188
+msgid "Delete selected image from favorites"
+msgstr ""
+
+#: python/panel/favorites_section.py:272 python/panel/favorites_section.py:388
+msgid "empty"
+msgstr ""
+
+#: python/panel/favorites_section.py:338
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:520
+#: wmm_platform/shell/gnome/extension.gnome.js:1348
+msgid "Delete preset"
+msgstr ""
+
+#: python/panel/favorites_section.py:340
+msgid "Load on screens"
+msgstr ""
+
+#: python/panel/favorites_section.py:347
+msgid "Delete image"
+msgstr ""
+
+#: python/panel/favorites_section.py:468 python/panel/favorites_section.py:470
+#: wmm_platform/shell/windows/windows-frontend.py:1461
+#: wmm_platform/shell/xfce/xfce-frontend.py:1253
+#: wmm_platform/shell/mate/mate-applet.py:1442
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:525
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:548
+#: wmm_platform/shell/gnome/extension.gnome.js:1355
+#: wmm_platform/shell/gnome/extension.gnome.js:1377
+msgid "Delete"
+msgstr ""
+
+#: python/panel/favorites_section.py:470
+msgid "images"
+msgstr ""
+
+#: python/panel/sources_section.py:96
 msgid "Image Sources"
 msgstr ""
 
-#: python\panel\sources_section.py:149
+#: python/panel/sources_section.py:149
 msgid "Recursive"
 msgstr ""
 
-#: python\panel\sources_section.py:168
+#: python/panel/sources_section.py:168
 msgid "Resync Image Sources"
 msgstr ""
 
-#: python\panel\sources_section.py:175 python\panel\sources_section.py:726
+#: python/panel/sources_section.py:175 python/panel/sources_section.py:726
 msgid "Sources need resynchronization"
 msgstr ""
 
-#: python\panel\sources_section.py:185 python\panel\sources_section.py:649
+#: python/panel/sources_section.py:185 python/panel/sources_section.py:649
 msgid "Add Image Source"
 msgstr ""
 
-#: python\panel\sources_section.py:189 python\panel\sources_section.py:656
-#: python\panel\sources_section.py:667
+#: python/panel/sources_section.py:189 python/panel/sources_section.py:656
+#: python/panel/sources_section.py:667
 msgid "Delete image source"
 msgstr ""
 
-#: python\panel\sources_section.py:404 python\panel\sources_section.py:728
+#: python/panel/sources_section.py:404 python/panel/sources_section.py:728
 msgid "Set a destination folder."
 msgstr ""
 
-#: python\panel\sources_section.py:443
+#: python/panel/sources_section.py:443
 msgid "Adds all subdirectories to the library."
 msgstr ""
 
-#: python\panel\sources_section.py:444
-#: wmm_platform\shell\mate\mate-applet.py:602
-#: wmm_platform\shell\mate\mate-applet.py:1266
-#: wmm_platform\shell\windows\windows-frontend.py:836
-#: wmm_platform\shell\windows\windows-frontend.py:1233
-#: wmm_platform\shell\windows\windows-frontend.py:1673
-#: wmm_platform\shell\xfce\xfce-frontend.py:659
-#: wmm_platform\shell\xfce\xfce-frontend.py:785
-#: wmm_platform\shell\xfce\xfce-frontend.py:1363
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:597
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:637
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:647
-#: wmm_platform\shell\gnome\extension.gnome.js:883
-#: wmm_platform\shell\gnome\extension.gnome.js:896
-#: wmm_platform\shell\gnome\extension.gnome.js:1043
+#: python/panel/sources_section.py:444
+#: wmm_platform/shell/windows/windows-frontend.py:836
+#: wmm_platform/shell/windows/windows-frontend.py:1233
+#: wmm_platform/shell/windows/windows-frontend.py:1673
+#: wmm_platform/shell/xfce/xfce-frontend.py:659
+#: wmm_platform/shell/xfce/xfce-frontend.py:785
+#: wmm_platform/shell/xfce/xfce-frontend.py:1363
+#: wmm_platform/shell/mate/mate-applet.py:602
+#: wmm_platform/shell/mate/mate-applet.py:1266
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:597
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:637
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:647
+#: wmm_platform/shell/gnome/extension.gnome.js:883
+#: wmm_platform/shell/gnome/extension.gnome.js:896
+#: wmm_platform/shell/gnome/extension.gnome.js:1043
 msgid "Disabled"
 msgstr ""
 
-#: python\panel\sources_section.py:444
+#: python/panel/sources_section.py:444
 msgid "Removes subdirectories from the library."
 msgstr ""
 
-#: python\panel\sources_section.py:636
+#: python/panel/sources_section.py:636
 msgid "Change Online folder"
 msgstr ""
 
-#: python\panel\sources_section.py:637 python\panel\sources_section.py:1043
+#: python/panel/sources_section.py:637 python/panel/sources_section.py:1043
 msgid "Set Online folder"
 msgstr ""
 
-#: python\panel\sources_section.py:639
+#: python/panel/sources_section.py:639
 msgid ""
 "Remove Online folder link. This folder and its contents will not be deleted."
 msgstr ""
 
-#: python\panel\sources_section.py:676 python\panel\sources_section.py:791
+#: python/panel/sources_section.py:676 python/panel/sources_section.py:791
 msgid "Deactivate folder"
 msgstr ""
 
-#: python\panel\sources_section.py:680 python\panel\sources_section.py:791
+#: python/panel/sources_section.py:680 python/panel/sources_section.py:791
 msgid "Activate folder"
 msgstr ""
 
-#: python\panel\sources_section.py:747
+#: python/panel/sources_section.py:747
 msgid "Could not synchronize the image library"
 msgstr ""
 
-#: python\panel\sources_section.py:748
+#: python/panel/sources_section.py:748
 msgid "For more information, see the WMM Debug Logger."
 msgstr ""
 
-#: python\panel\sources_section.py:764 python\panel\sources_section.py:1076
+#: python/panel/sources_section.py:764 python/panel/sources_section.py:1076
 msgid "Scanning"
 msgstr ""
 
-#: python\panel\sources_section.py:764
+#: python/panel/sources_section.py:764
 msgid "folders"
 msgstr ""
 
-#: python\panel\sources_section.py:781
+#: python/panel/sources_section.py:781
 msgid "Activate subfolders"
 msgstr ""
 
-#: python\panel\sources_section.py:785
+#: python/panel/sources_section.py:785
 msgid "Deactivate subfolders"
 msgstr ""
 
-#: python\panel\sources_section.py:800
+#: python/panel/sources_section.py:800
 msgid "Generate thumbnails"
 msgstr ""
 
-#: python\panel\sources_section.py:807
+#: python/panel/sources_section.py:807
 msgid "Delete cache"
 msgstr ""
 
-#: python\panel\sources_section.py:821
+#: python/panel/sources_section.py:821
 msgid "Remove from selective rotation"
 msgstr ""
 
-#: python\panel\sources_section.py:822
+#: python/panel/sources_section.py:822
 msgid "Add to selective rotation"
 msgstr ""
 
-#: python\panel\sources_section.py:885
+#: python/panel/sources_section.py:885
 msgid "Delete cache of this folder?"
 msgstr ""
 
-#: python\panel\sources_section.py:887
+#: python/panel/sources_section.py:887
 msgid "Will be removed from your library"
 msgstr ""
 
-#: python\panel\sources_section.py:889 python\panel\sources_section.py:1151
+#: python/panel/sources_section.py:889 python/panel/sources_section.py:1151
 msgid "Images will no longer be available"
 msgstr ""
 
-#: python\panel\sources_section.py:897
+#: python/panel/sources_section.py:897
 msgid "Cache deleted"
 msgstr ""
 
-#: python\panel\sources_section.py:898
+#: python/panel/sources_section.py:898
 msgid "thumbnails have been removed from cache"
 msgstr ""
 
-#: python\panel\sources_section.py:902
+#: python/panel/sources_section.py:902
 msgid "No cache"
 msgstr ""
 
-#: python\panel\sources_section.py:903
+#: python/panel/sources_section.py:903
 msgid "No thumbnails found in cache for this folder."
 msgstr ""
 
-#: python\panel\sources_section.py:912
+#: python/panel/sources_section.py:912
 msgid "Scanning folder"
 msgstr ""
 
-#: python\panel\sources_section.py:938
+#: python/panel/sources_section.py:938
 msgid "Could not assign folder to Online"
 msgstr ""
 
-#: python\panel\sources_section.py:939
+#: python/panel/sources_section.py:939
 msgid ""
 "Check that the folder is available and not already used by another source."
 msgstr ""
 
-#: python\panel\sources_section.py:941
+#: python/panel/sources_section.py:941
 msgid "Image source not added"
 msgstr ""
 
-#: python\panel\sources_section.py:942
+#: python/panel/sources_section.py:942
 msgid "This folder may already be registered as an image source."
 msgstr ""
 
-#: python\panel\sources_section.py:981
+#: python/panel/sources_section.py:981
 msgid "Scanning sources"
 msgstr ""
 
-#: python\panel\sources_section.py:1020
+#: python/panel/sources_section.py:1020
 msgid "Select Online Folder"
 msgstr ""
 
-#: python\panel\sources_section.py:1020
+#: python/panel/sources_section.py:1020
 msgid "Select Image Folder"
 msgstr ""
 
-#: python\panel\sources_section.py:1043
+#: python/panel/sources_section.py:1043
 msgid "Add Source"
 msgstr ""
 
-#: python\panel\sources_section.py:1056
+#: python/panel/sources_section.py:1056
 msgid "Include subfolders (Recursive)"
 msgstr ""
 
-#: python\panel\sources_section.py:1126
+#: python/panel/sources_section.py:1126
 msgid "Remove Online folder link?"
 msgstr ""
 
-#: python\panel\sources_section.py:1128
+#: python/panel/sources_section.py:1128
 msgid "This folder and its contents will not be deleted."
 msgstr ""
 
-#: python\panel\sources_section.py:1148
+#: python/panel/sources_section.py:1148
 msgid "Delete image source?"
 msgstr ""
 
-#: python\panel\sources_section.py:1150
+#: python/panel/sources_section.py:1150
 msgid "will be removed from your library"
 msgstr ""
 
-#: python\panel\thumbnails_section.py:142
-#: python\panel\thumbnails_section.py:564
-#: python\panel\thumbnails_section.py:637
-msgid "Thumbnails"
-msgstr ""
-
-#: python\panel\thumbnails_section.py:186
-msgid "Online"
-msgstr ""
-
-#: python\panel\thumbnails_section.py:201
-msgid "Reload thumbnails"
-msgstr ""
-
-#: python\panel\thumbnails_section.py:479
-#: python\panel\thumbnails_section.py:690
-msgid "No images found."
-msgstr ""
-
-#: python\panel\thumbnails_section.py:721
-#: python\panel\thumbnails_section.py:744
-#: python\panel\thumbnails_section.py:789
-msgid "Website"
-msgstr ""
-
-#: python\panel\thumbnails_section.py:936
-msgid "No favorite images."
-msgstr ""
-
-#: python\panel\thumbnails_section.py:968
-msgid "Remove from favorites"
-msgstr ""
-
-#: wmm_platform\shell\file_manager\caja\wmm-desktop-actions.py:100
-#: wmm_platform\shell\file_manager\thunar\wmm-xfce-desktop.py:74
+#: wmm_platform/shell/file_manager/caja/wmm-desktop-actions.py:100
+#: wmm_platform/shell/file_manager/thunar/wmm-xfce-desktop.py:74
 msgid "Span the image currently shown on this monitor across all monitors"
 msgstr ""
 
-#: wmm_platform\shell\file_manager\caja\wmm-desktop-actions.py:108
-#: wmm_platform\shell\file_manager\thunar\wmm-xfce-desktop.py:82
+#: wmm_platform/shell/file_manager/caja/wmm-desktop-actions.py:108
+#: wmm_platform/shell/file_manager/thunar/wmm-xfce-desktop.py:82
 msgid "Add the image currently shown on this monitor to favorites"
 msgstr ""
 
-#: wmm_platform\shell\file_manager\thunar\wmm-xfce-desktop.py:73
+#: wmm_platform/shell/file_manager/thunar/wmm-xfce-desktop.py:73
 msgid "Span Current Image"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:189
-#: wmm_platform\shell\mate\mate-applet.py:377
-#: wmm_platform\shell\windows\windows-frontend.py:1847
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:820
-#: wmm_platform\shell\gnome\extension.gnome.js:1001
+#: wmm_platform/shell/po/pot_manager.py:299
+msgid "Translation Manager"
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:390
+msgid "Selected string"
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:407
+#: wmm_platform/shell/po/pot_manager.py:649
+msgid "Location"
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:429
+#: wmm_platform/shell/po/pot_manager.py:563
+msgid "Translations"
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:500
+msgid "New strings"
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:532
+msgid "Pending strings"
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:592
+msgid "Generate temporary .pot"
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:596
+msgid "Apply changes"
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:612
+#: wmm_platform/shell/po/pot_manager.py:1832
+msgid "Current"
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:613
+#: wmm_platform/shell/po/pot_manager.py:1833
+msgid "Temporary"
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:635
+msgid "Type"
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:642
+msgid "String"
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:689
+msgid "Ready."
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:967
+#: wmm_platform/shell/po/pot_manager.py:1369
+msgid "Saved"
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:971
+#: wmm_platform/shell/po/pot_manager.py:1371
+msgid "Translation saved"
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:1216
+#: wmm_platform/shell/po/pot_manager.py:1227
+#: wmm_platform/shell/po/pot_manager.py:2029
+#: wmm_platform/shell/po/pot_manager.py:2035
+msgid "Error updating"
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:1817
+msgid "Line"
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:1832
+#: wmm_platform/shell/po/pot_manager.py:1833
+msgid "strings"
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:1840
+msgid "Generating temporary .pot..."
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:1877
+#: wmm_platform/shell/po/pot_manager.py:1912
+msgid "Error generating temporary .pot: "
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:1909
+msgid "Temporary .pot generated successfully."
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:1943
+msgid "No official .pot to compare."
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:1952
+msgid "No temporary .pot to apply."
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:2002
+msgid "Backup"
+msgstr ""
+
+#: wmm_platform/shell/po/pot_manager.py:2047
+msgid "Changes applied successfully."
+msgstr ""
+
+#: wmm_platform/shell/installer/wmm-install_manager.py:189
+#: wmm_platform/shell/windows/windows-frontend.py:1847
+#: wmm_platform/shell/mate/mate-applet.py:377
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:820
+#: wmm_platform/shell/gnome/extension.gnome.js:1001
 msgid "Install Manager"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:238
-#: wmm_platform\shell\installer\wmm-install_manager.py:387
-#: wmm_platform\shell\installer\wmm-install_manager.py:397
-#: wmm_platform\shell\installer\wmm-install_manager.py:418
+#: wmm_platform/shell/installer/wmm-install_manager.py:238
+#: wmm_platform/shell/installer/wmm-install_manager.py:387
+#: wmm_platform/shell/installer/wmm-install_manager.py:397
+#: wmm_platform/shell/installer/wmm-install_manager.py:418
 msgid "Installed version"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:239
+#: wmm_platform/shell/installer/wmm-install_manager.py:239
 msgid "Desktop"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:240
+#: wmm_platform/shell/installer/wmm-install_manager.py:240
 msgid "Session"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:250
-#: wmm_platform\shell\installer\wmm-install_manager.py:429
+#: wmm_platform/shell/installer/wmm-install_manager.py:250
+#: wmm_platform/shell/installer/wmm-install_manager.py:429
 msgid "Upgrade"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:255
-#: wmm_platform\shell\installer\wmm-install_manager.py:625
-#: wmm_platform\shell\installer\wmm-install_manager.py:627
+#: wmm_platform/shell/installer/wmm-install_manager.py:255
+#: wmm_platform/shell/installer/wmm-install_manager.py:625
+#: wmm_platform/shell/installer/wmm-install_manager.py:627
 msgid "Reinstall"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:260
-#: wmm_platform\shell\installer\wmm-install_manager.py:719
-#: wmm_platform\shell\installer\wmm-install_manager.py:722
+#: wmm_platform/shell/installer/wmm-install_manager.py:260
+#: wmm_platform/shell/installer/wmm-install_manager.py:719
+#: wmm_platform/shell/installer/wmm-install_manager.py:722
 msgid "Uninstall"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:292
-#: wmm_platform\shell\installer\wmm-install_manager.py:308
+#: wmm_platform/shell/installer/wmm-install_manager.py:292
+#: wmm_platform/shell/installer/wmm-install_manager.py:308
 msgid "Maintenance status"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:308
+#: wmm_platform/shell/installer/wmm-install_manager.py:308
 msgid "WMM is ready for maintenance operations."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:340
-#: wmm_platform\shell\installer\wmm-install_manager.py:810
-#: wmm_platform\shell\installer\wmm-install_manager.py:962
+#: wmm_platform/shell/installer/wmm-install_manager.py:340
+#: wmm_platform/shell/installer/wmm-install_manager.py:810
+#: wmm_platform/shell/installer/wmm-install_manager.py:962
 msgid "Show details"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:375
+#: wmm_platform/shell/installer/wmm-install_manager.py:375
 msgid "Update check unavailable"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:376
+#: wmm_platform/shell/installer/wmm-install_manager.py:376
 msgid "WMM could not check GitHub for updates."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:386
+#: wmm_platform/shell/installer/wmm-install_manager.py:386
 msgid "Update available"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:387
-#, python-brace-format
+#: wmm_platform/shell/installer/wmm-install_manager.py:387
 msgid "WMM {} is available."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:391
+#: wmm_platform/shell/installer/wmm-install_manager.py:391
 msgid "WMM is up to date"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:392
+#: wmm_platform/shell/installer/wmm-install_manager.py:392
 msgid "You are running the latest published version:"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:396
+#: wmm_platform/shell/installer/wmm-install_manager.py:396
 msgid "Development version"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:398
+#: wmm_platform/shell/installer/wmm-install_manager.py:398
 msgid "Latest published version"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:415
+#: wmm_platform/shell/installer/wmm-install_manager.py:415
 msgid "A new version of WMM is available."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:417
+#: wmm_platform/shell/installer/wmm-install_manager.py:417
 msgid "Upgrade WMM"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:419
+#: wmm_platform/shell/installer/wmm-install_manager.py:419
 msgid "Available version"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:420
-#: wmm_platform\shell\installer\wmm-install_manager.py:720
+#: wmm_platform/shell/installer/wmm-install_manager.py:420
+#: wmm_platform/shell/installer/wmm-install_manager.py:720
 msgid "Do you want to continue?"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:449
+#: wmm_platform/shell/installer/wmm-install_manager.py:449
 msgid "Preparing WMM upgrade"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:450
+#: wmm_platform/shell/installer/wmm-install_manager.py:450
 msgid "The update package is being downloaded and prepared."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:454
-#: wmm_platform\shell\installer\wmm-install_manager.py:690
-#: wmm_platform\shell\installer\wmm-install_manager.py:753
-#: wmm_platform\shell\installer\wmm-install_manager.py:965
+#: wmm_platform/shell/installer/wmm-install_manager.py:454
+#: wmm_platform/shell/installer/wmm-install_manager.py:690
+#: wmm_platform/shell/installer/wmm-install_manager.py:753
+#: wmm_platform/shell/installer/wmm-install_manager.py:965
 msgid "Hide details"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:598
+#: wmm_platform/shell/installer/wmm-install_manager.py:598
 msgid "Upgrade preparation failed"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:599
+#: wmm_platform/shell/installer/wmm-install_manager.py:599
 msgid "The WMM update package could not be prepared:"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:613
+#: wmm_platform/shell/installer/wmm-install_manager.py:613
 msgid "Repair package unavailable"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:614
+#: wmm_platform/shell/installer/wmm-install_manager.py:614
 msgid "The local WMM repair package could not be found."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:624
+#: wmm_platform/shell/installer/wmm-install_manager.py:624
 msgid "WMM will be reinstalled using a clean copy of the current version."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:626
+#: wmm_platform/shell/installer/wmm-install_manager.py:626
 msgid "Your WMM settings and persistent data will be preserved."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:670
+#: wmm_platform/shell/installer/wmm-install_manager.py:670
 msgid "Unable to prepare reinstall"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:671
+#: wmm_platform/shell/installer/wmm-install_manager.py:671
 msgid "The WMM repair package could not be prepared:"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:684
+#: wmm_platform/shell/installer/wmm-install_manager.py:684
 msgid "Reinstalling WMM"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:685
+#: wmm_platform/shell/installer/wmm-install_manager.py:685
 msgid "The reinstall process is running."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:707
+#: wmm_platform/shell/installer/wmm-install_manager.py:707
 msgid "WMM uninstaller was not found."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:717
+#: wmm_platform/shell/installer/wmm-install_manager.py:717
 msgid "WMM and its desktop integration will be removed from this system."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:748
+#: wmm_platform/shell/installer/wmm-install_manager.py:748
 msgid "Uninstalling WMM"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:748
+#: wmm_platform/shell/installer/wmm-install_manager.py:748
 msgid "The uninstall process is running."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:798
+#: wmm_platform/shell/installer/wmm-install_manager.py:798
 msgid "Unable to start upgrade"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:799
+#: wmm_platform/shell/installer/wmm-install_manager.py:799
 msgid "The WMM upgrade process could not be started:"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:801
+#: wmm_platform/shell/installer/wmm-install_manager.py:801
 msgid "Unable to start reinstall"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:802
+#: wmm_platform/shell/installer/wmm-install_manager.py:802
 msgid "The WMM reinstall process could not be started:"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:804
+#: wmm_platform/shell/installer/wmm-install_manager.py:804
 msgid "Unable to start the uninstaller"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:805
+#: wmm_platform/shell/installer/wmm-install_manager.py:805
 msgid "The WMM uninstaller could not be started:"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:838
+#: wmm_platform/shell/installer/wmm-install_manager.py:838
 msgid "Uninstallation completed with warnings"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:839
-#: wmm_platform\shell\installer\wmm-install_manager.py:844
+#: wmm_platform/shell/installer/wmm-install_manager.py:839
+#: wmm_platform/shell/installer/wmm-install_manager.py:844
 msgid "WMM has been successfully uninstalled."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:840
+#: wmm_platform/shell/installer/wmm-install_manager.py:840
 msgid ""
 "Log out and log back in to ensure no previous WMM process remains active."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:843
+#: wmm_platform/shell/installer/wmm-install_manager.py:843
 msgid "Uninstallation completed"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:854
+#: wmm_platform/shell/installer/wmm-install_manager.py:854
 msgid "Uninstallation incomplete"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:855
+#: wmm_platform/shell/installer/wmm-install_manager.py:855
 msgid "WMM could not be completely uninstalled."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:856
-#: wmm_platform\shell\installer\wmm-install_manager.py:883
-#: wmm_platform\shell\installer\wmm-install_manager.py:906
+#: wmm_platform/shell/installer/wmm-install_manager.py:856
+#: wmm_platform/shell/installer/wmm-install_manager.py:883
+#: wmm_platform/shell/installer/wmm-install_manager.py:906
 msgid "Review the terminal output for details."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:873
+#: wmm_platform/shell/installer/wmm-install_manager.py:873
 msgid "Reinstallation completed"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:874
+#: wmm_platform/shell/installer/wmm-install_manager.py:874
 msgid "WMM has been successfully reinstalled."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:881
+#: wmm_platform/shell/installer/wmm-install_manager.py:881
 msgid "Reinstallation incomplete"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:882
+#: wmm_platform/shell/installer/wmm-install_manager.py:882
 msgid "WMM could not be completely reinstalled."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:900
+#: wmm_platform/shell/installer/wmm-install_manager.py:900
 msgid "Upgrade completed"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:901
+#: wmm_platform/shell/installer/wmm-install_manager.py:901
 msgid "WMM has been successfully upgraded to version:"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:904
+#: wmm_platform/shell/installer/wmm-install_manager.py:904
 msgid "Upgrade incomplete"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:905
+#: wmm_platform/shell/installer/wmm-install_manager.py:905
 msgid "WMM could not be completely upgraded."
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:929
+#: wmm_platform/shell/installer/wmm-install_manager.py:929
 msgid "Copy"
 msgstr ""
 
-#: wmm_platform\shell\installer\wmm-install_manager.py:934
+#: wmm_platform/shell/installer/wmm-install_manager.py:934
 msgid "Paste"
 msgstr ""
 
-#: wmm_platform\shell\mate\mate-applet.py:224
-#: wmm_platform\shell\windows\windows-frontend.py:2224
-#: wmm_platform\shell\xfce\xfce-frontend.py:359
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:206
-#: wmm_platform\shell\gnome\extension.gnome.js:330
-msgid "Click action"
-msgstr ""
-
-#: wmm_platform\shell\mate\mate-applet.py:225
-#: wmm_platform\shell\windows\windows-frontend.py:2224
-#: wmm_platform\shell\xfce\xfce-frontend.py:359
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:206
-#: wmm_platform\shell\gnome\extension.gnome.js:330
-msgid "Main Menu"
-msgstr ""
-
-#: wmm_platform\shell\mate\mate-applet.py:226
-#: wmm_platform\shell\windows\windows-frontend.py:2225
-#: wmm_platform\shell\xfce\xfce-frontend.py:360
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:207
-#: wmm_platform\shell\gnome\extension.gnome.js:331
-msgid "Middle Click"
-msgstr ""
-
-#: wmm_platform\shell\mate\mate-applet.py:228
-#: wmm_platform\shell\windows\windows-frontend.py:2226
-#: wmm_platform\shell\xfce\xfce-frontend.py:361
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:208
-#: wmm_platform\shell\gnome\extension.gnome.js:332
-msgid "Secondary Click"
-msgstr ""
-
-#: wmm_platform\shell\mate\mate-applet.py:229
-#: wmm_platform\shell\windows\windows-frontend.py:2226
-#: wmm_platform\shell\xfce\xfce-frontend.py:361
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:208
-#: wmm_platform\shell\gnome\extension.gnome.js:332
-msgid "Context Menu"
-msgstr ""
-
-#: wmm_platform\shell\mate\mate-applet.py:373
-#: wmm_platform\shell\mate\mate-applet.py:1254
-#: wmm_platform\shell\windows\windows-frontend.py:1839
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:804
-#: wmm_platform\shell\gnome\extension.gnome.js:991
-msgid "Settings"
-msgstr ""
-
-#: wmm_platform\shell\mate\mate-applet.py:374
-#: wmm_platform\shell\windows\windows-frontend.py:1841
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:812
-#: wmm_platform\shell\gnome\extension.gnome.js:995
-msgid "Sync Library"
-msgstr ""
-
-#: wmm_platform\shell\mate\mate-applet.py:418
-#: wmm_platform\shell\windows\windows-frontend.py:1724
-#: wmm_platform\shell\xfce\xfce-frontend.py:1415
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:659
-#: wmm_platform\shell\gnome\extension.gnome.js:951
-msgid "Spanned Mode"
-msgstr ""
-
-#: wmm_platform\shell\mate\mate-applet.py:499
-#: wmm_platform\shell\windows\windows-frontend.py:1641
-#: wmm_platform\shell\xfce\xfce-frontend.py:1309
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:317
-#: wmm_platform\shell\gnome\extension.gnome.js:827
-msgid "Favorites Only"
-msgstr ""
-
-#: wmm_platform\shell\mate\mate-applet.py:508
-#: wmm_platform\shell\windows\windows-frontend.py:1644
-#: wmm_platform\shell\xfce\xfce-frontend.py:1321
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:330
-#: wmm_platform\shell\gnome\extension.gnome.js:854
-msgid "Add Preset Favorite"
-msgstr ""
-
-#: wmm_platform\shell\mate\mate-applet.py:815
-#: wmm_platform\shell\windows\windows-frontend.py:1751
-#: wmm_platform\shell\xfce\xfce-frontend.py:906
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:742
-#: wmm_platform\shell\gnome\extension.gnome.js:305
-msgid "Secondary click: assign a keyboard shortcut"
-msgstr ""
-
-#: wmm_platform\shell\mate\mate-applet.py:1271
-#: wmm_platform\shell\windows\windows-frontend.py:771
-#: wmm_platform\shell\xfce\xfce-frontend.py:613
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:673
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:892
-#: wmm_platform\shell\gnome\extension.gnome.js:941
-#: wmm_platform\shell\gnome\extension.gnome.js:1070
+#: wmm_platform/shell/windows/windows-frontend.py:771
+#: wmm_platform/shell/xfce/xfce-frontend.py:613
+#: wmm_platform/shell/mate/mate-applet.py:1271
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:673
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:892
+#: wmm_platform/shell/gnome/extension.gnome.js:941
+#: wmm_platform/shell/gnome/extension.gnome.js:1070
 msgid "SYNC (All)"
 msgstr ""
 
-#: wmm_platform\shell\mate\mate-applet.py:1271
-#: wmm_platform\shell\windows\windows-frontend.py:771
-#: wmm_platform\shell\xfce\xfce-frontend.py:613
-#: wmm_platform\shell\xfce\xfce-frontend.py:1405
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:655
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:674
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:892
-#: wmm_platform\shell\gnome\extension.gnome.js:937
-#: wmm_platform\shell\gnome\extension.gnome.js:941
-#: wmm_platform\shell\gnome\extension.gnome.js:1070
+#: wmm_platform/shell/windows/windows-frontend.py:771
+#: wmm_platform/shell/xfce/xfce-frontend.py:613
+#: wmm_platform/shell/xfce/xfce-frontend.py:1405
+#: wmm_platform/shell/mate/mate-applet.py:1271
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:655
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:674
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:892
+#: wmm_platform/shell/gnome/extension.gnome.js:937
+#: wmm_platform/shell/gnome/extension.gnome.js:941
+#: wmm_platform/shell/gnome/extension.gnome.js:1070
 msgid "ASYNC (One)"
 msgstr ""
 
-#: wmm_platform\shell\mate\mate-applet.py:1313
-#: wmm_platform\shell\windows\windows-frontend.py:1376
-#: wmm_platform\shell\xfce\xfce-frontend.py:1125
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:373
-#: wmm_platform\shell\gnome\extension.gnome.js:1096
+#: wmm_platform/shell/windows/windows-frontend.py:1376
+#: wmm_platform/shell/xfce/xfce-frontend.py:1125
+#: wmm_platform/shell/mate/mate-applet.py:1313
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:373
+#: wmm_platform/shell/gnome/extension.gnome.js:1096
 msgid "No saved favorites"
 msgstr ""
 
-#: wmm_platform\shell\mate\mate-applet.py:1444
-#: wmm_platform\shell\windows\windows-frontend.py:1463
-#: wmm_platform\shell\xfce\xfce-frontend.py:1255
+#: wmm_platform/shell/windows/windows-frontend.py:1463
+#: wmm_platform/shell/xfce/xfce-frontend.py:1255
+#: wmm_platform/shell/mate/mate-applet.py:1444
 msgid "Delete favorite"
 msgstr ""
 
-#: wmm_platform\shell\po\pot_manager.py:299
-msgid "Translation Manager"
+#: wmm_platform/shell/windows/windows-frontend.py:1641
+#: wmm_platform/shell/xfce/xfce-frontend.py:1309
+#: wmm_platform/shell/mate/mate-applet.py:499
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:317
+#: wmm_platform/shell/gnome/extension.gnome.js:827
+msgid "Favorites Only"
 msgstr ""
 
-#: wmm_platform\shell\po\pot_manager.py:390
-msgid "Selected string"
+#: wmm_platform/shell/windows/windows-frontend.py:1644
+#: wmm_platform/shell/xfce/xfce-frontend.py:1321
+#: wmm_platform/shell/mate/mate-applet.py:508
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:330
+#: wmm_platform/shell/gnome/extension.gnome.js:854
+msgid "Add Preset Favorite"
 msgstr ""
 
-#: wmm_platform\shell\po\pot_manager.py:407
-#: wmm_platform\shell\po\pot_manager.py:649
-msgid "Location"
+#: wmm_platform/shell/windows/windows-frontend.py:1724
+#: wmm_platform/shell/xfce/xfce-frontend.py:1415
+#: wmm_platform/shell/mate/mate-applet.py:418
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:659
+#: wmm_platform/shell/gnome/extension.gnome.js:951
+msgid "Spanned Mode"
 msgstr ""
 
-#: wmm_platform\shell\po\pot_manager.py:429
-#: wmm_platform\shell\po\pot_manager.py:563
-msgid "Translations"
+#: wmm_platform/shell/windows/windows-frontend.py:1751
+#: wmm_platform/shell/xfce/xfce-frontend.py:906
+#: wmm_platform/shell/mate/mate-applet.py:815
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:742
+#: wmm_platform/shell/gnome/extension.gnome.js:305
+msgid "Secondary click: assign a keyboard shortcut"
 msgstr ""
 
-#: wmm_platform\shell\po\pot_manager.py:500
-msgid "New strings"
+#: wmm_platform/shell/windows/windows-frontend.py:1839
+#: wmm_platform/shell/mate/mate-applet.py:373
+#: wmm_platform/shell/mate/mate-applet.py:1254
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:804
+#: wmm_platform/shell/gnome/extension.gnome.js:991
+msgid "Settings"
 msgstr ""
 
-#: wmm_platform\shell\po\pot_manager.py:532
-msgid "Pending strings"
+#: wmm_platform/shell/windows/windows-frontend.py:1841
+#: wmm_platform/shell/mate/mate-applet.py:374
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:812
+#: wmm_platform/shell/gnome/extension.gnome.js:995
+msgid "Sync Library"
 msgstr ""
 
-#: wmm_platform\shell\po\pot_manager.py:592
-msgid "Generate temporary .pot"
-msgstr ""
-
-#: wmm_platform\shell\po\pot_manager.py:596
-msgid "Apply changes"
-msgstr ""
-
-#: wmm_platform\shell\po\pot_manager.py:612
-#: wmm_platform\shell\po\pot_manager.py:1832
-msgid "Current"
-msgstr ""
-
-#: wmm_platform\shell\po\pot_manager.py:613
-#: wmm_platform\shell\po\pot_manager.py:1833
-msgid "Temporary"
-msgstr ""
-
-#: wmm_platform\shell\po\pot_manager.py:635
-msgid "Type"
-msgstr ""
-
-#: wmm_platform\shell\po\pot_manager.py:642
-msgid "String"
-msgstr ""
-
-#: wmm_platform\shell\po\pot_manager.py:689
-msgid "Ready."
-msgstr ""
-
-#: wmm_platform\shell\po\pot_manager.py:967
-#: wmm_platform\shell\po\pot_manager.py:1369
-msgid "Saved"
-msgstr ""
-
-#: wmm_platform\shell\po\pot_manager.py:971
-#: wmm_platform\shell\po\pot_manager.py:1371
-msgid "Translation saved"
-msgstr ""
-
-#: wmm_platform\shell\po\pot_manager.py:1216
-#: wmm_platform\shell\po\pot_manager.py:1227
-#: wmm_platform\shell\po\pot_manager.py:2029
-#: wmm_platform\shell\po\pot_manager.py:2035
-msgid "Error updating"
-msgstr ""
-
-#: wmm_platform\shell\po\pot_manager.py:1817
-msgid "Line"
-msgstr ""
-
-#: wmm_platform\shell\po\pot_manager.py:1832
-#: wmm_platform\shell\po\pot_manager.py:1833
-msgid "strings"
-msgstr ""
-
-#: wmm_platform\shell\po\pot_manager.py:1840
-msgid "Generating temporary .pot..."
-msgstr ""
-
-#: wmm_platform\shell\po\pot_manager.py:1877
-#: wmm_platform\shell\po\pot_manager.py:1912
-msgid "Error generating temporary .pot: "
-msgstr ""
-
-#: wmm_platform\shell\po\pot_manager.py:1909
-msgid "Temporary .pot generated successfully."
-msgstr ""
-
-#: wmm_platform\shell\po\pot_manager.py:1943
-msgid "No official .pot to compare."
-msgstr ""
-
-#: wmm_platform\shell\po\pot_manager.py:1952
-msgid "No temporary .pot to apply."
-msgstr ""
-
-#: wmm_platform\shell\po\pot_manager.py:2002
-msgid "Backup"
-msgstr ""
-
-#: wmm_platform\shell\po\pot_manager.py:2047
-msgid "Changes applied successfully."
-msgstr ""
-
-#: wmm_platform\shell\windows\windows-frontend.py:1858
+#: wmm_platform/shell/windows/windows-frontend.py:1858
 msgid "Start WMM with Windows"
 msgstr ""
 
-#: wmm_platform\shell\windows\windows-frontend.py:1867
-#: wmm_platform\shell\cinnamon\applet.cinnamon.js:856
-#: wmm_platform\shell\gnome\extension.gnome.js:1026
+#: wmm_platform/shell/windows/windows-frontend.py:1867
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:856
+#: wmm_platform/shell/gnome/extension.gnome.js:1026
 msgid "Exit"
+msgstr ""
+
+#: wmm_platform/shell/windows/windows-frontend.py:2224
+#: wmm_platform/shell/xfce/xfce-frontend.py:359
+#: wmm_platform/shell/mate/mate-applet.py:224
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:206
+#: wmm_platform/shell/gnome/extension.gnome.js:330
+msgid "Click action"
+msgstr ""
+
+#: wmm_platform/shell/windows/windows-frontend.py:2224
+#: wmm_platform/shell/xfce/xfce-frontend.py:359
+#: wmm_platform/shell/mate/mate-applet.py:225
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:206
+#: wmm_platform/shell/gnome/extension.gnome.js:330
+msgid "Main Menu"
+msgstr ""
+
+#: wmm_platform/shell/windows/windows-frontend.py:2225
+#: wmm_platform/shell/xfce/xfce-frontend.py:360
+#: wmm_platform/shell/mate/mate-applet.py:226
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:207
+#: wmm_platform/shell/gnome/extension.gnome.js:331
+msgid "Middle Click"
+msgstr ""
+
+#: wmm_platform/shell/windows/windows-frontend.py:2226
+#: wmm_platform/shell/xfce/xfce-frontend.py:361
+#: wmm_platform/shell/mate/mate-applet.py:228
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:208
+#: wmm_platform/shell/gnome/extension.gnome.js:332
+msgid "Secondary Click"
+msgstr ""
+
+#: wmm_platform/shell/windows/windows-frontend.py:2226
+#: wmm_platform/shell/xfce/xfce-frontend.py:361
+#: wmm_platform/shell/mate/mate-applet.py:229
+#: wmm_platform/shell/cinnamon/applet.cinnamon.js:208
+#: wmm_platform/shell/gnome/extension.gnome.js:332
+msgid "Context Menu"
 msgstr ""

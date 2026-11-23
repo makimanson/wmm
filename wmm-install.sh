@@ -1042,6 +1042,10 @@ prepare_staging() {
     cp -f "$CHANGELOG_FILE" "$STAGING/CHANGELOG.md" || return 1
     cp -f "$LICENSE_FILE" "$STAGING/LICENSE" || return 1
 
+    # data/ sólo existe en el paquete fuente para los gestores legacy
+    # v1.4.0/v1.5.0. No pertenece al core ni al DATA_DIR instalado.
+    rm -rf "$STAGING/data" || return 1
+
     # ----------------------------------------------------------
     # DATA WMM
     # ----------------------------------------------------------
